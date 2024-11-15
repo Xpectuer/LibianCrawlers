@@ -22,5 +22,6 @@ pip install poetry
 Second, install all dependencies.
 
 ```shell
-poetry update
+# you can install with all groups
+poetry update --with test crawler-xiaohongshu
 ```

@@ -8,8 +8,28 @@ license = "fuck"
 [tool.poetry.dependencies]
 python = "~3.9"
 curl-cffi = "^0.7.3"
+loguru = "^0.7.2"
+fire = "^0.7.0"
+confection = "^0.1.5"
+json5 = "^0.9.28"
 
 [tool.poetry.dev-dependencies]
+
+[tool.poetry.group.test]
+optional = true
+
+[tool.poetry.group.test.dependencies]
+pytest-randomly = "^3.15.0"
+pytest = "^8.2.0"
+
+[tool.poetry.group.crawler-xiaohongshu]
+optional = true
+
+[tool.poetry.group.crawler-xiaohongshu.dependencies]
+xhs = "^0.2.13"
+
+[tool.poetry.scripts]
+xiaohongshu-search = "libiancrawlers.xiaohongshu.search:cli"
 
 [[tool.poetry.source]]
 name = "tsinghua"
