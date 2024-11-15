@@ -23,7 +23,7 @@ Second, install all dependencies.
 
 ```shell
 # you can install with all groups
-poetry update --with test crawler-xiaohongshu
+poetry update --with test,crawler-xiaohongshu
 ```
 
 ### Example
