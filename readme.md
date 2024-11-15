@@ -1,4 +1,4 @@
-# iancrawler
+# libiancrawler
 
 ## Setup
 
@@ -24,4 +24,12 @@ Second, install all dependencies.
 ```shell
 # you can install with all groups
 poetry update --with test crawler-xiaohongshu
+```
+
+### Example
+
+Start xiaohongshu search :
+
+```shell
+poetry run xiaohongshu-search -k Python
 ```
