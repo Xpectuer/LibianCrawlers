@@ -12,6 +12,8 @@ loguru = "^0.7.2"
 fire = "^0.7.0"
 confection = "^0.1.5"
 json5 = "^0.9.28"
+random-user-agent = "^1.0.1"
+psycopg2-binary = "^2.9.10"
 
 [tool.poetry.dev-dependencies]
 

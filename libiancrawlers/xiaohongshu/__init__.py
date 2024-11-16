@@ -1,18 +1,16 @@
 # -*- coding: UTF-8 -*-
-
-
-if __name__ == '__main__':
-    pass
-
+from typing import Dict, Any
 import json
 from curl_cffi import requests
-
+from loguru import logger
 from xhs import DataFetchError, XhsClient, IPBlockError, ErrorEnum
+from xhs.exception import NeedVerifyError, SignError
+
+from libiancrawlers.common import random_user_agent, read_config, is_config_truthy
 
 
 def _sign(uri, data=None, a1="", web_session=""):
-    # 填写自己的 flask 签名服务端口地址
-    res = requests.post("https://xhs-api.tong-ju.top:8443/sign",
+    res = requests.post(read_config('crawler', 'xiaohongshu', 'sign-server-path'),
                         json={"uri": uri, "data": data, "a1": a1, "web_session": web_session})
     signs = res.json()
     return {
@@ -27,7 +25,7 @@ def get_note_by_id_from_html(self, note_id: str, xsec_token: str):
     def camel_to_underscore(key):
         return re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower()
 
-    def transform_json_keys(json_data):
+    def transform_json_keys(json_data) -> Dict[str, Any]:
         try:
             data_dict = json.loads(json_data)
             dict_new = {}
@@ -65,8 +63,50 @@ def get_note_by_id_from_html(self, note_id: str, xsec_token: str):
     raise DataFetchError(html)
 
 
+def _request(self, method, url, **kwargs):
+    logd = is_config_truthy(read_config('crawler', 'xiaohongshu', 'logd-request'))
+    if logd:
+        logger.debug('xhs request (self is {}) {} {} {}', self, method, url, kwargs)
+    response = self.session.request(
+        method, url, timeout=self.timeout, proxies=self.proxies, **kwargs
+    )
+    if not len(response.text):
+        return response
+    try:
+        data = response.json()
+    except json.decoder.JSONDecodeError:
+        return response
+    if logd:
+        logger.debug('xhs response is {}, data is {}', response, data)
+    if response.status_code == 471 or response.status_code == 461:
+        # someday someone maybe will bypass captcha
+        verify_type = response.headers['Verifytype']
+        verify_uuid = response.headers['Verifyuuid']
+        raise NeedVerifyError(
+            f"出现验证码，请求失败，Verifytype: {verify_type}，Verifyuuid: {verify_uuid}",
+            response=response, verify_type=verify_type, verify_uuid=verify_uuid)
+    elif data.get("success"):
+        return data.get("data", data.get("success"))
+    elif data.get("code") == ErrorEnum.IP_BLOCK.value.code:
+        raise IPBlockError(ErrorEnum.IP_BLOCK.value.msg, response=response)
+    elif data.get("code") == ErrorEnum.SIGN_FAULT.value.code:
+        raise SignError(ErrorEnum.SIGN_FAULT.value.msg, response=response)
+    else:
+        raise DataFetchError(data, response=response)
+
+
 def create_xhs_client(*, cookie: str):
     XhsClient.get_note_by_id_from_html = get_note_by_id_from_html
-    xhs_client = XhsClient(cookie, sign=_sign)
+    XhsClient.request = _request
+    xhs_client = XhsClient(cookie,
+                           sign=_sign,
+                           user_agent=random_user_agent()
+                           )
     xhs_client.__session = requests.session.Session()
+
+    logger.debug('create xhs client {}', xhs_client)
     return xhs_client
+
+
+if __name__ == '__main__':
+    pass
