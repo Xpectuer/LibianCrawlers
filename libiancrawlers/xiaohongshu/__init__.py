@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
-from typing import Dict, Any
+import threading
+from typing import Dict, Any, NamedTuple, Optional
 import json
 from curl_cffi import requests
 from loguru import logger
@@ -17,6 +18,10 @@ def _sign(uri, data=None, a1="", web_session=""):
         "x-s": signs["x-s"],
         "x-t": signs["x-t"]
     }
+
+
+def concat_xhs_note_url(*, note_id, xsec_token):
+    return f"https://www.xiaohongshu.com/discovery/item/{note_id}?source=webshare&xhsshare=pc_web&xsec_token={xsec_token}&xsec_source=pc_share"
 
 
 def _get_note_by_id_from_html(self, note_id: str, xsec_token: str):
@@ -49,7 +54,7 @@ def _get_note_by_id_from_html(self, note_id: str, xsec_token: str):
             # logger.error('Why json parse failed ? {}', json_data)
             raise
 
-    url = "https://www.xiaohongshu.com/explore/" + note_id + '?xsec_token=' + xsec_token
+    url = concat_xhs_note_url(note_id=note_id, xsec_token=xsec_token)
     res = self.session.get(url, headers={"user-agent": self.user_agent, "referer": "https://www.xiaohongshu.com/"})
     html = res.text
     _find_all_res = re.findall(r"window.__INITIAL_STATE__=({.*})</script>", html)
@@ -57,6 +62,9 @@ def _get_note_by_id_from_html(self, note_id: str, xsec_token: str):
         state = _find_all_res[0].replace("undefined", '""')
         if state != "{}":
             note_dict = transform_json_keys(state)
+            if note_dict["note"]["first_note_id"] != note_id:
+                logger.warning('Why note_dict["note"]["first_note_id"] != note_id ? note_id={} , note_dict={}',
+                               note_id, note_dict)
             return note_dict["note"]["note_detail_map"][note_id]["note"]
         elif ErrorEnum.IP_BLOCK.value in html:
             raise IPBlockError(ErrorEnum.IP_BLOCK.value)
@@ -95,7 +103,7 @@ def _request(self, method, url, **kwargs):
         raise DataFetchError(data, response=response)
 
 
-def create_xhs_client(*, cookie: str):
+def _create_xhs_client(*, cookie: str):
     XhsClient.get_note_by_id_from_html = _get_note_by_id_from_html
     XhsClient.request = _request
     xhs_client = XhsClient(cookie,
@@ -105,6 +113,26 @@ def create_xhs_client(*, cookie: str):
     xhs_client.__session = requests.session.Session()
     logger.debug('create xhs client {}', xhs_client)
     return xhs_client
+
+
+_GLOBAL_XHS_CLIENT = None
+_GLOBAL_XHS_CLIENT_LOCK = threading.Lock()
+
+
+def get_global_xhs_client():
+    global _GLOBAL_XHS_CLIENT
+    if _GLOBAL_XHS_CLIENT is None:
+        with _GLOBAL_XHS_CLIENT_LOCK:
+            if _GLOBAL_XHS_CLIENT is None:
+                _cookie = read_config('crawler', 'xiaohongshu', 'cookie')
+                _GLOBAL_XHS_CLIENT = _create_xhs_client(cookie=_cookie)
+    return _GLOBAL_XHS_CLIENT
+
+
+class XHSNoteLink(NamedTuple):
+    note_id: str
+    xsec_token: str
+    title: Optional[str]
 
 
 if __name__ == '__main__':
