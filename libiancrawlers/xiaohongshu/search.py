@@ -3,6 +3,7 @@ from os import PathLike
 from typing import List, Optional, Union, Tuple
 from loguru import logger
 
+from libiancrawlers.common.postgres import insert_to_garbage_table, require_init_table
 from libiancrawlers.xiaohongshu import create_xhs_client
 from ..common import read_config, isinstance_tls
 
@@ -25,6 +26,7 @@ def search(*, keywords: Union[str, Tuple[str]]):
     #         cookie=Column.DataType.SingleLineText,
     #     )
     # )
+    require_init_table()
 
     for keyword in keywords:
         for page in range(1, _search_page_max):
@@ -32,13 +34,19 @@ def search(*, keywords: Union[str, Tuple[str]]):
                          keyword, page, _search_page_size, _search_page_max)
             result = xhs_client.get_note_by_keyword(keyword, page=page, page_size=_search_page_size)
 
-            # table.create_record(
-            #     keyword=keyword,
-            #     page=page,
-            #     page_size=_search_page_size,
-            #     result=result,
-            #     cookie=_cookie
-            # )
+            insert_to_garbage_table(
+                g_type='xiaohongshu_search_result',
+                g_content=dict(
+                    result=result,
+                    page=page,
+                    search_page_size=_search_page_size,
+                    search_page_max=_search_page_max,
+                ),
+                g_search_key=keyword,
+            )
+
+            # break
+
             if not result["has_more"]:
                 break
     logger.info('Finish search {}', keywords)

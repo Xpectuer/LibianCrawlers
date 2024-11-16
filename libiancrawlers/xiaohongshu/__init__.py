@@ -19,7 +19,7 @@ def _sign(uri, data=None, a1="", web_session=""):
     }
 
 
-def get_note_by_id_from_html(self, note_id: str, xsec_token: str):
+def _get_note_by_id_from_html(self, note_id: str, xsec_token: str):
     import re
 
     def camel_to_underscore(key):
@@ -96,14 +96,13 @@ def _request(self, method, url, **kwargs):
 
 
 def create_xhs_client(*, cookie: str):
-    XhsClient.get_note_by_id_from_html = get_note_by_id_from_html
+    XhsClient.get_note_by_id_from_html = _get_note_by_id_from_html
     XhsClient.request = _request
     xhs_client = XhsClient(cookie,
                            sign=_sign,
                            user_agent=random_user_agent()
                            )
     xhs_client.__session = requests.session.Session()
-
     logger.debug('create xhs client {}', xhs_client)
     return xhs_client
 
