@@ -17,6 +17,22 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
+name = "backoff"
+version = "2.2.1"
+description = "Function decoration for backoff and retry"
+optional = false
+python-versions = ">=3.7,<4.0"
+files = [
+    {file = "backoff-2.2.1-py3-none-any.whl", hash = "sha256:63579f9a0628e06278f7e47b7d7d5b6ce20dc65c5e96a6f3ca99a6adca0396e8"},
+    {file = "backoff-2.2.1.tar.gz", hash = "sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
 name = "catalogue"
 version = "2.0.10"
 description = "Super lightweight function registries for your library"
@@ -950,6 +966,21 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
+name = "ratelimit"
+version = "2.2.1"
+description = "API rate limit decorator"
+optional = false
+python-versions = "*"
+files = [
+    {file = "ratelimit-2.2.1.tar.gz", hash = "sha256:af8a9b64b821529aca09ebaf6d8d279100d766f19e90b5059ac6a718ca6dee42"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
 name = "requests"
 version = "2.32.3"
 description = "Python HTTP for Humans."
@@ -1165,4 +1196,4 @@ reference = "tsinghua"
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.9"
-content-hash = "d36bd1bce9c3fcc2565c298a0d9a2ca4ecb70c71db25a1f32f945b6b086289fa"
+content-hash = "12ca80c3a0b17b668930ba26cf9247da8c6474f7688febaf01c1e5c92115736d"

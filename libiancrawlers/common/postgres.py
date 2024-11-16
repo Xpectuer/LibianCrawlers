@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import json
 import threading
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Union, Tuple
 
 import psycopg2.pool
 from datetime import datetime
@@ -22,7 +22,6 @@ def get_conn():
         host=read_config("crawler", "postgres", "host"),
         port=read_config("crawler", "postgres", "port"),
     )
-    logger.info('Got postgres connection {}', conn)
     return conn
 
 
