@@ -33,6 +33,7 @@ xhs = "^0.2.13"
 
 [tool.poetry.scripts]
 xiaohongshu-search = "libiancrawlers.xiaohongshu.search:cli"
+taobao-search = "libiancrawlers.taobao.search:cli"
 
 [[tool.poetry.source]]
 name = "tsinghua"
