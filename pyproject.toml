@@ -33,6 +33,10 @@ optional = true
 [tool.poetry.group.crawler-xiaohongshu.dependencies]
 xhs = "^0.2.13"
 
+
+[tool.poetry.group.crawler-bilibili.dependencies]
+bilibili-api-dev = "^16.2.0b1"
+
 [tool.poetry.scripts]
 xiaohongshu-search = "libiancrawlers.xiaohongshu.search:cli"
 taobao-search = "libiancrawlers.taobao.search:cli"

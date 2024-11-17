@@ -4,7 +4,7 @@ import sys
 import json
 import threading
 from dataclasses import dataclass
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Any
 
 from confection import registry, Config
 from loguru import logger
@@ -58,28 +58,29 @@ _READIED_CONFIG = None
 _READIED_CONFIG_LOCK = threading.Lock()
 
 
-def read_config(*args: str, sys_exit: Optional[Callable[[int], None]] = None, ):
+def read_config(*args: str,
+                sys_exit: Optional[Callable[[int], None]] = None,
+                checking: Callable[[Any], Optional[str]] = None):
     global _READIED_CONFIG
     if _READIED_CONFIG is None:
         with _READIED_CONFIG_LOCK:
             if _READIED_CONFIG is None:
                 _READIED_CONFIG = _read_config(sys_exit=sys_exit)
-    if len(args) == 0:
-        return _READIED_CONFIG
-    else:
-        o = None
-        arg = None
-        try:
-            o = _READIED_CONFIG
-            for arg in args:
-                o = o[arg]
-            return o
-        except BaseException:
-            logger.error('Error on read config : config is {}',
-                         json.dumps(_READIED_CONFIG, ensure_ascii=False, indent=2))
-            logger.exception('Failed read config path {} , current : arg={} , o={}',
-                             args, arg, json.dumps(o, ensure_ascii=False, indent=2))
-            raise
+    o = _READIED_CONFIG
+    arg = None
+    try:
+        for arg in args:
+            o = o[arg]
+        err_msg = checking(o) if checking is not None else None
+        if err_msg:
+            raise ValueError('Invalid config %s : %s' % (args, err_msg))
+        return o
+    except BaseException:
+        logger.error('Error on read config : config is {}',
+                     json.dumps(_READIED_CONFIG, ensure_ascii=False, indent=2))
+        logger.exception('Failed read config path {} , current : arg={} , o={}',
+                         args, arg, json.dumps(o, ensure_ascii=False, indent=2))
+        raise
 
 
 def _read_config(*, sys_exit: Optional[Callable[[int], None]] = None):
