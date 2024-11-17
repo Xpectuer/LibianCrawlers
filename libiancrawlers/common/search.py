@@ -47,7 +47,6 @@ def abstract_search(*,
                             checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
 
     on_init()
-    # xhs_client = get_global_xhs_client()
 
     require_init_table()
 
@@ -84,7 +83,7 @@ def abstract_search(*,
                 else:
                     logger.debug('Skip crawling content for {} from {} ...', keyword, platform_id)
 
-                for page in range(1, page_max):
+                for page in range(1, page_max + 1):
                     logger.debug('Start search {} page {} (size {}, max {}, platform {})',
                                  keyword, page, page_size, page_max, platform_id)
 
