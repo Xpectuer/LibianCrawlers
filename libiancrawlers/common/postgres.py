@@ -67,15 +67,26 @@ def insert_to_garbage_table(*,
                             g_content: JSON,
                             ):
     require_init_table()
+
     conn = get_conn()
+    content = None
     try:
+        content = json.dumps(g_content, ensure_ascii=False)
+        content = content.encode("utf-8", 'ignore').decode('utf-8')
         cur = conn.cursor()
         cur.execute(
             'INSERT INTO libian_crawler.garbage ( g_type, g_search_key, g_content ) VALUES ( %s, %s, %s );',
-            (g_type, g_search_key, json.dumps(g_content, ensure_ascii=False))
+            (g_type,
+             g_search_key,
+             content
+             )
         )
         logger.debug('success insert to table')
         conn.commit()
+    except BaseException:
+        logger.error('Failed insert to garbage table .\n\ng_content is {}\n\ncontent is {}',
+                     g_content, content)
+        raise
     finally:
         conn.close()
 

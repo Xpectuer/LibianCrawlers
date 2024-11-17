@@ -2,6 +2,8 @@
 import threading
 from typing import Dict, Any, NamedTuple, Optional
 import json
+
+import json5
 from curl_cffi import requests
 from loguru import logger
 from xhs import DataFetchError, XhsClient, IPBlockError, ErrorEnum
@@ -24,6 +26,10 @@ def concat_xhs_note_url(*, note_id, xsec_token):
     return f"https://www.xiaohongshu.com/discovery/item/{note_id}?source=webshare&xhsshare=pc_web&xsec_token={xsec_token}&xsec_source=pc_share"
 
 
+class NoteNotExistOrFengKongException(Exception):
+    pass
+
+
 def _get_note_by_id_from_html(self, note_id: str, xsec_token: str):
     import re
 
@@ -32,7 +38,10 @@ def _get_note_by_id_from_html(self, note_id: str, xsec_token: str):
 
     def transform_json_keys(json_data) -> Dict[str, Any]:
         try:
-            data_dict = json.loads(json_data)
+            while '""""' in json_data:
+                logger.warning('Fuck xhs dirty data')
+                json_data = json_data.replace('""""', '""')
+            data_dict = json5.loads(json_data)
             dict_new = {}
             for key, value in data_dict.items():
                 new_key = camel_to_underscore(key)
@@ -51,7 +60,7 @@ def _get_note_by_id_from_html(self, note_id: str, xsec_token: str):
                     dict_new[new_key] = value
             return dict_new
         except BaseException:
-            # logger.error('Why json parse failed ? {}', json_data)
+            logger.error('Why json parse failed ? {}', json_data)
             raise
 
     url = concat_xhs_note_url(note_id=note_id, xsec_token=xsec_token)
@@ -62,6 +71,11 @@ def _get_note_by_id_from_html(self, note_id: str, xsec_token: str):
         state = _find_all_res[0].replace("undefined", '""')
         if state != "{}":
             note_dict = transform_json_keys(state)
+            if note_dict["note"]["first_note_id"] == '':
+                # 帖子被删了，或账号被风控
+                raise NoteNotExistOrFengKongException(
+                    f"""note_dict["note"]["first_note_id"] == '' , note_id={note_id}""")
+
             if note_dict["note"]["first_note_id"] != note_id:
                 logger.warning('Why note_dict["note"]["first_note_id"] != note_id ? note_id={} , note_dict={}',
                                note_id, note_dict)
@@ -103,7 +117,7 @@ def _request(self, method, url, **kwargs):
         raise DataFetchError(data, response=response)
 
 
-def _create_xhs_client(*, cookie: str):
+def create_xhs_client(*, cookie: str):
     XhsClient.get_note_by_id_from_html = _get_note_by_id_from_html
     XhsClient.request = _request
     xhs_client = XhsClient(cookie,
@@ -125,7 +139,7 @@ def get_global_xhs_client():
         with _GLOBAL_XHS_CLIENT_LOCK:
             if _GLOBAL_XHS_CLIENT is None:
                 _cookie = read_config('crawler', 'xiaohongshu', 'cookie')
-                _GLOBAL_XHS_CLIENT = _create_xhs_client(cookie=_cookie)
+                _GLOBAL_XHS_CLIENT = create_xhs_client(cookie=_cookie)
     return _GLOBAL_XHS_CLIENT
 
 
