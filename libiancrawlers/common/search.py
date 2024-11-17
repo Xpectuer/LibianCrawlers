@@ -106,7 +106,7 @@ def abstract_search(*,
                         g_search_key=keyword,
                     )
 
-                    if res.get('has_more'):
+                    if not res.get('has_more'):
                         break
 
             logger.info('Finish search {} from {}', keywords, platform_id)
