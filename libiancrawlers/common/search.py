@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from typing import Union, Tuple, Callable, TypedDict
+from typing import Union, Tuple, Callable, TypedDict, Optional
 
 from loguru import logger
 
@@ -15,7 +15,7 @@ class UnknownReasonContinuousFailed(Exception):
 SearchByKeywordContext = TypedDict('SearchByKeywordContext', {
     'keyword': str,
     'page': int,
-    'page_size': int,
+    'page_size': Optional[int],
 })
 SearchByKeywordResult = TypedDict('SearchByKeywordResult', {
     'search_result': JSON,
@@ -35,6 +35,7 @@ def abstract_search(*,
                     on_search_by_keyword: Callable[[SearchByKeywordContext], SearchByKeywordResult],
                     on_retry: Callable[[], None],
                     max_unknown_reason_failed: int = 6,
+                    page_size_ignore=False,
                     ):
     if isinstance(keywords, str):
         keywords = keywords.split(',')
@@ -43,9 +44,11 @@ def abstract_search(*,
 
     page_max = read_config('crawler', platform_id, 'search-page-max',
                            checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
-
-    page_size = read_config('crawler', platform_id, 'search-page-size',
-                            checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
+    if not page_size_ignore:
+        page_size = read_config('crawler', platform_id, 'search-page-size',
+                                checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
+    else:
+        page_size = None
 
     on_init()
 

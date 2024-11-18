@@ -213,6 +213,22 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
+name = "async-to-sync"
+version = "0.2.3"
+description = "Convert async coroutines to normal python functions"
+optional = false
+python-versions = "*"
+files = [
+    {file = "async_to_sync-0.2.3-py2.py3-none-any.whl", hash = "sha256:af509c8c849e00eff33c4d913b0c96ee93b755fa47d707615970615f41f08470"},
+    {file = "async_to_sync-0.2.3.tar.gz", hash = "sha256:592b07f1644bae56202f13efa6a7b1f048ed9b24eb7c9e927e4064535273fcaa"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
 name = "attrs"
 version = "24.2.0"
 description = "Classes Without Boilerplate"
@@ -2375,4 +2391,4 @@ reference = "tsinghua"
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.9"
-content-hash = "091e316b815ff8a7f7221f2f97aa663636c11107a63d777701bca0d5b8f6ea47"
+content-hash = "6e02e803e8128c5e0db777a295de5e155203f168747e71e0244c796b99c710ca"

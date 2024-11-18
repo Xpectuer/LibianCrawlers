@@ -16,6 +16,7 @@ random-user-agent = "^1.0.1"
 psycopg2-binary = "^2.9.10"
 ratelimit = "^2.2.1"
 backoff = "^2.2.1"
+async-to-sync = "^0.2.3"
 
 [tool.poetry.dev-dependencies]
 
@@ -39,6 +40,7 @@ bilibili-api-dev = "^16.2.0b1"
 
 [tool.poetry.scripts]
 xiaohongshu-search = "libiancrawlers.xiaohongshu.search:cli"
+bilibili-search = "libiancrawlers.bilibili.search:cli"
 taobao-search = "libiancrawlers.taobao.search:cli"
 
 [[tool.poetry.source]]
