@@ -1,11 +1,14 @@
 # -*- coding: UTF-8 -*-
+import asyncio
 import os
 import sys
 import json
 import threading
+import time
 from dataclasses import dataclass
 from typing import Callable, Optional, List, Any
 
+import async_to_sync
 from confection import registry, Config
 from loguru import logger
 
@@ -55,17 +58,22 @@ def isinstance_dtls(o: object):
 
 
 _READIED_CONFIG = None
-_READIED_CONFIG_LOCK = threading.Lock()
 
 
 def read_config(*args: str,
                 sys_exit: Optional[Callable[[int], None]] = None,
                 checking: Callable[[Any], Optional[str]] = None):
+    """
+    绝大多数情况下，此函数只在第一次启动时阻塞协程一次。所以无须在意。
+
+    :param args:
+    :param sys_exit:
+    :param checking:
+    :return:
+    """
     global _READIED_CONFIG
     if _READIED_CONFIG is None:
-        with _READIED_CONFIG_LOCK:
-            if _READIED_CONFIG is None:
-                _READIED_CONFIG = _read_config(sys_exit=sys_exit)
+        _READIED_CONFIG = _read_config(sys_exit=sys_exit)
     o = _READIED_CONFIG
     arg = None
     try:
@@ -127,6 +135,10 @@ def random_user_agent():
     user_agent = user_agent_rotator.get_random_user_agent()
 
     return user_agent
+
+
+async def on_before_retry_default():
+    await asyncio.sleep(60)
 
 
 if __name__ == '__main__':

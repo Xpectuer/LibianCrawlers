@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from typing import Union, Tuple, Callable, TypedDict, Optional
+from typing import Union, Tuple, Callable, TypedDict, Optional, Awaitable
 
 from loguru import logger
 
@@ -23,20 +23,20 @@ SearchByKeywordResult = TypedDict('SearchByKeywordResult', {
 })
 
 
-def abstract_search(*,
-                    keywords: Union[str, Tuple[str]],
-                    fetch_all_content: bool = False,
-                    fetch_all_comment: bool = False,
-                    retry: int = 0,
-                    platform_id: str,
-                    crawler_tag: JSON,
-                    on_init: Callable[[], None],
-                    # on_get_content: Callable[[], None],
-                    on_search_by_keyword: Callable[[SearchByKeywordContext], SearchByKeywordResult],
-                    on_retry: Callable[[], None],
-                    max_unknown_reason_failed: int = 6,
-                    page_size_ignore=False,
-                    ):
+async def abstract_search(*,
+                          keywords: Union[str, Tuple[str]],
+                          fetch_all_content: bool = False,
+                          fetch_all_comment: bool = False,
+                          retry_max: int = 0,
+                          platform_id: str,
+                          crawler_tag: JSON,
+                          on_init: Callable[[], Awaitable[None]],
+                          # on_get_content: Callable[[], None],
+                          on_search_by_keyword: Callable[[SearchByKeywordContext], Awaitable[SearchByKeywordResult]],
+                          on_before_retry: Callable[[int], Awaitable[bool]],
+                          max_unknown_reason_failed: int = 6,
+                          page_size_ignore=False,
+                          ):
     if isinstance(keywords, str):
         keywords = keywords.split(',')
 
@@ -50,9 +50,9 @@ def abstract_search(*,
     else:
         page_size = None
 
-    on_init()
+    await on_init()
 
-    require_init_table()
+    await require_init_table()
 
     def _check_no_content_crawling(*, kwd: str):
         pass
@@ -79,7 +79,7 @@ def abstract_search(*,
 
     _err_ref = None
 
-    for retry_count in range(1, max(2, retry + 1)):
+    for retry_count in range(1, max(2, retry_max + 1)):
         try:
             for keyword in keywords:
                 if fetch_all_content:
@@ -91,13 +91,13 @@ def abstract_search(*,
                     logger.debug('Start search {} page {} (size {}, max {}, platform {})',
                                  keyword, page, page_size, page_max, platform_id)
 
-                    res = on_search_by_keyword({
+                    res = await on_search_by_keyword({
                         'keyword': keyword,
                         'page': page,
                         'page_size': page_size,
                     })
 
-                    insert_to_garbage_table(
+                    await insert_to_garbage_table(
                         g_type=f'{platform_id}_search_result',
                         g_content=dict(
                             result=res.get('search_result'),
@@ -125,11 +125,13 @@ def abstract_search(*,
             return
         except BaseException as e:
             _err_ref = e
-            logger.exception('Failed crawling on {}, current keywords are {}, current retry {}/{}',
-                             platform_id, keywords, retry_count, retry)
-            if retry_count < retry:
-                on_retry()
-            continue
+            logger.exception('Failed crawling on {}, current keywords are {}, current retry_max {}/{}',
+                             platform_id, keywords, retry_count, retry_max)
+            if retry_count < retry_max and await on_before_retry(retry_count):
+                logger.info('Start retry , retry_count={}, retry_max={}', retry_count, retry_max)
+                continue
+            else:
+                logger.info('Break retry loop on retry_count={}, retry_max={}', retry_count, retry_max)
     raise _err_ref
 
 

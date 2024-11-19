@@ -17,6 +17,9 @@ psycopg2-binary = "^2.9.10"
 ratelimit = "^2.2.1"
 backoff = "^2.2.1"
 async-to-sync = "^0.2.3"
+camoufox = {extras = ["geoip"], version = "^0.3.10"}
+aiopg = "^1.4.0"
+aioify = "^0.4.1"
 
 [tool.poetry.dev-dependencies]
 

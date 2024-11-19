@@ -1,10 +1,11 @@
 # -*- coding: UTF-8 -*-
+import asyncio
 import json
-import threading
-from typing import Optional, TYPE_CHECKING, Union, Tuple
+import sys
+from typing import Optional
 
-import psycopg2.pool
-from datetime import datetime
+import aiopg
+from aiopg import Pool
 from loguru import logger
 
 from libiancrawlers.common import read_config
@@ -12,17 +13,60 @@ from libiancrawlers.common.types import JSON
 
 _CHECKED_GARBAGE_TABLE_EXIST = False
 
+_INIT_POOL_LOCK = asyncio.Lock()
+_POOL: Optional[Pool] = None
 
-def get_conn():
-    logger.debug('Getting postgres connection ...')
-    conn = psycopg2.connect(
-        dbname=read_config("crawler", "postgres", "dbname"),
-        user=read_config("crawler", "postgres", "user"),
-        password=read_config("crawler", "postgres", "password"),
-        host=read_config("crawler", "postgres", "host"),
-        port=read_config("crawler", "postgres", "port"),
-    )
-    return conn
+# https://github.com/aio-libs/aiopg/issues/678#issuecomment-667908402
+if sys.version_info >= (3, 8) and sys.platform.lower().startswith("win"):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+
+async def close_global_pg_pool():
+    if _POOL is not None and not _POOL.closed:
+        logger.debug('Start wait close global pg pool')
+        _POOL.close()
+        await _POOL.wait_closed()
+        logger.debug('Finish wait close global pg pool')
+    else:
+        logger.debug('Already shutdow global pg pool')
+
+
+async def _on_pg_pool_connect(*args, **kwargs):
+    logger.debug('on pg pool connect : args={} , kwargs={}', args, kwargs)
+
+
+async def get_conn():
+    dbname = read_config("crawler", "postgres", "dbname")
+    user = read_config("crawler", "postgres", "user")
+    password = read_config("crawler", "postgres", "password")
+    host = read_config("crawler", "postgres", "host")
+    port = read_config("crawler", "postgres", "port")
+    dsn = f'dbname={dbname} user={user} password={password} host={host} port={port}'
+
+    global _POOL
+    if _POOL is None:
+        async with _INIT_POOL_LOCK:
+            if _POOL is None:
+                logger.debug('Create global pg pool')
+                _POOL = await aiopg.create_pool(
+                    dsn,
+                    on_connect=_on_pg_pool_connect
+                )
+                logger.debug('success create global pg pool : {}', _POOL)
+    return _POOL.acquire()
+    # async with  as conn:
+    #     async with conn.cursor() as cur:
+    #         await cur.execute("SELECT 1")
+    #         ret = []
+    #         async for row in cur:
+    #             ret.append(row)
+    #         assert ret == [(1,)]
+
+    # logger.debug('Getting postgres connection ...')
+    # conn = psycopg2.connect(
+    #
+    # )
+    # return conn
 
 
 # noinspection SpellCheckingInspection
@@ -42,53 +86,45 @@ CREATE INDEX IF NOT EXISTS idx_g_type ON libian_crawler.garbage(g_type);
 CREATE INDEX IF NOT EXISTS idx_g_search_key ON libian_crawler.garbage(g_search_key);
 """
 _INIT_TABLE = False
-_INIT_TABLE_LOCK = threading.Lock()
+_INIT_TABLE_LOCK = asyncio.Lock()
 
 
-def require_init_table():
+async def require_init_table():
     global _INIT_TABLE
     if not _INIT_TABLE:
-        with _INIT_TABLE_LOCK:
+        async with _INIT_TABLE_LOCK:
             if not _INIT_TABLE:
-                conn = get_conn()
-                try:
-                    cur = conn.cursor()
-                    cur.execute(_INIT_TABLE_SQL)
-                    conn.commit()
-                    logger.debug('init table sql invoke success')
-                finally:
-                    conn.close()
+                async with await get_conn() as conn:
+                    async with conn.cursor() as cur:
+                        await cur.execute(_INIT_TABLE_SQL)
+                        logger.debug('init table sql invoke success')
                 _INIT_TABLE = True
 
 
-def insert_to_garbage_table(*,
-                            g_type: str,
-                            g_search_key: Optional[str] = None,
-                            g_content: JSON,
-                            ):
-    require_init_table()
-
-    conn = get_conn()
+async def insert_to_garbage_table(*,
+                                  g_type: str,
+                                  g_search_key: Optional[str] = None,
+                                  g_content: JSON,
+                                  ):
     content = None
+    await require_init_table()
     try:
         content = json.dumps(g_content, ensure_ascii=False)
         content = content.encode("utf-8", 'ignore').decode('utf-8')
-        cur = conn.cursor()
-        cur.execute(
-            'INSERT INTO libian_crawler.garbage ( g_type, g_search_key, g_content ) VALUES ( %s, %s, %s );',
-            (g_type,
-             g_search_key,
-             content
-             )
-        )
-        logger.debug('success insert to table')
-        conn.commit()
+        async with await get_conn() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    'INSERT INTO libian_crawler.garbage ( g_type, g_search_key, g_content ) VALUES ( %s, %s, %s );',
+                    (g_type,
+                     g_search_key,
+                     content
+                     )
+                )
+                logger.debug('success insert to table')
     except BaseException:
         logger.error('Failed insert to garbage table .\n\ng_content is {}\n\ncontent is {}',
                      g_content, content)
         raise
-    finally:
-        conn.close()
 
 
 if __name__ == '__main__':

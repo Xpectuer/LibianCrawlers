@@ -1,9 +1,10 @@
 # -*- coding: UTF-8 -*-
 import threading
-from typing import Dict, Any, NamedTuple, Optional
+from typing import Dict, Any, NamedTuple, Optional, Callable, Awaitable
 import json
 
 import json5
+from aioify import aioify
 from curl_cffi import requests
 from loguru import logger
 from xhs import DataFetchError, XhsClient, IPBlockError, ErrorEnum
@@ -141,6 +142,9 @@ def get_global_xhs_client():
                 _cookie = read_config('crawler', 'xiaohongshu', 'cookie')
                 _GLOBAL_XHS_CLIENT = create_xhs_client(cookie=_cookie)
     return _GLOBAL_XHS_CLIENT
+
+
+aioget_global_xhs_client: Callable[[], Awaitable[XhsClient]] = aioify(obj=get_global_xhs_client)
 
 
 class XHSNoteLink(NamedTuple):

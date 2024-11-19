@@ -1,24 +1,26 @@
 # -*- coding: UTF-8 -*-
-import time
-from os import PathLike
-from typing import List, Optional, Union, Tuple, Literal, NamedTuple
+import asyncio
+from typing import List, Union, Tuple
+
+from aioify import aioify
 from loguru import logger
 
-from libiancrawlers.common.postgres import insert_to_garbage_table, require_init_table, get_conn
+from libiancrawlers.common.postgres import get_conn, close_global_pg_pool
 from libiancrawlers.common.search import abstract_search, SearchByKeywordContext, SearchByKeywordResult
-from libiancrawlers.xiaohongshu import create_xhs_client, get_global_xhs_client, XHSNoteLink, concat_xhs_note_url, \
-    NoteNotExistOrFengKongException
-from libiancrawlers.xiaohongshu.get_note import get_note
-from ..common import read_config, isinstance_tls
+from libiancrawlers.xiaohongshu import XHSNoteLink, aioget_global_xhs_client
+from ..common import on_before_retry_default
 
 
-def search(*,
-           keywords: Union[str, Tuple[str]],
-           fetch_all_content: bool = False,
-           fetch_all_comment: bool = False,
-           retry: int = 0,
-           ):
-    xhs_client = get_global_xhs_client()
+async def search(*,
+                 keywords: Union[str, Tuple[str]],
+                 fetch_all_content: bool = False,
+                 fetch_all_comment: bool = False,
+                 retry_max: int = 0,
+                 ):
+    xhs_client = await aioget_global_xhs_client()
+
+    async def on_init():
+        pass
 
     def on_search_by_keyword(c: SearchByKeywordContext) -> SearchByKeywordResult:
         result = xhs_client.get_note_by_keyword(
@@ -30,17 +32,24 @@ def search(*,
             'has_more': result.get('has_more', False)
         }
 
-    return abstract_search(
+    # noinspection SpellCheckingInspection
+    aioon_search_by_keyword = aioify(on_search_by_keyword)
+
+    await abstract_search(
         keywords=keywords,
         fetch_all_content=fetch_all_content,
         fetch_all_comment=fetch_all_comment,
-        retry=retry,
+        retry_max=retry_max,
         platform_id='xiaohongshu',
         crawler_tag='lib_xhs',
-        on_init=lambda: None,
-        on_search_by_keyword=on_search_by_keyword,
-        on_retry=lambda: time.sleep(60),
+        on_init=on_init,
+        on_search_by_keyword=aioon_search_by_keyword,
+        on_before_retry=on_before_retry_default,
     )
+
+    if _SHUTDOWN_AFTER_SEARCH:
+        logger.debug('shutdown after Fire(search)')
+        await close_global_pg_pool()
 
     # """
     #
@@ -131,29 +140,34 @@ def search(*,
     # raise _err_ref
 
 
-def get_note_links_which_no_content_crawling(*, keyword: str, force_all: bool) -> List[XHSNoteLink]:
-    conn = get_conn()
-    try:
-        cur = conn.cursor()
-        cur.execute(f"""
-SELECT
-f.id,
-f.xsec_token,
-f.a_title
-FROM libian_crawler.xiaohongshu_notes_full as f
-WHERE g_type = 'xiaohongshu_search_result' 
-and g_search_key = %s
-and ( %s or ( not COALESCE(note2_exist, false) ) )
-""", (keyword, force_all))
-        records = cur.fetchall()
-        logger.debug('success get note links , records length is', len(records))
-        conn.commit()
-        return list(map(lambda it: XHSNoteLink(it[0], it[1], it[2]), records))
-    finally:
-        conn.close()
+# def get_note_links_which_no_content_crawling(*, keyword: str, force_all: bool) -> List[XHSNoteLink]:
+#     conn = get_conn()
+#     try:
+#         cur = conn.cursor()
+#         cur.execute(f"""
+# SELECT
+# f.id,
+# f.xsec_token,
+# f.a_title
+# FROM libian_crawler.xiaohongshu_notes_full as f
+# WHERE g_type = 'xiaohongshu_search_result'
+# and g_search_key = %s
+# and ( %s or ( not COALESCE(note2_exist, false) ) )
+# """, (keyword, force_all))
+#         records = cur.fetchall()
+#         logger.debug('success get note links , records length is', len(records))
+#         conn.commit()
+#         return list(map(lambda it: XHSNoteLink(it[0], it[1], it[2]), records))
+#     finally:
+#         conn.close()
+
+
+_SHUTDOWN_AFTER_SEARCH = False
 
 
 def cli():
+    global _SHUTDOWN_AFTER_SEARCH
+    _SHUTDOWN_AFTER_SEARCH = True
     from fire import Fire
     Fire(search)
 
