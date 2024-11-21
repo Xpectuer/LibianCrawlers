@@ -1,5 +1,7 @@
 # -*- coding: UTF-8 -*-
-from typing import Optional
+from typing import Optional, Union, Tuple
+
+from browserforge.fingerprints import Screen, FingerprintGenerator
 from loguru import logger
 
 from camoufox.server import launch_server
@@ -9,24 +11,41 @@ def launch_server_from_cli(
         *,
         headless=False,
         geoip=True,
+        humanize=True,
         locale=None,
         proxy_server: Optional[str] = None,
         proxy_username: Optional[str] = None,
         proxy_password: Optional[str] = None,
-        # screen_min_width: Optional
+        # screen: Optional[Union[str, Tuple[str]]] = '1920,1080',
 ):
     logger.debug('cli params : {}', locals())
-    proxy = None if proxy_server is None and proxy_username is None and proxy_password is None else dict(
-        **({} if proxy_server is None else dict(server=proxy_server)),
-        **({} if proxy_username is None else dict(username=proxy_username)),
-        **({} if proxy_password is None else dict(password=proxy_password)),
-    )
+    proxy = None if \
+        proxy_server is None \
+        and proxy_username is None \
+        and proxy_password is None \
+        else \
+        dict(
+            **({} if proxy_server is None else dict(server=proxy_server)),
+            **({} if proxy_username is None else dict(username=proxy_username)),
+            **({} if proxy_password is None else dict(password=proxy_password)),
+        )
     logger.debug('proxy is {}', proxy)
     launch_server(
         headless=headless,
+        humanize=humanize,
         geoip=geoip,
         proxy=proxy,
         locale=locale,
+        config={
+            'screen.availWidth': 1824,
+            'screen.availHeight': 988,
+            'screen.width': 1920,
+            'screen.height': 1080,
+            'screen.colorDepth': 24,
+            'screen.pixelDepth': 24,
+            'screen.availTop': 0,
+            'screen.availLeft': 0,
+        }
     )
 
 
