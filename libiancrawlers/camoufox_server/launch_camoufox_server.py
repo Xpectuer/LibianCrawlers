@@ -9,9 +9,11 @@ def launch_server_from_cli(
         *,
         headless=False,
         geoip=True,
+        locale=None,
         proxy_server: Optional[str] = None,
         proxy_username: Optional[str] = None,
         proxy_password: Optional[str] = None,
+        # screen_min_width: Optional
 ):
     logger.debug('cli params : {}', locals())
     proxy = None if proxy_server is None and proxy_username is None and proxy_password is None else dict(
@@ -24,6 +26,7 @@ def launch_server_from_cli(
         headless=headless,
         geoip=geoip,
         proxy=proxy,
+        locale=locale,
     )
 
 
