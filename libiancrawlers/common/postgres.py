@@ -28,7 +28,7 @@ async def close_global_pg_pool():
         await _POOL.wait_closed()
         logger.debug('Finish wait close global pg pool')
     else:
-        logger.debug('Already shutdow global pg pool')
+        logger.debug('Already shutdown global pg pool')
 
 
 async def _on_pg_pool_connect(*args, **kwargs):

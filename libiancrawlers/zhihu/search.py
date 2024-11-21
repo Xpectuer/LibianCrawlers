@@ -1,8 +1,7 @@
 # -*- coding: UTF-8 -*-
-import asyncio
-import time
 from typing import Union, Tuple
-from bilibili_api.search import SearchObjectType, search_by_type
+
+from bilibili_api.search import SearchObjectType
 from loguru import logger
 
 

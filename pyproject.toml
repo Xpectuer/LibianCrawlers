@@ -13,11 +13,9 @@ fire = "^0.7.0"
 confection = "^0.1.5"
 json5 = "^0.9.28"
 random-user-agent = "^1.0.1"
-psycopg2-binary = "^2.9.10"
 ratelimit = "^2.2.1"
 backoff = "^2.2.1"
 async-to-sync = "^0.2.3"
-camoufox = {extras = ["geoip"], version = "^0.3.10"}
 aiopg = "^1.4.0"
 aioify = "^0.4.1"
 
@@ -37,14 +35,25 @@ optional = true
 [tool.poetry.group.crawler-xiaohongshu.dependencies]
 xhs = "^0.2.13"
 
+[tool.poetry.group.crawler-bilibili]
+optional = true
 
 [tool.poetry.group.crawler-bilibili.dependencies]
 bilibili-api-dev = "^16.2.0b1"
+
+[tool.poetry.group.crawler-zhihu]
+optional = true
+
+[tool.poetry.group.crawler-zhihu.dependencies]
+pyexecjs = "^1.5.1"
+
 
 [tool.poetry.scripts]
 xiaohongshu-search = "libiancrawlers.xiaohongshu.search:cli"
 bilibili-search = "libiancrawlers.bilibili.search:cli"
 taobao-search = "libiancrawlers.taobao.search:cli"
+zhihu-search = "libiancrawlers.zhihu.search:cli"
+
 
 [[tool.poetry.source]]
 name = "tsinghua"
