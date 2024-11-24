@@ -46,6 +46,7 @@ optional = true
 
 [tool.poetry.group.crawler-zhihu.dependencies]
 pyexecjs = "^1.5.1"
+camoufox = { extras = ["geoip"], version = "^0.3.10" }
 
 [tool.poetry.group.camoufox-server.dependencies]
 camoufox = { extras = ["geoip"], version = "^0.3.10" }
@@ -55,9 +56,7 @@ xiaohongshu-search = "libiancrawlers.xiaohongshu.search:cli"
 bilibili-search = "libiancrawlers.bilibili.search:cli"
 taobao-search = "libiancrawlers.taobao.search:cli"
 zhihu-search = "libiancrawlers.zhihu.search:cli"
-
 launch-camoufox-server = "libiancrawlers.camoufox_server.launch_camoufox_server:cli"
-launch-camoufox-manager = "libiancrawlers.camoufox_server.launch_camoufox_manager:cli"
 camoufox-server-to-browser-scan = "libiancrawlers.camoufox_server.test_connect:to_browser_scan"
 
 [[tool.poetry.source]]

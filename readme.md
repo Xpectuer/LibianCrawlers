@@ -1,8 +1,8 @@
-# libiancrawler
+# LibianCrawler
 
 ## Setup
 
-This project use poetry.
+This project use `poetry` as package manager.
 
 ### How to use poetry
 
@@ -34,9 +34,9 @@ Start xiaohongshu search :
 poetry run xiaohongshu-search -k Python
 ```
 
-#### Install camoufox
+### Install camoufox
 
-if the crawler dependencies contains `camoufox` , you need
+if the dependencies group contains `camoufox` , you need
 run [script in here](https://github.com/daijro/camoufox/tree/main/pythonlib#installation) .
 
 - On Windows:
@@ -55,7 +55,7 @@ python3 -m camoufox fetch
 
 在下载 `camoufox-132.0.2-beta.16-win.x86_64.zip` 时发现他用的 requests，而且不走系统代理。
 
-所以不得不修改 `venv\Lib\site-packages\camoufox\pkgman.py`，在 `webdl` 函数中指定了 `requests.get` 的代理地址。
+所以修改 `venv\Lib\site-packages\camoufox\pkgman.py`，在 `webdl` 函数中指定了 `requests.get` 的代理地址。
 
 ### Run test
 
