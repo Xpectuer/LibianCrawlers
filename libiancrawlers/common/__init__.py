@@ -1,16 +1,88 @@
 # -*- coding: UTF-8 -*-
 import asyncio
+import atexit
+import json
 import os
 import sys
-import json
-import threading
-import time
-from dataclasses import dataclass
-from typing import Callable, Optional, List, Any
+from typing import Callable, Optional, Any, Awaitable
 
-import async_to_sync
-from confection import registry, Config
+from confection import Config
 from loguru import logger
+
+import aiofiles.os as aioos
+
+from libiancrawlers.common.playwright_util import shutdown_playwright
+from libiancrawlers.common.types import Initiator
+from datetime import datetime
+
+_APP_INIT_CONF: Optional[Initiator] = None
+
+
+def is_windows():
+    return os.name == 'nt'
+
+
+def get_app_init_conf():
+    return _APP_INIT_CONF
+
+
+def init_app(conf: Initiator):
+    global _APP_INIT_CONF
+    if _APP_INIT_CONF is not None:
+        logger.error("Don't re call init_app , current init conf is {} , but this conf is {}",
+                     _APP_INIT_CONF, conf)
+        raise Exception('re call init app !')
+    logger.debug('init app {}', conf)
+    _APP_INIT_CONF = conf
+    logger.debug('init asyncio')
+    if sys.version_info >= (3, 8) and is_windows():
+        if conf.postgres and not conf.playwright:
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    logger.debug('current event loop policy {}', asyncio.get_event_loop_policy())
+    asyncio.set_event_loop(asyncio.new_event_loop())
+    logger.debug('current event loop {}', asyncio.get_event_loop())
+
+
+# noinspection PyBroadException
+async def exit_app():
+    from libiancrawlers.common.postgres import close_global_pg_pool
+
+    if _APP_INIT_CONF is None:
+        raise ValueError('require call init_app before exit !')
+
+    async def close_pg():
+        if not _APP_INIT_CONF.postgres:
+            return
+        # noinspection PyBroadException
+        try:
+            await close_global_pg_pool()
+        except BaseException:
+            logger.exception('Failed on close pg pool')
+        if is_windows() and isinstance(asyncio.get_event_loop_policy(), asyncio.WindowsProactorEventLoopPolicy):
+            atexit.register(lambda: logger.info("""
+在 postgres pool 退出时的 `NotImplementedError` 报错 是由以下尚未解决的issue引起，我无法修复它。
+
+> 因为 asyncio 的两种 Windows* event group 都会引发错误。
+> 但是无所谓，可以无视此错误。
+
+- https://github.com/aio-libs/aiopg/issues/678#issuecomment-667908402
+- https://github.com/scrapy-plugins/scrapy-playwright/issues/7
+"""))
+
+    async def close_playwright():
+        if not _APP_INIT_CONF.playwright:
+            return
+        # noinspection PyBroadException
+        try:
+            await shutdown_playwright()
+        except BaseException:
+            logger.exception('Failed on close playwright')
+
+    await asyncio.gather(*[
+        close_pg(),
+        close_playwright()
+    ])
+
 
 CONFIG_VERSION = 1
 CONFIG_TEMPLATE = """
@@ -37,24 +109,6 @@ def is_config_truthy(s: Optional[str]):
     if not y and not n:
         raise ValueError('Invalid config boolean %s' % s)
     return y
-
-
-def isinstance_tls(o: object):
-    """
-    It's nothing to do with the tls protocol , haha .
-    :param o:
-    :return:
-    """
-    return isinstance(o, tuple) or isinstance(o, list) or isinstance(o, set)
-
-
-def isinstance_dtls(o: object):
-    """
-    It's nothing to do with the dtls protocol , haha .
-    :param o:
-    :return:
-    """
-    return isinstance(o, dict) or isinstance_tls(o)
 
 
 _READIED_CONFIG = None
@@ -116,6 +170,21 @@ def _read_config(*, sys_exit: Optional[Callable[[int], None]] = None):
     return config
 
 
+async def read_config_get_path(*args: str, create_if_not_exist: bool = False):
+    def get_path():
+        v: str = read_config(*args, checking=lambda it: None if isinstance(it, str) else 'Should be str')
+        p = v.replace('{{HOME}}', os.path.expanduser('~')).replace('/', os.sep)
+        logger.debug('get path from config : args={} , v={} , p={}', args, v, p)
+        return p
+
+    pth = await asyncio.get_event_loop().run_in_executor(None, get_path)
+    if create_if_not_exist and not await aioos.path.exists(pth):
+        logger.debug('makedirs {}', pth)
+        await aioos.makedirs(pth, mode=755)
+
+    return pth
+
+
 def random_user_agent():
     from random_user_agent.user_agent import UserAgent
     from random_user_agent.params import SoftwareName, OperatingSystem
@@ -139,6 +208,20 @@ def random_user_agent():
 
 async def on_before_retry_default():
     await asyncio.sleep(60)
+
+
+async def sleep(total: float, *, interval: float = 3, checker: Optional[Callable[[], Awaitable[bool]]] = None):
+    start = datetime.utcnow().timestamp()
+    end = start + total
+    now = start
+    while now < end:
+        if checker is not None:
+            if not await checker():
+                return False
+        now = datetime.utcnow().timestamp()
+        await asyncio.sleep(min(interval, end - now))
+        now = datetime.utcnow().timestamp()
+    return True
 
 
 if __name__ == '__main__':

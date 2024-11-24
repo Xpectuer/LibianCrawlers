@@ -8,7 +8,7 @@ from loguru import logger
 from libiancrawlers.common.postgres import get_conn, close_global_pg_pool
 from libiancrawlers.common.search import abstract_search, SearchByKeywordContext, SearchByKeywordResult
 from libiancrawlers.xiaohongshu import XHSNoteLink, aioget_global_xhs_client
-from ..common import on_before_retry_default
+from ..common import on_before_retry_default, Initiator, exit_app
 
 
 async def search(*,
@@ -17,39 +17,39 @@ async def search(*,
                  fetch_all_comment: bool = False,
                  retry_max: int = 0,
                  ):
-    xhs_client = await aioget_global_xhs_client()
+    try:
+        xhs_client = await aioget_global_xhs_client()
 
-    async def on_init():
-        pass
+        async def on_init():
+            pass
 
-    def on_search_by_keyword(c: SearchByKeywordContext) -> SearchByKeywordResult:
-        result = xhs_client.get_note_by_keyword(
-            keyword=c.get('keyword'),
-            page=c.get('page'),
-            page_size=c.get('page_size'))
-        return {
-            'search_result': result,
-            'has_more': result.get('has_more', False)
-        }
+        def on_search_by_keyword(c: SearchByKeywordContext) -> SearchByKeywordResult:
+            result = xhs_client.get_note_by_keyword(
+                keyword=c.get('keyword'),
+                page=c.get('page'),
+                page_size=c.get('page_size'))
+            return {
+                'search_result': result,
+                'has_more': result.get('has_more', False)
+            }
 
-    # noinspection SpellCheckingInspection
-    aioon_search_by_keyword = aioify(on_search_by_keyword)
+        # noinspection SpellCheckingInspection
+        aioon_search_by_keyword = aioify(on_search_by_keyword)
 
-    await abstract_search(
-        keywords=keywords,
-        fetch_all_content=fetch_all_content,
-        fetch_all_comment=fetch_all_comment,
-        retry_max=retry_max,
-        platform_id='xiaohongshu',
-        crawler_tag='lib_xhs',
-        on_init=on_init,
-        on_search_by_keyword=aioon_search_by_keyword,
-        on_before_retry=on_before_retry_default,
-    )
-
-    if _SHUTDOWN_AFTER_SEARCH:
-        logger.debug('shutdown after Fire(search)')
-        await close_global_pg_pool()
+        await abstract_search(
+            keywords=keywords,
+            fetch_all_content=fetch_all_content,
+            fetch_all_comment=fetch_all_comment,
+            retry_max=retry_max,
+            platform_id='xiaohongshu',
+            crawler_tag='lib_xhs',
+            on_init=on_init,
+            on_search_by_keyword=aioon_search_by_keyword,
+            on_before_retry=on_before_retry_default,
+        )
+    finally:
+        if _SHUTDOWN_AFTER_SEARCH:
+            await exit_app()
 
     # """
     #
@@ -166,6 +166,8 @@ _SHUTDOWN_AFTER_SEARCH = False
 
 
 def cli():
+    from libiancrawlers.common import init_app
+    init_app(Initiator(postgres=True, playwright=False))
     global _SHUTDOWN_AFTER_SEARCH
     _SHUTDOWN_AFTER_SEARCH = True
     from fire import Fire

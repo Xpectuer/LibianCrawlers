@@ -8,17 +8,13 @@ import aiopg
 from aiopg import Pool
 from loguru import logger
 
-from libiancrawlers.common import read_config
-from libiancrawlers.common.types import JSON
+from libiancrawlers.common import read_config, get_app_init_conf
+from libiancrawlers.common.types import JSON, AppInitConfDisable
 
 _CHECKED_GARBAGE_TABLE_EXIST = False
 
 _INIT_POOL_LOCK = asyncio.Lock()
 _POOL: Optional[Pool] = None
-
-# https://github.com/aio-libs/aiopg/issues/678#issuecomment-667908402
-if sys.version_info >= (3, 8) and sys.platform.lower().startswith("win"):
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 async def close_global_pg_pool():
@@ -47,6 +43,8 @@ async def get_conn():
     if _POOL is None:
         async with _INIT_POOL_LOCK:
             if _POOL is None:
+                if not get_app_init_conf().postgres:
+                    raise AppInitConfDisable('postgres')
                 logger.debug('Create global pg pool')
                 _POOL = await aiopg.create_pool(
                     dsn,

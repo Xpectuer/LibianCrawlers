@@ -34,7 +34,6 @@ async def abstract_search(*,
                           # on_get_content: Callable[[], None],
                           on_search_by_keyword: Callable[[SearchByKeywordContext], Awaitable[SearchByKeywordResult]],
                           on_before_retry: Callable[[int], Awaitable[bool]],
-                          max_unknown_reason_failed: int = 6,
                           page_size_ignore=False,
                           ):
     if isinstance(keywords, str):
@@ -42,10 +41,10 @@ async def abstract_search(*,
 
     logger.info('Search keywords : {}', keywords)
 
-    page_max = read_config('crawler', platform_id, 'search-page-max',
+    page_max = read_config('crawler', 'platform', platform_id, 'search-page-max',
                            checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
     if not page_size_ignore:
-        page_size = read_config('crawler', platform_id, 'search-page-size',
+        page_size = read_config('crawler', 'platform', platform_id, 'search-page-size',
                                 checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
     else:
         page_size = None

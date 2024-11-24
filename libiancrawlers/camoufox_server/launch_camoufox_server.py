@@ -1,22 +1,26 @@
 # -*- coding: UTF-8 -*-
+from os import path
 from typing import Optional, Union, Tuple
 
 from browserforge.fingerprints import Screen, FingerprintGenerator
+from camoufox import DefaultAddons
 from loguru import logger
 
 from camoufox.server import launch_server
+from camoufox import AsyncCamoufox, Camoufox
 
 
-def launch_server_from_cli(
+def launch_camoufox_server(
         *,
+        os: Optional[Union[str, Tuple[str]]] = None,
         headless=False,
         geoip=True,
         humanize=True,
         locale=None,
+        debug: Optional[bool] = None,
         proxy_server: Optional[str] = None,
         proxy_username: Optional[str] = None,
         proxy_password: Optional[str] = None,
-        # screen: Optional[Union[str, Tuple[str]]] = '1920,1080',
 ):
     logger.debug('cli params : {}', locals())
     proxy = None if \
@@ -30,12 +34,20 @@ def launch_server_from_cli(
             **({} if proxy_password is None else dict(password=proxy_password)),
         )
     logger.debug('proxy is {}', proxy)
+    if os is None:
+        os = ['windows']
+    if isinstance(os, str):
+        os = os.split(',')
+    logger.debug('os is {}', os)
     launch_server(
+        os=os,
         headless=headless,
         humanize=humanize,
         geoip=geoip,
         proxy=proxy,
         locale=locale,
+        args=['--profile', 'zhihu'],
+        debug=debug,
         config={
             'screen.availWidth': 1824,
             'screen.availHeight': 988,
@@ -45,13 +57,13 @@ def launch_server_from_cli(
             'screen.pixelDepth': 24,
             'screen.availTop': 0,
             'screen.availLeft': 0,
-        }
+        },
     )
 
 
 def cli():
     from fire import Fire
-    Fire(launch_server_from_cli)
+    Fire(launch_camoufox_server)
 
 
 if __name__ == '__main__':
