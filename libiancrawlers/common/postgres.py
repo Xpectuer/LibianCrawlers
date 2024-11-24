@@ -3,10 +3,9 @@ import asyncio
 import json
 from typing import Optional
 
-import aiopg
-from aiopg import Pool
+from asyncpg import Pool
 from loguru import logger
-
+import asyncpg
 from libiancrawlers.common.app_init import get_app_init_conf
 from libiancrawlers.common.config import read_config
 from libiancrawlers.common.types import JSON, AppInitConfDisable
@@ -18,26 +17,21 @@ _POOL: Optional[Pool] = None
 
 
 async def close_global_pg_pool():
-    if _POOL is not None and not _POOL.closed:
+    if _POOL is not None and not _POOL.is_closing():
         logger.debug('Start wait close global pg pool')
-        _POOL.close()
-        await _POOL.wait_closed()
+        await _POOL.close()
         logger.debug('Finish wait close global pg pool')
     else:
         logger.debug('Already shutdown global pg pool')
 
 
-async def _on_pg_pool_connect(*args, **kwargs):
-    logger.debug('on pg pool connect : args={} , kwargs={}', args, kwargs)
-
-
-async def get_conn():
+async def get_pool():
     dbname = read_config("crawler", "postgres", "dbname")
     user = read_config("crawler", "postgres", "user")
     password = read_config("crawler", "postgres", "password")
     host = read_config("crawler", "postgres", "host")
     port = read_config("crawler", "postgres", "port")
-    dsn = f'dbname={dbname} user={user} password={password} host={host} port={port}'
+    # dsn = f'scheme=postgresql dbname={dbname} user={user} password={password} host={host} port={port}'
 
     global _POOL
     if _POOL is None:
@@ -46,25 +40,15 @@ async def get_conn():
                 if not get_app_init_conf().postgres:
                     raise AppInitConfDisable('postgres')
                 logger.debug('Create global pg pool')
-                _POOL = await aiopg.create_pool(
-                    dsn,
-                    on_connect=_on_pg_pool_connect
+                _POOL = await asyncpg.create_pool(
+                    database=dbname,
+                    user=user,
+                    password=password,
+                    host=host,
+                    port=port,
                 )
                 logger.debug('success create global pg pool : {}', _POOL)
-    return _POOL.acquire()
-    # async with  as conn:
-    #     async with conn.cursor() as cur:
-    #         await cur.execute("SELECT 1")
-    #         ret = []
-    #         async for row in cur:
-    #             ret.append(row)
-    #         assert ret == [(1,)]
-
-    # logger.debug('Getting postgres connection ...')
-    # conn = psycopg2.connect(
-    #
-    # )
-    # return conn
+    return _POOL
 
 
 # noinspection SpellCheckingInspection
@@ -92,10 +76,9 @@ async def require_init_table():
     if not _INIT_TABLE:
         async with _INIT_TABLE_LOCK:
             if not _INIT_TABLE:
-                async with await get_conn() as conn:
-                    async with conn.cursor() as cur:
-                        await cur.execute(_INIT_TABLE_SQL)
-                        logger.debug('init table sql invoke success')
+                pool = await get_pool()
+                await pool.execute(query=_INIT_TABLE_SQL)
+                logger.debug('init table sql invoke success')
                 _INIT_TABLE = True
 
 
@@ -109,16 +92,13 @@ async def insert_to_garbage_table(*,
     try:
         content = json.dumps(g_content, ensure_ascii=False)
         content = content.encode("utf-8", 'ignore').decode('utf-8')
-        async with await get_conn() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    'INSERT INTO libian_crawler.garbage ( g_type, g_search_key, g_content ) VALUES ( %s, %s, %s );',
-                    (g_type,
-                     g_search_key,
-                     content
-                     )
-                )
-                logger.debug('success insert to table')
+        pool = await get_pool()
+        logger.debug('start insert to table')
+        await pool.execute(
+            'INSERT INTO libian_crawler.garbage ( g_type, g_search_key, g_content ) VALUES ( $1, $2, $3 );',
+            g_type, g_search_key,  content
+        )
+        logger.debug('success insert to table')
     except BaseException:
         logger.error('Failed insert to garbage table .\n\ng_content is {}\n\ncontent is {}',
                      g_content, content)

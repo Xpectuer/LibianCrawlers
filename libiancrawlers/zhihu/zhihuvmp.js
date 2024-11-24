@@ -1,7 +1,16 @@
-/**
- * copy and modify from :
- * https://github.com/tiam-bloom/zhihuQuestionAnswer/blob/main/zhihuvmp.js
- */
+//
+// 从 [MediaCrawler](https://github.com/NanmiCoder/MediaCrawler/) 中复制的。
+// 如对他的许可证构成侵权，请联系本人，本人立刻删除。
+//
+//--------------------------------------------------------------------------------
+
+
+// copy from https://github.com/tiam-bloom/zhihuQuestionAnswer/blob/main/zhihuvmp.js thanks to tiam-bloom
+// 仅供学习交流使用，严禁用于商业用途，也不要滥用，否则后果自负
+// modified by relakkes
+
+const crypto = require('crypto'); // 导入加密模块
+
 
 let init_str = "6fpLRqJO8M/c3jnYxFkUVC4ZIG12SiH=5v0mXDazWBTsuw7QetbKdoPyAl+hN9rgE";
 var h = {
@@ -101,7 +110,7 @@ function get_init_array(encode_md5) {
         init_array.push(encode_md5.charCodeAt(i))
     }
     init_array.unshift(0)
-    init_array.unshift(Math.floor(Math.random() * 127))
+    init_array.unshift(Math.floor(0.114514 * 127))  // Math.random()
     while (init_array.length < 48) {
         init_array.push(14)
     }
@@ -115,17 +124,50 @@ function get_zse_96(encode_md5) {
     let result_array = [],
         init_array = get_init_array(encode_md5),
         result = "";
-    for (let i = 47; i >= 0; i-=4) {
+    for (let i = 47; i >= 0; i -= 4) {
         init_array[i] ^= 58
     }
     init_array.reverse()
-    for (let j = 3; j <= init_array.length; j+=3) {
+    for (let j = 3; j <= init_array.length; j += 3) {
         let ar = init_array.slice(j - 3, j);
         result_array = result_array.concat(encode(ar))
     }
     for (let index = 0; index < result_array.length; index++) {
         result += init_str.charAt(result_array[index])
     }
-    result='2.0_'+result
+    result = '2.0_' + result
     return result
+}
+
+/***********************relakkes modify*******************************************************/
+
+/**
+ * 从cookies中提取dc0的值
+ * @param cookies
+ * @returns {string}
+ */
+const extract_dc0_value_from_cookies = function (cookies) {
+    const t9 = RegExp("d_c0=([^;]+)")
+    const tt = t9.exec(cookies);
+    const dc0 = tt && tt[1]
+    return tt && tt[1]
+}
+
+/**
+ * 获取zhihu sign value 对python暴漏的接口
+ * @param url 请求的路由参数
+ * @param cookies 请求的cookies，需要包含dc0这个key
+ * @returns {*}
+ */
+function get_sign(url, cookies) {
+    const ta = "101_3_3.0"
+    const dc0 = extract_dc0_value_from_cookies(cookies)
+    const tc = "3_2.0aR_sn77yn6O92wOB8hPZnQr0EMYxc4f18wNBUgpTQ6nxERFZfTY0-4Lm-h3_tufIwJS8gcxTgJS_AuPZNcXCTwxI78YxEM20s4PGDwN8gGcYAupMWufIoLVqr4gxrRPOI0cY7HL8qun9g93mFukyigcmebS_FwOYPRP0E4rZUrN9DDom3hnynAUMnAVPF_PhaueTFH9fQL39OCCqYTxfb0rfi9wfPhSM6vxGDJo_rBHpQGNmBBLqPJHK2_w8C9eTVMO9Z9NOrMtfhGH_DgpM-BNM1DOxScLG3gg1Hre1FCXKQcXKkrSL1r9GWDXMk8wqBLNmbRH96BtOFqVZ7UYG3gC8D9cMS7Y9UrHLVCLZPJO8_CL_6GNCOg_zhJS8PbXmGTcBpgxfkieOPhNfthtf2gC_qD3YOce8nCwG2uwBOqeMoML9NBC1xb9yk6SuJhHLK7SM6LVfCve_3vLKlqcL6TxL_UosDvHLxrHmWgxBQ8Xs"
+    const params_join_str = [ta, url, dc0, tc].join("+")
+    const params_md5_value = crypto.createHash('md5').update(params_join_str).digest('hex')
+
+    return {
+        "x-zst-81": tc,
+        "x-zse-96": get_zse_96(params_md5_value),
+    }
 }

@@ -1,14 +1,16 @@
 # -*- coding: UTF-8 -*-
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional
 
 from bilibili_api.search import SearchObjectType, search_by_type
 from loguru import logger
 
-from libiancrawlers.common.app_init import exit_app
+from libiancrawlers.common import Initiator
+from libiancrawlers.common.app_init import exit_app, init_app
 
 
 async def search(*,
                  keywords: Union[str, Tuple[str]],
+                 page_max: Optional[int] = None,
                  search_type: str,
                  fetch_all_content: bool = False,
                  fetch_all_comment: bool = False,
@@ -51,6 +53,8 @@ async def search(*,
 
         await abstract_search(
             keywords=keywords,
+            page_max=page_max,
+            page_size=None,
             fetch_all_content=fetch_all_content,
             fetch_all_comment=fetch_all_comment,
             retry_max=retry,

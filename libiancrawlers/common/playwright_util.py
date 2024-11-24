@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import asyncio
 import os.path
-from typing import Optional, Literal, Union
+from typing import Optional, Literal, Union, Dict
 
 # noinspection PyProtectedMember
 from camoufox import AsyncCamoufox
@@ -46,7 +46,10 @@ async def get_browser(*,
                       mode: Union[
                           Literal["connect"],
                           LaunchBrowserParam,
-                      ]):
+                      ],
+                      launch_options=None):
+    if launch_options is None:
+        launch_options = {}
     ctx = await _get_ctx()
     playwright = await ctx.__aenter__()
     if mode == 'connect':
@@ -57,7 +60,8 @@ async def get_browser(*,
         gecko_profile_dir = await read_config_get_path('crawler', 'gecko', 'profile-dir-base')
         browser_context: BrowserContext = await AsyncCamoufox(
             persistent_context=True,
-            user_data_dir=os.path.join(gecko_profile_dir, mode.browser_data_dir_id)
+            user_data_dir=os.path.join(gecko_profile_dir, mode.browser_data_dir_id),
+            **launch_options,
         ).__aenter__()
         browser: None = browser_context.browser
         # browser = browser_context.browser

@@ -1,10 +1,16 @@
 # -*- coding: UTF-8 -*-
+import asyncio
 import json
 import re
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
+from urllib.parse import urlencode
 
+from curl_cffi import requests
+from curl_cffi.requests import Response
 from loguru import logger
 from playwright.async_api import Page, BrowserContext
+
+from libiancrawlers.zhihu.signature import get_sign
 
 _check_login_exp = re.compile(r'<pre>([\s\S]*?)</pre>')
 
@@ -35,17 +41,60 @@ async def zhihu_check_login_state(*, browser_context: BrowserContext) -> bool:
     raise ValueError('Unrecognized response : %s' % html)
 
 
-async def zhihu_login():
-    pass
+async def zhihu_req_get(*, b_page: Page, uri: str, params: Optional[Dict[str, str]], referer: str):
+    user_agent = await b_page.evaluate('navigator.userAgent')
+    uri_with_params = uri if params is None else uri + '?' + urlencode(params)
+    cookies = str.join(';', [f"{c['name']}={c['value']}" for c in await b_page.context.cookies()])
 
+    return await b_page.context.request.get(
+        url='https://www.zhihu.com' + uri_with_params,
+        headers={
+            'Accept': '*/*',
+            'Accept-Language': 'zh-CN,zh;q=0.9',
+            'Cookie': cookies,
+            'Priority': 'u=1, i',
+            'Referer': referer,
+            'User-Agent': user_agent,
+            'x-api-version': '3.0.91',
+            'x-app-za': 'OS=Web',
+            'x-requested-with': 'fetch',
+            'x-zse-93': '101_3_3.0',
+            **get_sign(
+                uri_with_params,
+                cookies=cookies
+            )
+        }
+    )
 
-async def zhihu_req_get(*, pr_page: Page, uri: str, params: Optional[Dict[str, str]]):
-    url = 'https://www.zhihu.com' + uri
-    # resp = await pr_page.request.get(url,
-    #                                  params=params,
-    #                                  headers=)
+    # logger.debug('zhihu GET {} called . cookies={} , params={}', uri, cookies, params)
 
-    pass
+    # def _req_get_sync() -> Tuple[Response, str]:
+    #     url = 'https://www.zhihu.com' + uri_with_params
+    #     headers = {
+    #         'Accept': '*/*',
+    #         'Accept-Language': 'zh-CN,zh;q=0.9',
+    #         'Cookie': cookies,
+    #         'Priority': 'u=1, i',
+    #         'Referer': referer,
+    #         'User-Agent': user_agent,
+    #         'x-api-version': '3.0.91',
+    #         'x-app-za': 'OS=Web',
+    #         'x-requested-with': 'fetch',
+    #         'x-zse-93': '101_3_3.0',
+    #         **get_sign(
+    #             uri_with_params,
+    #             cookies=cookies
+    #         )
+    #     }
+    #     logger.debug('url={} , headers={}', url, headers)
+    #     resp: Response = requests.get(
+    #         url=url,
+    #         headers=headers,
+    #         impersonate="firefox132"
+    #     )
+    #     return resp, resp.text
+
+    # return await asyncio.get_event_loop().run_in_executor(None, _req_get_sync)
 
 
 if __name__ == '__main__':

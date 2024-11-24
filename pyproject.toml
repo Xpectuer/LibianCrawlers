@@ -16,8 +16,8 @@ random-user-agent = "^1.0.1"
 ratelimit = "^2.2.1"
 backoff = "^2.2.1"
 async-to-sync = "^0.2.3"
-aiopg = "^1.4.0"
 aioify = "^0.4.1"
+asyncpg = "^0.30.0"
 
 [tool.poetry.dev-dependencies]
 

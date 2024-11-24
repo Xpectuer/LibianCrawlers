@@ -1,5 +1,5 @@
 # -*- coding: UTF-8 -*-
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional
 
 from aioify import aioify
 
@@ -11,6 +11,8 @@ from libiancrawlers.xiaohongshu import aioget_global_xhs_client
 
 async def search(*,
                  keywords: Union[str, Tuple[str]],
+                 page_max: Optional[int] = None,
+                 page_size: Optional[int] = None,
                  fetch_all_content: bool = False,
                  fetch_all_comment: bool = False,
                  retry_max: int = 0,
@@ -36,6 +38,8 @@ async def search(*,
 
         await abstract_search(
             keywords=keywords,
+            page_max=page_max,
+            page_size=page_size,
             fetch_all_content=fetch_all_content,
             fetch_all_comment=fetch_all_comment,
             retry_max=retry_max,

@@ -3,6 +3,7 @@ from typing import Union, Tuple, Callable, TypedDict, Optional, Awaitable
 
 from loguru import logger
 
+from libiancrawlers.common import log_debug_which_object_maybe_very_length
 from libiancrawlers.common.config import read_config
 from libiancrawlers.common.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.common.types import JSON
@@ -25,6 +26,8 @@ SearchByKeywordResult = TypedDict('SearchByKeywordResult', {
 
 async def abstract_search(*,
                           keywords: Union[str, Tuple[str]],
+                          page_max: Optional[int],
+                          page_size: Optional[int],
                           fetch_all_content: bool = False,
                           fetch_all_comment: bool = False,
                           retry_max: int = 0,
@@ -41,11 +44,13 @@ async def abstract_search(*,
 
     logger.info('Search keywords : {}', keywords)
 
-    page_max = read_config('crawler', 'platform', platform_id, 'search-page-max',
-                           checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
+    page_max = page_max if page_max is not None \
+        else read_config('crawler', 'platform', platform_id, 'search-page-max',
+                         checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
     if not page_size_ignore:
-        page_size = read_config('crawler', 'platform', platform_id, 'search-page-size',
-                                checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
+        page_size = page_size if page_size is not None \
+            else read_config('crawler', 'platform', platform_id, 'search-page-size',
+                             checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
     else:
         page_size = None
 
@@ -79,6 +84,7 @@ async def abstract_search(*,
     _err_ref = None
 
     for retry_count in range(1, max(2, retry_max + 1)):
+        logger.debug('Start crawling from search , retry_count = {}', retry_count)
         try:
             for keyword in keywords:
                 if fetch_all_content:
@@ -95,6 +101,10 @@ async def abstract_search(*,
                         'page': page,
                         'page_size': page_size,
                     })
+
+                    log_debug_which_object_maybe_very_length(prefix='Result of on_search_by_keyword',
+                                                             obj=res,
+                                                             max_output_length=200)
 
                     await insert_to_garbage_table(
                         g_type=f'{platform_id}_search_result',
