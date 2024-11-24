@@ -1,14 +1,14 @@
 # -*- coding: UTF-8 -*-
 import asyncio
 import json
-import sys
 from typing import Optional
 
 import aiopg
 from aiopg import Pool
 from loguru import logger
 
-from libiancrawlers.common import read_config, get_app_init_conf
+from libiancrawlers.common.app_init import get_app_init_conf
+from libiancrawlers.common.config import read_config
 from libiancrawlers.common.types import JSON, AppInitConfDisable
 
 _CHECKED_GARBAGE_TABLE_EXIST = False

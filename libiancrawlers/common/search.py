@@ -3,7 +3,7 @@ from typing import Union, Tuple, Callable, TypedDict, Optional, Awaitable
 
 from loguru import logger
 
-from libiancrawlers.common import read_config
+from libiancrawlers.common.config import read_config
 from libiancrawlers.common.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.common.types import JSON
 

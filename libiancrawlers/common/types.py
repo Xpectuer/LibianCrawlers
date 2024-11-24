@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from dataclasses import dataclass
-from typing import Union, Mapping, List, TYPE_CHECKING
+from typing import Union, Mapping, List
 
 JSONRaw = Union[str, int, float, bool, None]
 JSONArray = List['JSON']

@@ -1,14 +1,12 @@
 # -*- coding: UTF-8 -*-
-import asyncio
-from typing import List, Union, Tuple
+from typing import Union, Tuple
 
 from aioify import aioify
-from loguru import logger
 
-from libiancrawlers.common.postgres import get_conn, close_global_pg_pool
+from libiancrawlers.common import on_before_retry_default, Initiator
+from libiancrawlers.common.app_init import exit_app, init_app
 from libiancrawlers.common.search import abstract_search, SearchByKeywordContext, SearchByKeywordResult
-from libiancrawlers.xiaohongshu import XHSNoteLink, aioget_global_xhs_client
-from ..common import on_before_retry_default, Initiator, exit_app
+from libiancrawlers.xiaohongshu import aioget_global_xhs_client
 
 
 async def search(*,
@@ -166,7 +164,6 @@ _SHUTDOWN_AFTER_SEARCH = False
 
 
 def cli():
-    from libiancrawlers.common import init_app
     init_app(Initiator(postgres=True, playwright=False))
     global _SHUTDOWN_AFTER_SEARCH
     _SHUTDOWN_AFTER_SEARCH = True

@@ -1,13 +1,8 @@
 # -*- coding: UTF-8 -*-
-from os import path
 from typing import Optional, Union, Tuple
 
-from browserforge.fingerprints import Screen, FingerprintGenerator
-from camoufox import DefaultAddons
-from loguru import logger
-
 from camoufox.server import launch_server
-from camoufox import AsyncCamoufox, Camoufox
+from loguru import logger
 
 
 def launch_camoufox_server(

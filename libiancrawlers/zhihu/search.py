@@ -1,11 +1,10 @@
 # -*- coding: UTF-8 -*-
-import asyncio
-import os.path
 from typing import Union, Tuple
 
 from loguru import logger
 
-from libiancrawlers.common import exit_app, read_config_get_path, sleep
+from libiancrawlers.common import sleep
+from libiancrawlers.common.app_init import exit_app, init_app
 from libiancrawlers.common.playwright_util import get_browser
 from libiancrawlers.common.types import TODO, Initiator, LaunchBrowserParam
 from libiancrawlers.zhihu import zhihu_check_login_state
@@ -13,13 +12,11 @@ from libiancrawlers.zhihu import zhihu_check_login_state
 
 async def search(*,
                  keywords: Union[str, Tuple[str]],
-                 # search_type: str,
                  fetch_all_content: bool = False,
                  fetch_all_comment: bool = False,
                  retry: int = 0,
                  ):
     from libiancrawlers.common import on_before_retry_default
-    from libiancrawlers.common.postgres import close_global_pg_pool
     from libiancrawlers.common.search import SearchByKeywordContext, SearchByKeywordResult, abstract_search
 
     # search_type_allow = [e.value for e in SearchObjectType]
@@ -104,7 +101,6 @@ _SHUTDOWN_AFTER_SEARCH = False
 
 
 def cli():
-    from libiancrawlers.common import init_app
     init_app(Initiator(postgres=True, playwright=True))
     global _SHUTDOWN_AFTER_SEARCH
     _SHUTDOWN_AFTER_SEARCH = True

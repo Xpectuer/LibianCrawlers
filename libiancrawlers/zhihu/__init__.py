@@ -2,12 +2,9 @@
 import json
 import re
 from typing import Dict, Optional
-from urllib.parse import urlencode
 
 from loguru import logger
-from playwright.async_api import Page, Browser, BrowserContext
-
-from libiancrawlers.common.types import TODO
+from playwright.async_api import Page, BrowserContext
 
 _check_login_exp = re.compile(r'<pre>([\s\S]*?)</pre>')
 

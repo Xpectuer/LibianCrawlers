@@ -10,7 +10,7 @@ from loguru import logger
 from xhs import DataFetchError, XhsClient, IPBlockError, ErrorEnum
 from xhs.exception import NeedVerifyError, SignError
 
-from libiancrawlers.common import random_user_agent, read_config, is_config_truthy
+from libiancrawlers.common.config import read_config, is_config_truthy
 
 
 def _sign(uri, data=None, a1="", web_session=""):
@@ -151,6 +151,27 @@ class XHSNoteLink(NamedTuple):
     note_id: str
     xsec_token: str
     title: Optional[str]
+
+
+def random_user_agent():
+    from random_user_agent.user_agent import UserAgent
+    from random_user_agent.params import SoftwareName, OperatingSystem
+
+    # you can also import SoftwareEngine, HardwareType, SoftwareType, Popularity from random_user_agent.params
+    # you can also set number of user agents required by providing `limit` as parameter
+
+    software_names = [SoftwareName.CHROME.value]
+    operating_systems = [OperatingSystem.WINDOWS.value]
+
+    user_agent_rotator = UserAgent(software_names=software_names, operating_systems=operating_systems, limit=1)
+
+    # Get list of user agents.
+    user_agents = user_agent_rotator.get_user_agents()
+
+    # Get Random User Agent String.
+    user_agent = user_agent_rotator.get_random_user_agent()
+
+    return user_agent
 
 
 if __name__ == '__main__':

@@ -1,12 +1,17 @@
 # -*- coding: UTF-8 -*-
 import asyncio
 import os.path
-from typing import Optional, Literal, Union, TypedDict
-from loguru import logger
+from typing import Optional, Literal, Union
+
 # noinspection PyProtectedMember
 from camoufox import AsyncCamoufox
-from playwright.async_api import async_playwright, PlaywrightContextManager, BrowserContext, Browser
+from loguru import logger
+# noinspection PyProtectedMember
+from playwright.async_api import PlaywrightContextManager
+from playwright.async_api import async_playwright, BrowserContext, Browser
 
+from libiancrawlers.common.app_init import get_app_init_conf
+from libiancrawlers.common.config import read_config, read_config_get_path
 from libiancrawlers.common.types import AppInitConfDisable, LaunchBrowserParam
 
 PLAYWRIGHT_LOCK = asyncio.Lock()
@@ -27,8 +32,6 @@ async def shutdown_playwright():
 
 
 async def _get_ctx():
-    from libiancrawlers.common import get_app_init_conf
-
     global PLAYWRIGHT_CONTEXT
     if PLAYWRIGHT_CONTEXT is None:
         async with PLAYWRIGHT_LOCK:
@@ -44,8 +47,6 @@ async def get_browser(*,
                           Literal["connect"],
                           LaunchBrowserParam,
                       ]):
-    from libiancrawlers.common import read_config, read_config_get_path
-
     ctx = await _get_ctx()
     playwright = await ctx.__aenter__()
     if mode == 'connect':

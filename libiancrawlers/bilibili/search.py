@@ -4,7 +4,7 @@ from typing import Union, Tuple
 from bilibili_api.search import SearchObjectType, search_by_type
 from loguru import logger
 
-from libiancrawlers.common import exit_app, init_app, Initiator
+from libiancrawlers.common.app_init import exit_app
 
 
 async def search(*,
@@ -70,7 +70,6 @@ _SHUTDOWN_AFTER_SEARCH = False
 
 
 def cli():
-    from libiancrawlers.common import init_app
     init_app(Initiator(postgres=True, playwright=False))
     global _SHUTDOWN_AFTER_SEARCH
     _SHUTDOWN_AFTER_SEARCH = True

@@ -4,7 +4,7 @@ import asyncio
 import async_to_sync
 from playwright.async_api import async_playwright
 
-from libiancrawlers.common import read_config
+from libiancrawlers.common.config import read_config
 
 
 def to_browser_scan():
