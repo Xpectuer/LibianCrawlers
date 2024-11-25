@@ -110,7 +110,7 @@ async def search(*,
                     'params': params,
                     'raise_on_error_response': raise_on_error_response,
                 },
-                'has_more': j.get('numPages', 1) > page
+                'has_more': not j.get('paging', {'is_end': True}).get('is_end', True)
             }
 
         await abstract_search(
