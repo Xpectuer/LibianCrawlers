@@ -41,7 +41,6 @@ def launch_camoufox_server(
         geoip=geoip,
         proxy=proxy,
         locale=locale,
-        args=['--profile', 'zhihu'],
         debug=debug,
         config={
             'screen.availWidth': 1824,
