@@ -1,0 +1,15 @@
+{
+  "version": "3",
+  "packages": {
+    "specifiers": {
+      "npm:cfg-reader@latest": "npm:cfg-reader@3.0.3"
+    },
+    "npm": {
+      "cfg-reader@3.0.3": {
+        "integrity": "sha512-XbnzWJlB54nyYQVrPUOVFY9DEEReykYW4hH2yg+91D+QAKfvq3sAaf5Snhiq65oXzKI1l9P2HAseMkeTumhPvQ==",
+        "dependencies": {}
+      }
+    }
+  },
+  "remote": {}
+}

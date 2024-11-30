@@ -53,7 +53,7 @@ async def get_browser(*,
     ctx = await _get_ctx()
     playwright = await ctx.__aenter__()
     if mode == 'connect':
-        ws_endpoint = read_config('camoufox', 'server', 'ws-endpoint')
+        ws_endpoint = await read_config('camoufox', 'server', 'ws-endpoint')
         browser: Browser = await playwright.firefox.connect(ws_endpoint=ws_endpoint)
         browser_context = await browser.new_context()
     else:

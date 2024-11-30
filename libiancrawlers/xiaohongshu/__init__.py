@@ -10,11 +10,12 @@ from loguru import logger
 from xhs import DataFetchError, XhsClient, IPBlockError, ErrorEnum
 from xhs.exception import NeedVerifyError, SignError
 
-from libiancrawlers.common.config import read_config, is_config_truthy
+from libiancrawlers.common.config import read_config, is_config_truthy, read_config_sync
 
 
-def _sign(uri, data=None, a1="", web_session=""):
-    res = requests.post(read_config('crawler', 'xiaohongshu', 'sign-server-path'),
+def _sign(uri: str, data=None, a1="", web_session=""):
+    sign_server_path = read_config_sync('crawler', 'platform', 'xiaohongshu', 'sign-server-path')
+    res = requests.post(sign_server_path,
                         json={"uri": uri, "data": data, "a1": a1, "web_session": web_session})
     signs = res.json()
     return {
@@ -86,8 +87,9 @@ def _get_note_by_id_from_html(self, note_id: str, xsec_token: str):
     raise DataFetchError(html)
 
 
+# noinspection SpellCheckingInspection
 def _request(self, method, url, **kwargs):
-    logd = is_config_truthy(read_config('crawler', 'xiaohongshu', 'logd-request'))
+    logd = is_config_truthy(read_config_sync('crawler', 'platform', 'xiaohongshu', 'logd-request'))
     if logd:
         logger.debug('xhs request (self is {}) {} {} {}', self, method, url, kwargs)
     response = self.session.request(
@@ -139,7 +141,7 @@ def get_global_xhs_client():
     if _GLOBAL_XHS_CLIENT is None:
         with _GLOBAL_XHS_CLIENT_LOCK:
             if _GLOBAL_XHS_CLIENT is None:
-                _cookie = read_config('crawler', 'xiaohongshu', 'cookie')
+                _cookie = read_config_sync('crawler', 'platform', 'xiaohongshu', 'cookie')
                 _GLOBAL_XHS_CLIENT = create_xhs_client(cookie=_cookie)
     return _GLOBAL_XHS_CLIENT
 

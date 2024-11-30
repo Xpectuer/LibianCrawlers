@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 from typing import Callable, Optional, Awaitable, Any
 
+from aiofiles import os as aioos
 from loguru import logger
 
 from libiancrawlers.common.playwright_util import shutdown_playwright
@@ -32,6 +33,16 @@ async def sleep(total: float, *, interval: float = 3, checker: Optional[Callable
         await asyncio.sleep(min(interval, end - now))
         now = datetime.utcnow().timestamp()
     return True
+
+
+async def mkdirs(dir_name: str, *, mode=700, exist_ok=True):
+    if await aioos.path.exists(dir_name):
+        if not await aioos.path.isdir(dir_name):
+            logger.warning('Mkdirs points to existed file : {}', dir_name)
+    else:
+        logger.debug('mkdirs at {}', dir_name)
+    await aioos.makedirs(dir_name, mode=mode, exist_ok=exist_ok)
+    return dir_name
 
 
 def log_debug_which_object_maybe_very_length(*, prefix: str, obj: Any, max_output_length: int):

@@ -1,10 +1,12 @@
 # -*- coding: UTF-8 -*-
-import asyncio
 import json
 import os
 import sys
-from typing import Optional, Callable, Any
 
+from typing import Optional, Callable, Any, Awaitable, Union, NoReturn
+
+import aiofiles
+import async_to_sync
 from confection import Config
 from loguru import logger
 from aiofiles import os as aioos
@@ -38,27 +40,41 @@ def is_config_truthy(s: Optional[str]):
 
 _READIED_CONFIG = None
 
+SysExitExConfig = Callable[[], Awaitable[Union[None, NoReturn]]]
 
-def read_config(*args: str,
-                sys_exit: Optional[Callable[[int], None]] = None,
-                checking: Callable[[Any], Optional[str]] = None):
+EX_CONFIG = 78
+
+
+async def _sys_exit_config() -> NoReturn:
+    from libiancrawlers.common import is_windows
+    if is_windows():
+        # noinspection PyUnresolvedReferences,PyProtectedMember
+        os._exit(EX_CONFIG)
+    else:
+        sys.exit(EX_CONFIG)
+    assert not 'Config error but not exit'
+
+
+async def read_config(*args: str,
+                      sys_exit: Optional[SysExitExConfig] = None,
+                      checking_sync: Optional[Callable[[Any], Optional[str]]] = None):
     """
     绝大多数情况下，此函数只在第一次启动时阻塞协程一次。所以无须在意。
 
     :param args:
     :param sys_exit:
-    :param checking:
+    :param checking_sync:
     :return:
     """
     global _READIED_CONFIG
     if _READIED_CONFIG is None:
-        _READIED_CONFIG = _read_config(sys_exit=sys_exit)
+        _READIED_CONFIG = await _read_config(sys_exit=sys_exit)
     o = _READIED_CONFIG
     arg = None
     try:
         for arg in args:
             o = o[arg]
-        err_msg = checking(o) if checking is not None else None
+        err_msg = checking_sync(o) if checking_sync is not None else None
         if err_msg:
             raise ValueError('Invalid config %s : %s' % (args, err_msg))
         return o
@@ -70,45 +86,49 @@ def read_config(*args: str,
         raise
 
 
-def _read_config(*, sys_exit: Optional[Callable[[int], None]] = None):
-    if sys_exit is None:
-        sys_exit = sys.exit
+async def _read_config(*, sys_exit: Optional[SysExitExConfig] = None):
+    from libiancrawlers.common import mkdirs
     config_dir = os.path.join(os.path.expanduser("~"), '.libian', 'crawler', 'config')
-    if not os.path.exists(config_dir) or not os.path.isdir(config_dir):
-        os.makedirs(config_dir, mode=755, exist_ok=True)
+    await mkdirs(config_dir)
     config_file_path = os.path.join(config_dir, 'v1.cfg')
     if not os.path.exists(config_file_path):
-        with open(config_file_path, mode='w+', encoding='utf-8') as f:
+        async with aiofiles.open(config_file_path, mode='w+', encoding='utf-8') as f:
             logger.warning('Not exist config dir , auto create it at {}', config_file_path)
-            f.write(CONFIG_TEMPLATE)
-            logger.warning('Please rewrite it !')
-        return sys_exit(66)
+            await f.write(CONFIG_TEMPLATE)
+        logger.warning('Please rewrite config file at {}', config_file_path)
+        return await sys_exit() if sys_exit is not None else await _sys_exit_config()
     logger.debug('Start read config from {}', config_dir)
     # noinspection PyBroadException
+
     try:
-        config = Config().from_disk(config_file_path)
+        async with aiofiles.open(config_file_path, mode='r+', encoding='utf-8') as f:
+            config_str = await f.read()
+        config = Config().from_str(config_str)
     except BaseException:
         logger.exception('Error on read config file at {}', config_file_path)
-        print('Please open the config dir and delete/modify the file:\n\t' + config_file_path)
-        return sys_exit(1)
+        logger.error('Please open the config dir and delete/modify the file:\n\t' + config_file_path)
+        return await sys_exit() if sys_exit is not None else await _sys_exit_config()
     logger.debug('Config is {}', json.dumps(config, indent=2, ensure_ascii=False))
     return config
 
 
 async def read_config_get_path(*args: str, create_if_not_exist: bool = False):
-    def get_path():
-        v: str = read_config(*args, checking=lambda it: None if isinstance(it, str) else 'Should be str')
+    from libiancrawlers.common import mkdirs
+
+    async def get_path():
+        v: str = await read_config(*args, checking_sync=lambda it: None if isinstance(it, str) else 'Should be str')
         p = v.replace('{{HOME}}', os.path.expanduser('~')).replace('/', os.sep)
         logger.debug('get path from config : args={} , v={} , p={}', args, v, p)
         return p
 
-    pth = await asyncio.get_event_loop().run_in_executor(None, get_path)
+    pth = await get_path()
     if create_if_not_exist and not await aioos.path.exists(pth):
-        logger.debug('makedirs {}', pth)
-        await aioos.makedirs(pth, mode=755)
+        await mkdirs(pth)
 
     return pth
 
+
+read_config_sync = async_to_sync.function(read_config)
 
 if __name__ == '__main__':
     pass

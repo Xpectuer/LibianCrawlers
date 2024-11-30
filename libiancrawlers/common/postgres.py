@@ -26,11 +26,11 @@ async def close_global_pg_pool():
 
 
 async def get_pool():
-    dbname = read_config("crawler", "postgres", "dbname")
-    user = read_config("crawler", "postgres", "user")
-    password = read_config("crawler", "postgres", "password")
-    host = read_config("crawler", "postgres", "host")
-    port = read_config("crawler", "postgres", "port")
+    dbname = await read_config("crawler", "postgres", "dbname")
+    user = await read_config("crawler", "postgres", "user")
+    password = await read_config("crawler", "postgres", "password")
+    host = await read_config("crawler", "postgres", "host")
+    port = await read_config("crawler", "postgres", "port")
     # dsn = f'scheme=postgresql dbname={dbname} user={user} password={password} host={host} port={port}'
 
     global _POOL
@@ -96,7 +96,7 @@ async def insert_to_garbage_table(*,
         logger.debug('start insert to table')
         await pool.execute(
             'INSERT INTO libian_crawler.garbage ( g_type, g_search_key, g_content ) VALUES ( $1, $2, $3 );',
-            g_type, g_search_key,  content
+            g_type, g_search_key, content
         )
         logger.debug('success insert to table')
     except BaseException:

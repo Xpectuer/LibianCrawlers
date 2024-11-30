@@ -45,12 +45,12 @@ async def abstract_search(*,
     logger.info('Search keywords : {}', keywords)
 
     page_max = page_max if page_max is not None \
-        else read_config('crawler', 'platform', platform_id, 'search-page-max',
-                         checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
+        else await read_config('crawler', 'platform', platform_id, 'search-page-max',
+                               checking_sync=lambda it: 'Require >= 1' if it is None or it < 1 else None)
     if not page_size_ignore:
         page_size = page_size if page_size is not None \
-            else read_config('crawler', 'platform', platform_id, 'search-page-size',
-                             checking=lambda it: 'Require >= 1' if it is None or it < 1 else None)
+            else await read_config('crawler', 'platform', platform_id, 'search-page-size',
+                                   checking_sync=lambda it: 'Require >= 1' if it is None or it < 1 else None)
     else:
         page_size = None
 

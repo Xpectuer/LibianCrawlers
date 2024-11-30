@@ -12,7 +12,7 @@ def to_browser_scan():
 
 
 async def to_browser_scan_async():
-    ws_endpoint = read_config('camoufox', 'server', 'ws-endpoint')
+    ws_endpoint = await read_config('camoufox', 'server', 'ws-endpoint')
     async with async_playwright() as playwright:
         browser = await playwright.firefox.connect(ws_endpoint=ws_endpoint)
         page = await browser.new_page()

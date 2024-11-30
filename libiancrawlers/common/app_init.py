@@ -1,7 +1,5 @@
 # -*- coding: UTF-8 -*-
 import asyncio
-import atexit
-import sys
 from typing import Optional
 
 from loguru import logger
@@ -16,8 +14,6 @@ def get_app_init_conf():
 
 
 def init_app(conf: Initiator):
-    from libiancrawlers.common import is_windows
-
     global _APP_INIT_CONF
     if _APP_INIT_CONF is not None:
         logger.error("Don't re call init_app , current init conf is {} , but this conf is {}",
@@ -36,7 +32,6 @@ def init_app(conf: Initiator):
 
 # noinspection PyBroadException
 async def exit_app():
-    from libiancrawlers.common import is_windows
     from libiancrawlers.common.postgres import close_global_pg_pool
 
     if _APP_INIT_CONF is None:
