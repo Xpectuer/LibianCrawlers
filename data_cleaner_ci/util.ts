@@ -1,6 +1,6 @@
 import path from "node:path";
 
-export async function exists_else_create(param: {
+export async function write_file(param: {
   file_path: string;
   creator:
     | {
@@ -67,4 +67,20 @@ export async function exists_else_create(param: {
     file_info = await Deno.lstat(file_path);
   }
   return file_info;
+}
+
+export function sleep(ms: number) {
+  return new Promise<void>((rs, rj) => {
+    if (ms <= 0) {
+      rs();
+    } else {
+      setTimeout(() => {
+        try {
+          rs();
+        } catch (err) {
+          rj(err);
+        }
+      }, ms);
+    }
+  });
 }

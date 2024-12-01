@@ -24,6 +24,13 @@ deno install
 deno run init_config.ts
 ```
 
+然后启动类型生成。
+
+```shell
+deno run --allow-read --allow-write --allow-env --allow-net code_gen.ts
+```
+
+
 ## 需求
 
 自动化的数据清洗是个究极难题。它难就难在：

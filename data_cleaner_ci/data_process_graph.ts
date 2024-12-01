@@ -10,15 +10,12 @@ export type DPNodeFromPolars = {
   value: pl.DataFrame;
 };
 
-export type StreamLike<T> = {
-  value: T;
-  next: () => Promise<StreamLike<T>>;
-  close: () => void;
-};
-
-export type DPNodeStreamLike<T, S extends StreamLike<T> = StreamLike<T>> = {
+export type DPNodeStreamLike<
+  T,
+  S extends AsyncGenerator<T> = AsyncGenerator<T>
+> = {
   mode: "stream_like";
-  get_stream: Promise<S>;
+  get_stream: () => Promise<S>;
 };
 
 export type DPNodeComputed<

@@ -1,13 +1,26 @@
 import os from "node:os";
 import path from "node:path";
-import { exists_else_create } from "./util.ts";
+import { write_file } from "./util.ts";
 
 function template_config() {
   return {
     repositories: [
       {
         typ: "postgres",
-        mode: "read",
+        param: {
+          dbname: "<INPUT>",
+          user: "<INPUT>",
+          password: "<INPUT>",
+          host: "<INPUT>",
+          port: 5432,
+        },
+        dataset_tables: [
+          {
+            dataset_typename: "MyHelloWorld",
+            schema: "<INPUT>",
+            tablename: "<INPUT>",
+          },
+        ],
       },
     ],
   };
@@ -21,7 +34,7 @@ export async function init_config() {
     "config",
     "dc_v1.json"
   );
-  await exists_else_create({
+  await write_file({
     file_path: config_file_path,
     creator: {
       mode: "text",
@@ -34,7 +47,7 @@ export async function init_config() {
       alia_name: "config file",
     },
   });
-  await exists_else_create({
+  await write_file({
     file_path: path.join(Deno.cwd(), "data-cleaner-ci-generated", ".gitignore"),
     creator: {
       mode: "text",
@@ -44,7 +57,7 @@ export async function init_config() {
       alia_name: "gitignore file",
     },
   });
-  await exists_else_create({
+  await write_file({
     file_path: path.join(
       Deno.cwd(),
       "data-cleaner-ci-generated",
