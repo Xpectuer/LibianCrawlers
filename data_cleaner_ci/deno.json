@@ -1,5 +1,10 @@
 {
   "tasks": {
+    "init": "deno run init_config.ts",
     "dev": "deno run --watch main.ts"
+  },
+  "imports": {
+    "nodejs-polars": "npm:nodejs-polars@^0.16.0",
+    "postgres": "npm:postgres@^3.4.5"
   }
 }
