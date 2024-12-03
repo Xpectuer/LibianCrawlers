@@ -27,9 +27,8 @@ deno run init_config.ts
 然后启动类型生成。
 
 ```shell
-deno run --allow-read --allow-write --allow-env --allow-net code_gen.ts
+deno run --allow-env=PG*,READABLE_STREAM,CI --allow-read=./data_cleaner_ci_generated --allow-write=./data_cleaner_ci_generated code_gen.ts
 ```
-
 
 ## 需求
 
@@ -44,24 +43,6 @@ deno run --allow-read --allow-write --allow-env --allow-net code_gen.ts
 2. 代码结构与业务隐私组合的麻烦，不能把业务代码硬编码到仓库中。
    1. 有时有一些自己的秘密数据，想复用代码不方便。
    2. 但爬虫都写入仓库了，总得把对应的清洗代码放进去。
-
-### 数仓细粒度权限
-
-数仓的权限系统关系到自己的法律意义上的责任，因此不得不细心对待。
-
-数仓的可读性可以如下划分:
-
-#### `struct readble`: 类型可知
-
-如果数据结构可以公开，那么可以提供一个接口用于数据处理。
-
-> 请小心，一些 web 爬虫会携带账号信息，这可能被 quicktype 用作枚举值。
->
-> 因此不应当直接对数仓数据的类型生成结果作为公开类型，而应当在 mapping 后公开。
-
-#### `slice readble`: 切片可知
-
-同上，应当在 filter mapping 后公开。
 
 ### 数据处理图
 

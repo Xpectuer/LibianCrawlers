@@ -4,11 +4,15 @@
     "dev": "deno run --watch main.ts"
   },
   "imports": {
+    "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.48",
+    "@std/assert": "jsr:@std/assert@^1.0.8",
     "collection-utils": "npm:collection-utils@^1.0.1",
     "console-progress-bar": "npm:console-progress-bar@^1.0.9",
+    "encoding": "npm:encoding@^0.1.13",
     "jsonata": "npm:jsonata@^2.0.6",
     "nodejs-polars": "npm:nodejs-polars@^0.16.0",
     "postgres": "npm:postgres@^3.4.5",
     "quicktype-core": "npm:quicktype-core@^23.0.170"
-  }
+  },
+  "nodeModulesDir": "auto"
 }

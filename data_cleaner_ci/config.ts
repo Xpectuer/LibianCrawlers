@@ -1,4 +1,4 @@
-import config from "./data-cleaner-ci-generated/config.json" with { type: "json" };
+import config from "./data_cleaner_ci_generated/config.json" with { type: "json" };
 
 //
 // 有时 vscode 的 deno 插件并没有在配置更新后更新类型提示，
