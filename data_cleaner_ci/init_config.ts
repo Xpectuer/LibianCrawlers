@@ -115,7 +115,10 @@ export async function init_config() {
       mode: "text",
       // deno-lint-ignore require-await
       content: async () =>
-        `export type LibianCrawlerGarbage = {} // 自己改成自己数仓的类型`,
+        `
+export type LibianCrawlerGarbage = {} // 自己改成自己数仓的类型;
+export const read_LibianCrawlerGarbage = ()=>{} // 自己改成自己数仓的 api;
+      `,
     },
     log_tag: {
       alia_name: "user code readme file",

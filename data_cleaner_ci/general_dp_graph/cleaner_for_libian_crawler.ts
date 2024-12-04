@@ -1,5 +1,7 @@
-import { read_TJNocoPGLibianCrawlerGarbage } from "../data_cleaner_ci_generated/TJNocoPGLibianCrawlerGarbage_api.ts";
-import { LibianCrawlerGarbage } from "../user_code/LibianCrawlerGarbage.ts";
+import {
+  LibianCrawlerGarbage,
+  read_LibianCrawlerGarbage,
+} from "../user_code/LibianCrawlerGarbage.ts";
 import { Json, sleep, Strs, Times } from "../util.ts";
 import {
   MediaContent,
@@ -192,7 +194,7 @@ export async function* cleaner_for_libian_crawler() {
 
 async function _main() {
   const gen = cleaner_for_libian_crawler();
-  for await (const garbages of read_TJNocoPGLibianCrawlerGarbage()) {
+  for await (const garbages of read_LibianCrawlerGarbage()) {
     for (const garbage of garbages) {
       const media = await gen.next(garbage);
       if (typeof media.value === "object" && "title" in media.value) {
