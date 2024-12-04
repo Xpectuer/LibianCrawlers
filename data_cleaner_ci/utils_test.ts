@@ -20,10 +20,7 @@ Deno.test(function parseNumberTest() {
     ["1.5万", 15000],
     ["1.5亿", 150000000],
   ]) {
-    assertEquals(
-      n,
-      Strs.parse_number(t, () => NaN)
-    );
+    assertEquals(n, Strs.parse_number(t));
   }
 });
 

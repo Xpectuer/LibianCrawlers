@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import path from "node:path";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
 
@@ -135,14 +136,23 @@ export namespace Strs {
 
   export function parse_number<R extends number>(
     value: string | number,
-    nan_if: () => R
+    nan_if: (
+      source_value: string | number | null,
+      cause_value: string | number
+    ) => R = (source_value, cause_value) => {
+      throw new Error(
+        `Why NaN on parse_number : source_value=${source_value}, cause_value=${cause_value}`
+      );
+    },
+    source_value: string | number | null = null
   ): R | number {
     if (typeof value === "number") {
       return value;
     }
+    const source_value_v2 = source_value === null ? value : source_value;
     value = value.trim();
     if (startswith(value, ".")) {
-      return parse_number(concat_string("0", value), nan_if);
+      return parse_number(concat_string("0", value), nan_if, source_value_v2);
     }
     const chinese_quantifier_endings = [
       ["十", 10],
@@ -157,14 +167,16 @@ export namespace Strs {
     ] of chinese_quantifier_endings) {
       if (endswith(value, chinese_quantifier)) {
         const x = remove_suffix(value, chinese_quantifier);
-        return parse_number(x, nan_if) * chinese_quantifier_multi;
+        return (
+          parse_number(x, nan_if, source_value_v2) * chinese_quantifier_multi
+        );
       }
     }
     const parse_float_res = parseFloat(value);
     if (!isNaN(parse_float_res)) {
       return parse_float_res;
     } else {
-      return nan_if();
+      return nan_if(source_value, value);
     }
   }
 
@@ -177,7 +189,46 @@ export namespace Strs {
   }
 }
 
+// deno-lint-ignore no-namespace
+export namespace Times {
+  export function unix_to_time(unix_ms_or_s: number): Date {
+    let unit: "s" | "ms";
+    if (unix_ms_or_s < 12345678900) {
+      unit = "ms";
+    } else {
+      unit = "s";
+    }
+    return new Date(unix_ms_or_s / (unit === "ms" ? 1000 : 1));
+  }
+}
+
 export type TableLike<K extends string = string> = Record<
   K,
   string | number | null
 >[];
+
+// deno-lint-ignore no-namespace
+export namespace Json {
+  export type JsonDumpOption = {
+    mode?: "JSON";
+    indent?: number;
+  };
+
+  export function dump(obj: any, option?: JsonDumpOption) {
+    if (!option) {
+      option = {};
+    }
+    const replacer = (_k: string, v: any) => {
+      return typeof v === "bigint" ? Number(v) : v;
+    };
+    if (option.mode === undefined || option.mode === "JSON") {
+      return JSON.stringify(obj, replacer, option.indent);
+    }
+    // else if (option.mode === "JSON5") {
+    //   return JSON5.stringify(obj, replacer, option.indent);
+    // }
+    else {
+      throw new Error(`Invalid option.mode ${option.mode}`);
+    }
+  }
+}

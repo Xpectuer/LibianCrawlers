@@ -109,6 +109,18 @@ export async function init_config() {
       alia_name: "user code readme file",
     },
   });
+  await write_file({
+    file_path: path.join(user_code_dir_link, "LibianCrawlerGarbage.ts"),
+    creator: {
+      mode: "text",
+      // deno-lint-ignore require-await
+      content: async () =>
+        `export type LibianCrawlerGarbage = {} // 自己改成自己数仓的类型`,
+    },
+    log_tag: {
+      alia_name: "user code readme file",
+    },
+  });
 }
 
 if (import.meta.main) {

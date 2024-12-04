@@ -32,7 +32,7 @@ export type MediaSearchContext = {
   question: string;
 };
 
-export type MediaContent = {
+export type MediaContentSimple = {
   /**
    * 标题
    */
@@ -46,6 +46,10 @@ export type MediaContent = {
    */
   content_text_detail?: string;
   /**
+   * 正文内容链接
+   */
+  content_link_url: string;
+  /**
    * 发布者
    */
   authors: MediaContentAuthor[];
@@ -57,6 +61,17 @@ export type MediaContent = {
    * 平台的可用于去重的ID
    */
   platform_duplicate_id: string;
+  /**
+   * 点赞数
+   */
+  count_like: bigint;
+  /**
+   * 从搜索中读取
+   */
+  from_search_context: MediaSearchContext[];
+};
+
+export type MediaContent = MediaContentSimple & {
   /**
    * 创建时间
    */
@@ -70,17 +85,13 @@ export type MediaContent = {
    */
   tags: MediaContentTag[];
   /**
-   * 正文内容链接
+   * IP地区
    */
-  content_link_url: string;
+  ip_location: string | null;
   /**
    * 封面链接
    */
-  cover_url: string;
-  /**
-   * 点赞数
-   */
-  count_like: bigint;
+  cover_url: string | null;
   /**
    * 分享数
    */
@@ -96,11 +107,7 @@ export type MediaContent = {
   /**
    * 平台所提供的排序排名值
    */
-  platform_rank_score: bigint;
-  /**
-   * 从搜索中读取
-   */
-  from_search_context: MediaSearchContext[];
+  platform_rank_score: bigint | null;
   /**
    * 视频列表
    */
@@ -111,17 +118,32 @@ export type MediaVideo = {
   /**
    * 视频播放量
    */
-  count_play: bigint;
+  count_play: bigint | null;
   /**
    * 视频下载地址
    */
-  download_urls: string[];
+  download_urls: {
+    url: string;
+    is_master: boolean;
+    key: string;
+  }[];
   /**
    * 视频时长（秒）
    */
-  duration_sec: bigint;
+  duration_sec: number;
   /**
    * 弹幕数
    */
-  danmu_count: bigint;
+  danmu_count: bigint | null;
+};
+
+export type MediaRelatedSearches = {
+  question: string;
+  related_questions: {
+    name: string;
+    cover_url: string | null;
+    search_word: string;
+  }[];
+  tip_text: string;
+  request_time: Date;
 };
