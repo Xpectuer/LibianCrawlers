@@ -1,5 +1,6 @@
 export enum PlatformEnum {
   小红书 = "xiaohongshu.com",
+  哔哩哔哩 = "bilibili.com",
 }
 
 export type MediaContentTag = {
@@ -10,7 +11,7 @@ export type MediaContentAuthor = {
   /**
    * 平台的用户id
    */
-  platform_user_id: string;
+  platform_user_id: string | number;
   /**
    * 昵称
    */
@@ -32,7 +33,7 @@ export type MediaSearchContext = {
   question: string;
 };
 
-export type MediaContentSimple = {
+export type MediaContent = {
   /**
    * 标题
    */
@@ -62,6 +63,10 @@ export type MediaContentSimple = {
    */
   platform_duplicate_id: string;
   /**
+   * 阅览数
+   */
+  count_read: bigint | null;
+  /**
    * 点赞数
    */
   count_like: bigint;
@@ -69,21 +74,18 @@ export type MediaContentSimple = {
    * 从搜索中读取
    */
   from_search_context: MediaSearchContext[];
-};
-
-export type MediaContent = MediaContentSimple & {
   /**
    * 创建时间
    */
-  create_time: Date;
+  create_time: Date | null;
   /**
    * 最后更新时间
    */
-  update_time: Date;
+  update_time: Date | null;
   /**
    * Tag
    */
-  tags: MediaContentTag[];
+  tags: MediaContentTag[] | null;
   /**
    * IP地区
    */
@@ -95,15 +97,23 @@ export type MediaContent = MediaContentSimple & {
   /**
    * 分享数
    */
-  count_share: bigint;
+  count_share: bigint | null;
   /**
    * 收藏数
    */
-  count_star: bigint;
+  count_star: bigint | null;
+  /**
+   * 总弹幕数
+   */
+  video_total_count_danmaku: bigint | null;
+  /**
+   * 总视频时长
+   */
+  video_total_duration_sec: number | null;
   /**
    * 评论数
    */
-  count_comment: bigint;
+  count_comment: bigint | null;
   /**
    * 平台所提供的排序排名值
    */
@@ -111,7 +121,7 @@ export type MediaContent = MediaContentSimple & {
   /**
    * 视频列表
    */
-  videos: MediaVideo[];
+  videos: MediaVideo[] | null;
 };
 
 export type MediaVideo = {
@@ -119,6 +129,14 @@ export type MediaVideo = {
    * 视频播放量
    */
   count_play: bigint | null;
+  /**
+   * 视频重播数
+   */
+  count_review: bigint | null;
+  /**
+   * 弹幕数
+   */
+  count_danmaku: bigint | null;
   /**
    * 视频下载地址
    */
@@ -130,13 +148,12 @@ export type MediaVideo = {
   /**
    * 视频时长（秒）
    */
-  duration_sec: number;
-  /**
-   * 弹幕数
-   */
-  danmu_count: bigint | null;
+  duration_sec: number | null;
 };
 
+/**
+ * 相关搜索
+ */
 export type MediaRelatedSearches = {
   question: string;
   related_questions: {

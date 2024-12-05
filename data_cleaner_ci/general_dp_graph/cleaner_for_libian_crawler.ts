@@ -5,7 +5,6 @@ import {
 import { Json, sleep, Strs, Times } from "../util.ts";
 import {
   MediaContent,
-  MediaContentSimple,
   MediaSearchContext,
   MediaVideo,
   PlatformEnum,
@@ -27,7 +26,13 @@ export function xiaohongshu_author_home_link_url(param: { user_id: string }) {
 
 export function xiaohongshu_related_searches() {}
 
-export async function* cleaner_for_libian_crawler() {
+export async function* cleaner_for_libian_crawler(_param?: {
+  // deno-lint-ignore no-explicit-any
+  logw?: (text: string, obj: any) => void;
+}) {
+  const __param = _param !== undefined ? _param : {};
+  const { logw } = __param;
+  const _logw = logw ?? ((text, obj) => console.warn(text, obj));
   while (1) {
     const garbage: LibianCrawlerGarbage = yield;
     if (garbage.group__xiaohongshu_note__) {
@@ -90,6 +95,9 @@ export async function* cleaner_for_libian_crawler() {
         count_share: BigInt(Strs.parse_number(share_count)),
         count_star: BigInt(Strs.parse_number(collected_count)),
         count_comment: BigInt(Strs.parse_number(comment_count)),
+        count_read: null,
+        video_total_count_danmaku: null,
+        video_total_duration_sec: video?.capa.duration ?? null,
         platform_rank_score: null,
         from_search_context: [
           ...(g_search_key
@@ -117,7 +125,8 @@ export async function* cleaner_for_libian_crawler() {
                       ])
                   ),
                   duration_sec: video.capa.duration,
-                  danmu_count: null,
+                  count_review: null,
+                  count_danmaku: null,
                 } satisfies MediaVideo,
               ]
             : []),
@@ -136,7 +145,7 @@ export async function* cleaner_for_libian_crawler() {
         const { id, xsec_token, note_card, rec_query, hot_query } = item;
         if (note_card) {
           const { display_title, interact_info, user } = note_card;
-          const res: MediaContentSimple = {
+          const res: MediaContent = {
             title: display_title ?? "",
             content_link_url: xiaohongshu_note_content_link_url({
               note_id: id,
@@ -160,6 +169,19 @@ export async function* cleaner_for_libian_crawler() {
                 question: g_search_key,
               },
             ],
+            create_time: null,
+            update_time: null,
+            tags: null,
+            ip_location: null,
+            count_share: null,
+            count_star: null,
+            count_comment: null,
+            cover_url: null,
+            platform_rank_score: null,
+            videos: null,
+            count_read: null,
+            video_total_count_danmaku: null,
+            video_total_duration_sec: null,
           };
           yield res;
         }
@@ -188,6 +210,82 @@ export async function* cleaner_for_libian_crawler() {
           yield query_mapper(hot_query);
         }
       }
+    } else if (
+      garbage["group__bilibili_search_result__lib_bilibili-api-python"]
+    ) {
+      const { g_content, g_search_key } =
+        garbage["group__bilibili_search_result__lib_bilibili-api-python"];
+      const search_result_list = g_content.result.obj.result;
+      for (const search_result of search_result_list) {
+        const {
+          bvid,
+          title,
+          description,
+          author,
+          upic,
+          pic,
+          danmaku,
+          tag,
+          review,
+          pubdate,
+          senddate,
+          video_review,
+          play,
+          favorites,
+          rank_score,
+          mid,
+          like,
+          duration,
+        } = search_result;
+        const duration_sec = Times.parse_duration_sec(duration);
+        if (typeof duration_sec === "string") {
+          _logw("Parse duration failed !", duration);
+        }
+        const res: MediaContent = {
+          title,
+          content_text_summary: description,
+          content_text_detail: description,
+          content_link_url: `https://www.bilibili.com/video/${bvid}`,
+          authors: [
+            {
+              nickname: author,
+              avater_url: upic,
+              platform_user_id: mid,
+              home_link_url: `https://space.bilibili.com/${mid}`,
+            },
+          ],
+          platform: PlatformEnum.哔哩哔哩,
+          platform_duplicate_id: bvid,
+          platform_rank_score: BigInt(rank_score),
+          count_read: BigInt(
+            Math.max(play, like, review, video_review, favorites)
+          ),
+          count_like: BigInt(like),
+          count_star: BigInt(favorites),
+          video_total_count_danmaku: BigInt(danmaku),
+          video_total_duration_sec:
+            typeof duration_sec === "number" ? duration_sec : null,
+          tags: [
+            {
+              text: search_result.typename,
+            },
+            ...tag.split(",").map((it) => ({ text: it.trim() })),
+          ],
+          create_time: Times.unix_to_time(pubdate),
+          update_time: Times.unix_to_time(senddate),
+          cover_url: `https:${pic}`,
+          videos: null,
+          from_search_context: [
+            {
+              question: g_search_key,
+            },
+          ],
+          ip_location: null,
+          count_share: null,
+          count_comment: null,
+        };
+        yield res;
+      }
     }
   }
 }
@@ -197,17 +295,26 @@ async function _main() {
   for await (const garbages of read_LibianCrawlerGarbage()) {
     for (const garbage of garbages) {
       const media = await gen.next(garbage);
-      if (typeof media.value === "object" && "title" in media.value) {
+      // if (typeof media.value === "object" && "title" in media.value) {
+      //   console.log("Output: ", Json.dump(media, { indent: 2 }));
+      //   await sleep(1000);
+      // }
+      if (
+        typeof media.value === "object" &&
+        "title" in media.value &&
+        media.value.video_total_duration_sec &&
+        media.value.platform === "xiaohongshu.com"
+      ) {
         console.log("Output: ", Json.dump(media, { indent: 2 }));
         await sleep(1000);
       }
-      //   if (
-      //     typeof media.value === "object" &&
-      //     "related_questions" in media.value
-      //   ) {
-      //     console.log("Output: ", Json.dump(media, { indent: 2 }));
-      //     await sleep(1000);
-      //   }
+      // if (
+      //   typeof media.value === "object" &&
+      //   "related_questions" in media.value
+      // ) {
+      //   console.log("Output: ", Json.dump(media, { indent: 2 }));
+      //   await sleep(1000);
+      // }
       //   console.log("Output: ", Json.dump(media, { indent: 2 }));
       //   await sleep(1000);
     }

@@ -87,6 +87,45 @@ export function sleep(ms: number) {
   });
 }
 
+type TuplesOfLengthsUpToAndBeyond<
+  N extends number,
+  T extends 0[] = [0]
+> = T[N] extends undefined
+  ?
+      | TuplesOfLengthsUpToAndBeyond<N, [...T, ...T]>
+      | [...T, ...TuplesOfLengthsUpToAndBeyond<N, [...T, ...T]>]
+  : [];
+
+type LessThanOrEqual<N extends number> =
+  TuplesOfLengthsUpToAndBeyond<N> extends infer O
+    ? O extends any[]
+      ? O[N] extends undefined
+        ? O["length"]
+        : never
+      : never
+    : never;
+
+/**
+ * Copy from:
+ * https://stackoverflow.com/a/65054841/21185704
+ */
+export type LessThan<N extends number> = Exclude<LessThanOrEqual<N>, N>;
+
+/**
+ * Copy from:
+ * https://stackoverflow.com/a/73369825/21185704
+ */
+export type LengthOfString<
+  S extends string,
+  Acc extends 0[] = []
+> = string extends S
+  ? S extends string
+    ? number
+    : never
+  : S extends `${string}${infer $Rest}`
+  ? LengthOfString<$Rest, [...Acc, 0]>
+  : Acc["length"];
+
 // deno-lint-ignore no-namespace
 export namespace Strs {
   export function endswith<E extends string>(
@@ -187,6 +226,20 @@ export namespace Strs {
     );
     return doc.textContent;
   }
+
+  export function type_guard_length<S extends string>(
+    _text: S
+  ): _text is S & Record<"length", LengthOfString<S>> {
+    return true;
+  }
+
+  export function to_string<X extends number | string>(x: X) {
+    const r = x.toString() as `${X}`;
+    if (!type_guard_length(r)) {
+      throw new Error();
+    }
+    return r;
+  }
 }
 
 // deno-lint-ignore no-namespace
@@ -199,6 +252,44 @@ export namespace Times {
       unit = "s";
     }
     return new Date(unix_ms_or_s / (unit === "ms" ? 1000 : 1));
+  }
+
+  export function parse_duration_sec(text: string) {
+    let sum: number = 0;
+    const arr = text.split(":");
+    for (let i = 0; i < arr.length; i++) {
+      const time_col = arr.length - 1 - i;
+      let sec_unit: 1 | 60 | 3600;
+      // arrlen i  sec    time_col
+      // 3      0  3600   2
+      // 3      1  60     1
+      // 3      2  1      0
+      // 2      0  60     1
+      // 2      1  1      0
+      // 1      0  1      0
+      switch (time_col) {
+        case 0:
+          sec_unit = 1;
+          break;
+        case 1:
+          sec_unit = 60;
+          break;
+        case 2:
+          sec_unit = 3600;
+          break;
+        default:
+          return "Split array length out of range";
+      }
+      const v = Strs.parse_number(arr[i], () => NaN);
+      if (isNaN(v)) {
+        return "NaN";
+      }
+      if (i !== 0 && v >= 60) {
+        return "Non-first value ge 60";
+      }
+      sum += sec_unit * v;
+    }
+    return sum;
   }
 }
 
@@ -232,3 +323,4 @@ export namespace Json {
     }
   }
 }
+
