@@ -1,6 +1,40 @@
 // deno-lint-ignore-file no-explicit-any
 import path from "node:path";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
+import deepEqual from "deep-equal";
+export type Nullish = null | undefined;
+
+export function is_nullish(obj: any): obj is null | undefined {
+  return obj === null || obj === undefined;
+}
+
+export function chain<T>(init_value: () => T) {
+  const cache = {
+    value: null as null | T,
+  };
+  return {
+    get_value() {
+      return is_nullish(cache.value)
+        ? cache.value
+        : (cache.value = init_value());
+    },
+    map<R>(mapper: (value: T) => R) {
+      return chain(() => mapper(this.get_value()));
+    },
+    array_wrap_nonnull(): T extends Nullish
+      ? []
+      : Nullish extends T
+      ? [T] | []
+      : [T] {
+      const v = this.get_value();
+      if (v === null || v === undefined) {
+        return [] as any;
+      } else {
+        return [v] as any;
+      }
+    },
+  };
+}
 
 export async function write_file(param: {
   file_path: string;
@@ -87,6 +121,16 @@ export function sleep(ms: number) {
   });
 }
 
+export type DeepReadonly<T> = Readonly<{
+  [K in keyof T]: T[K] extends number | string | symbol // Is it a primitive? Then make it readonly
+    ? Readonly<T[K]>
+    : // Is it an array of items? Then make the array readonly and the item as well
+    T[K] extends Array<infer A>
+    ? Readonly<Array<DeepReadonly<A>>>
+    : // It is some other object, make it readonly as well
+      DeepReadonly<T[K]>;
+}>;
+
 type TuplesOfLengthsUpToAndBeyond<
   N extends number,
   T extends 0[] = [0]
@@ -125,6 +169,33 @@ export type LengthOfString<
   : S extends `${string}${infer $Rest}`
   ? LengthOfString<$Rest, [...Acc, 0]>
   : Acc["length"];
+
+/**
+ * Object.fromEntries
+ *
+ * Copy from:
+ * https://stackoverflow.com/a/76176570/21185704
+ */
+export const typeSafeObjectFromEntries = <
+  const T extends ReadonlyArray<readonly [PropertyKey, unknown]>
+>(
+  entries: T
+): { [K in T[number] as K[0]]: K[1] } => {
+  return Object.fromEntries(entries) as { [K in T[number] as K[0]]: K[1] };
+};
+
+/**
+ * Object.entries
+ * (add const param for less broader types (ie. string -> "apple") -> const T extends Record<PropertyKey, unknown>)
+ *
+ * Copy from:
+ * https://stackoverflow.com/a/76176570/21185704
+ */
+export const typeSafeObjectEntries = <T extends Record<PropertyKey, unknown>>(
+  obj: T
+): { [K in keyof T]: [K, T[K]] }[keyof T][] => {
+  return Object.entries(obj) as { [K in keyof T]: [K, T[K]] }[keyof T][];
+};
 
 // deno-lint-ignore no-namespace
 export namespace Strs {
@@ -227,7 +298,7 @@ export namespace Strs {
     return doc.textContent;
   }
 
-  export function type_guard_length<S extends string>(
+  export function check_length_property<S extends string>(
     _text: S
   ): _text is S & Record<"length", LengthOfString<S>> {
     return true;
@@ -235,10 +306,16 @@ export namespace Strs {
 
   export function to_string<X extends number | string>(x: X) {
     const r = x.toString() as `${X}`;
-    if (!type_guard_length(r)) {
-      throw new Error();
+    if (!check_length_property(r)) {
+      throw new Error("assert true");
     }
     return r;
+  }
+
+  export function is_not_empty(
+    x: string | null | undefined
+  ): x is string & Exclude<string, ""> {
+    return x !== null && x !== undefined && x.trim() !== "";
   }
 }
 
@@ -293,13 +370,22 @@ export namespace Times {
   }
 }
 
-export type TableLike<K extends string = string> = Record<
-  K,
-  string | number | null
->[];
-
 // deno-lint-ignore no-namespace
 export namespace Json {
+  export type JSONValue =
+    | string
+    | number
+    | boolean
+    | null
+    | JSONObject
+    | JSONArray;
+
+  export type JSONObject = {
+    [x: string]: JSONValue;
+  };
+
+  export type JSONArray = Array<JSONValue>;
+
   export type JsonDumpOption = {
     mode?: "JSON";
     indent?: number;
@@ -322,5 +408,133 @@ export namespace Json {
       throw new Error(`Invalid option.mode ${option.mode}`);
     }
   }
+
+  export function copy<T extends JSONValue>(obj: T) {
+    return JSON.parse(Json.dump(obj)) as T;
+  }
 }
 
+// deno-lint-ignore no-namespace
+export namespace Nums {
+  export type Comparable = bigint | number | Date;
+
+  export type NaturalNumber = bigint;
+
+  export function requireNaturalNumber(n: number): NaturalNumber {
+    try {
+      const r = BigInt(n.toString());
+      if (r < 0) {
+        throw new Error(`less then zero : ${r}`);
+      }
+      return r;
+    } catch (err) {
+      throw new Error(`not integer : ${n} <<< cause by ${err}`);
+    }
+  }
+
+  export function take_extreme_value<
+    A extends readonly [T, ...T[]],
+    T extends Comparable | null = A[number]
+  >(
+    mode: "max" | "min",
+    nums: A
+  ): Arrays.AllNullable<A> extends false ? NonNullable<T> : T | null {
+    let res_max: T = nums[0];
+    for (let i = 0; i < nums.length; i++) {
+      const item = nums[i];
+      if (res_max === null) {
+        res_max = item;
+      } else if (item === null) {
+        continue;
+      } else if (mode === "max") {
+        res_max = item > res_max ? item : res_max;
+      } else if (mode === "min") {
+        res_max = item < res_max ? item : res_max;
+      }
+    }
+    return res_max as any;
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace Arrays {
+  export function length_greater_then_0<T>(arr: T[]): arr is [T, ...T[]] {
+    return arr.length > 0;
+  }
+
+  export type AllNullable<A> = A extends [infer U, ...infer P]
+    ? null extends U
+      ? AllNullable<P>
+      : false
+    : true;
+
+  export function first<T>(arr: [T, ...T[]]) {
+    return arr[0];
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace DataMerge {
+  export type Timeline<V> = {
+    time: Date | "unknown";
+    value: V;
+  }[];
+
+  export function merge_and_sort_timeline<V>(param: {
+    old: Timeline<V>;
+    timeline: Timeline<V>;
+  }) {
+    const { old, timeline } = param;
+    const arr = [...old, ...timeline];
+    arr.sort((a, b) => {
+      const at = a.time === "unknown" ? 0 : a.time.getTime();
+      const bt = b.time === "unknown" ? 0 : b.time.getTime();
+      return at - bt;
+    });
+    for (let i = 0; i < arr.length; ) {
+      const a = arr[i];
+      if (i >= arr.length) {
+        break;
+      }
+      const b = arr[i + 1];
+      if (deepEqual(a.value, b.value)) {
+        arr.splice(i + 1, 1);
+      } else {
+        i++;
+      }
+    }
+    return arr;
+  }
+}
+
+// export function group_by<K extends string | number, T>(
+//   arr: T[],
+//   get_key: (it: T) => K,
+//   on_key_duplicate: (
+//     old: T & { group: T[] },
+//     cur: T,
+//     key: K
+//   ) => T & { group: T[] } = (old, cur, _key) => ({
+//     ...cur,
+//     group: [...old.group, cur],
+//   })
+// ) {
+//   // const { arr, get_key, on_duplicate } = param;
+//   const res = new Map<string | number, T & { group: T[] }>();
+//   for (const cur of arr) {
+//     const k = get_key(cur);
+//     if (res.has(k)) {
+//       const old = res.get(k);
+//       if (old === undefined) {
+//         throw new Error(`why got undefined when has key ${k} , res is ${res}`);
+//       }
+//       res.set(k, on_key_duplicate(old, cur, k));
+//     } else {
+//       res.set(k, {
+//         ...cur,
+//         group: [cur],
+//       });
+//     }
+//   }
+//   return res;
+// }

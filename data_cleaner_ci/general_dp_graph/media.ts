@@ -1,3 +1,5 @@
+import { Nums } from "../util.ts";
+
 export enum PlatformEnum {
   小红书 = "xiaohongshu.com",
   哔哩哔哩 = "bilibili.com",
@@ -41,11 +43,11 @@ export type MediaContent = {
   /**
    * 缩减的正文，例如知乎上展开内容之前的带省略号的内容。
    */
-  content_text_summary?: string;
+  content_text_summary: string | null;
   /**
    * 正文
    */
-  content_text_detail?: string;
+  content_text_detail: string | null;
   /**
    * 正文内容链接
    */
@@ -65,11 +67,11 @@ export type MediaContent = {
   /**
    * 阅览数
    */
-  count_read: bigint | null;
+  count_read: Nums.NaturalNumber | null;
   /**
    * 点赞数
    */
-  count_like: bigint;
+  count_like: Nums.NaturalNumber;
   /**
    * 从搜索中读取
    */
@@ -97,15 +99,15 @@ export type MediaContent = {
   /**
    * 分享数
    */
-  count_share: bigint | null;
+  count_share: Nums.NaturalNumber | null;
   /**
    * 收藏数
    */
-  count_star: bigint | null;
+  count_star: Nums.NaturalNumber | null;
   /**
    * 总弹幕数
    */
-  video_total_count_danmaku: bigint | null;
+  video_total_count_danmaku: Nums.NaturalNumber | null;
   /**
    * 总视频时长
    */
@@ -113,11 +115,11 @@ export type MediaContent = {
   /**
    * 评论数
    */
-  count_comment: bigint | null;
+  count_comment: Nums.NaturalNumber | null;
   /**
    * 平台所提供的排序排名值
    */
-  platform_rank_score: bigint | null;
+  platform_rank_score: Nums.NaturalNumber | null;
   /**
    * 视频列表
    */
@@ -128,15 +130,15 @@ export type MediaVideo = {
   /**
    * 视频播放量
    */
-  count_play: bigint | null;
+  count_play: Nums.NaturalNumber | null;
   /**
    * 视频重播数
    */
-  count_review: bigint | null;
+  count_review: Nums.NaturalNumber | null;
   /**
    * 弹幕数
    */
-  count_danmaku: bigint | null;
+  count_danmaku: Nums.NaturalNumber | null;
   /**
    * 视频下载地址
    */

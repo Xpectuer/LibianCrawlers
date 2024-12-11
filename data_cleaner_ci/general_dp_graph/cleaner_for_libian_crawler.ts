@@ -2,7 +2,18 @@ import {
   LibianCrawlerGarbage,
   read_LibianCrawlerGarbage,
 } from "../user_code/LibianCrawlerGarbage.ts";
-import { Json, sleep, Strs, Times } from "../util.ts";
+import {
+  Arrays,
+  chain,
+  DataMerge,
+  Json,
+  Nums,
+  sleep,
+  Strs,
+  Times,
+  typeSafeObjectEntries,
+} from "../util.ts";
+import { create_cache_in_memory } from "./caches.ts";
 import {
   MediaContent,
   MediaSearchContext,
@@ -26,7 +37,7 @@ export function xiaohongshu_author_home_link_url(param: { user_id: string }) {
 
 export function xiaohongshu_related_searches() {}
 
-export async function* cleaner_for_libian_crawler(_param?: {
+export async function* read_garbage_for_libian_crawler(_param?: {
   // deno-lint-ignore no-explicit-any
   logw?: (text: string, obj: any) => void;
 }) {
@@ -91,10 +102,14 @@ export async function* cleaner_for_libian_crawler(_param?: {
         platform_duplicate_id: `${note.type}__${note_id}`,
         create_time: Times.unix_to_time(time),
         update_time: Times.unix_to_time(last_update_time),
-        count_like: BigInt(Strs.parse_number(liked_count)),
-        count_share: BigInt(Strs.parse_number(share_count)),
-        count_star: BigInt(Strs.parse_number(collected_count)),
-        count_comment: BigInt(Strs.parse_number(comment_count)),
+        count_like: Nums.requireNaturalNumber(Strs.parse_number(liked_count)),
+        count_share: Nums.requireNaturalNumber(Strs.parse_number(share_count)),
+        count_star: Nums.requireNaturalNumber(
+          Strs.parse_number(collected_count)
+        ),
+        count_comment: Nums.requireNaturalNumber(
+          Strs.parse_number(comment_count)
+        ),
         count_read: null,
         video_total_count_danmaku: null,
         video_total_duration_sec: video?.capa.duration ?? null,
@@ -151,6 +166,8 @@ export async function* cleaner_for_libian_crawler(_param?: {
               note_id: id,
               xsec_token,
             }),
+            content_text_summary: null,
+            content_text_detail: null,
             authors: [
               {
                 nickname: user.nickname ?? user.nick_name,
@@ -163,7 +180,9 @@ export async function* cleaner_for_libian_crawler(_param?: {
             ],
             platform: PlatformEnum.小红书,
             platform_duplicate_id: `${note_card.type}__${id}`,
-            count_like: BigInt(Strs.parse_number(interact_info.liked_count)),
+            count_like: Nums.requireNaturalNumber(
+              Strs.parse_number(interact_info.liked_count)
+            ),
             from_search_context: [
               {
                 question: g_search_key,
@@ -239,7 +258,10 @@ export async function* cleaner_for_libian_crawler(_param?: {
         } = search_result;
         const duration_sec = Times.parse_duration_sec(duration);
         if (typeof duration_sec === "string") {
-          _logw("Parse duration failed !", duration);
+          _logw("Parse duration failed !", [
+            duration,
+            `Reason: ${duration_sec}`,
+          ]);
         }
         const res: MediaContent = {
           title,
@@ -256,13 +278,13 @@ export async function* cleaner_for_libian_crawler(_param?: {
           ],
           platform: PlatformEnum.哔哩哔哩,
           platform_duplicate_id: bvid,
-          platform_rank_score: BigInt(rank_score),
-          count_read: BigInt(
+          platform_rank_score: Nums.requireNaturalNumber(rank_score),
+          count_read: Nums.requireNaturalNumber(
             Math.max(play, like, review, video_review, favorites)
           ),
-          count_like: BigInt(like),
-          count_star: BigInt(favorites),
-          video_total_count_danmaku: BigInt(danmaku),
+          count_like: Nums.requireNaturalNumber(like),
+          count_star: Nums.requireNaturalNumber(favorites),
+          video_total_count_danmaku: Nums.requireNaturalNumber(danmaku),
           video_total_duration_sec:
             typeof duration_sec === "number" ? duration_sec : null,
           tags: [
@@ -290,35 +312,218 @@ export async function* cleaner_for_libian_crawler(_param?: {
   }
 }
 
+export type MediaContentMerged = Omit<
+  MediaContent,
+  // | "content_text_summary"
+  // | "content_text_detail"
+  | "count_read"
+  | "title"
+  | "ip_location"
+  | "authors"
+  | "content_link_url"
+  | "from_search_context"
+  | "cover_url"
+  | "platform_rank_score"
+  | "content_text_summary"
+  | "content_text_detail"
+  | "tags"
+  | "videos"
+> & {
+  count_read: NonNullable<MediaContent["count_read"]>;
+  title: Set<string>;
+  title_timeline: DataMerge.Timeline<string>;
+  ip_location: Set<string>;
+  authors: Map<
+    MediaContent["authors"][number]["platform_user_id"],
+    Omit<MediaContent["authors"][number], "platform_user_id">[]
+  >;
+  content_link_urls: Set<string>;
+  from_search_questions: Set<string>;
+  cover_urls: Set<string>;
+  platform_rank_score_timeline: DataMerge.Timeline<
+    NonNullable<MediaContent["platform_rank_score"]>
+  >;
+};
+
+export async function* merge_media_content_for_libian_crawler() {
+  const all_key: Set<string> = new Set();
+  const cache = create_cache_in_memory<MediaContentMerged>();
+  const get_key = (m: MediaContent) =>
+    `mc__${m.platform}__${m.platform_duplicate_id}`;
+  const merge = (
+    prev: MediaContentMerged | null,
+    cur: MediaContent
+  ): MediaContentMerged => {
+    const to_timeline_item = <V>(value: V): DataMerge.Timeline<V>[number] => ({
+      time: cur.update_time ?? cur.create_time ?? "unknown",
+      value,
+    });
+    if (
+      prev !== null &&
+      (cur.platform !== prev.platform ||
+        cur.platform_duplicate_id !== prev.platform_duplicate_id)
+    ) {
+      throw new Error(
+        `Platform and id not match : cur.platform=${cur.platform} , prev.platform=${prev.platform} , cur.platform_duplicate_id=${cur.platform_duplicate_id} , prev.platform_duplicate_id=${prev.platform_duplicate_id}`
+      );
+    }
+    const create_time = Nums.take_extreme_value("min", [
+      prev?.update_time ?? null,
+      cur.update_time,
+      prev?.create_time ?? null,
+      cur.create_time,
+    ]);
+    const update_time = Nums.take_extreme_value("max", [
+      prev?.update_time ?? null,
+      cur.update_time,
+      prev?.create_time ?? null,
+      cur.create_time,
+    ]);
+    const count_like = Nums.take_extreme_value("max", [
+      prev?.count_like ?? null,
+      cur.count_like,
+    ]);
+    const count_share = Nums.take_extreme_value("max", [
+      prev?.count_share ?? null,
+      cur.count_share,
+    ]);
+    const count_star = Nums.take_extreme_value("max", [
+      prev?.count_star ?? null,
+      cur.count_star,
+    ]);
+    const count_read = Nums.take_extreme_value("max", [
+      prev?.count_read ?? null,
+      cur.count_read,
+      count_like,
+      count_share,
+      count_star,
+    ]);
+    const count_comment = Nums.take_extreme_value("max", [
+      prev?.count_comment ?? null,
+      cur.count_comment,
+    ]);
+    const video_total_count_danmaku = Nums.take_extreme_value("max", [
+      prev?.video_total_count_danmaku ?? null,
+      cur.video_total_count_danmaku,
+    ]);
+    const video_total_duration_sec = Nums.take_extreme_value("max", [
+      prev?.video_total_duration_sec ?? null,
+      cur.video_total_duration_sec,
+    ]);
+    const title = prev?.title ?? new Set();
+    const _cur_title = Strs.strip_html(cur.title);
+    if (Strs.is_not_empty(_cur_title)) {
+      title.add(_cur_title);
+    }
+    const title_timeline = DataMerge.merge_and_sort_timeline({
+      old: prev?.title_timeline ?? [],
+      timeline: chain(() => cur.title)
+        .array_wrap_nonnull()
+        .map((it) => to_timeline_item(it)),
+    });
+    const ip_location = prev?.ip_location ?? new Set();
+    if (Strs.is_not_empty(cur.ip_location)) {
+      ip_location.add(cur.ip_location);
+    }
+    const authors: MediaContentMerged["authors"] = prev?.authors ?? new Map();
+    for (const author of cur.authors) {
+      const { platform_user_id } = author;
+      if (!authors.has(platform_user_id)) {
+        authors.set(platform_user_id, []);
+      }
+      authors.get(platform_user_id)!.push({
+        nickname: author.nickname,
+        avater_url: author.avater_url,
+        home_link_url: author.home_link_url,
+      });
+    }
+    const content_link_urls = prev?.content_link_urls ?? new Set();
+    if (Strs.is_not_empty(cur.content_link_url)) {
+      content_link_urls.add(cur.content_link_url);
+    }
+    const from_search_questions = prev?.from_search_questions ?? new Set();
+    if (Arrays.length_greater_then_0(cur.from_search_context)) {
+      const { question } = Arrays.first(cur.from_search_context);
+      if (Strs.is_not_empty(question)) {
+        from_search_questions.add(question);
+      }
+    }
+    const cover_urls = prev?.cover_urls ?? new Set();
+    if (Strs.is_not_empty(cur.cover_url)) {
+      cover_urls.add(cur.cover_url);
+    }
+    const platform_rank_score_timeline = DataMerge.merge_and_sort_timeline({
+      old: prev?.platform_rank_score_timeline ?? [],
+      timeline: chain(() => cur.platform_rank_score)
+        .array_wrap_nonnull()
+        .map((it) => to_timeline_item(it)),
+    });
+
+    return {
+      platform: cur.platform,
+      platform_duplicate_id: cur.platform_duplicate_id,
+      create_time,
+      update_time,
+      count_like,
+      count_share,
+      count_star,
+      count_read,
+      video_total_count_danmaku,
+      video_total_duration_sec,
+      count_comment,
+      title,
+      title_timeline,
+      ip_location,
+      authors,
+      content_link_urls,
+      from_search_questions,
+      cover_urls,
+      platform_rank_score_timeline,
+    };
+  };
+  while (1) {
+    const content: MediaContent | "stop" = yield;
+    if ("stop" === content) {
+      break;
+    }
+    const k = get_key(content);
+    all_key.add(k);
+    const cache_get_result = cache.get_batch(new Set([k]));
+    let exists: MediaContentMerged | null;
+    if (cache_get_result[k]) {
+      exists = await Promise.resolve(cache_get_result[k]);
+    } else {
+      exists = null;
+    }
+    const res = merge(exists, content);
+    cache.set(k, res);
+  }
+  yield [all_key, cache] as const;
+}
+
 async function _main() {
-  const gen = cleaner_for_libian_crawler();
+  const merger = merge_media_content_for_libian_crawler();
+  const reader = read_garbage_for_libian_crawler();
   for await (const garbages of read_LibianCrawlerGarbage()) {
     for (const garbage of garbages) {
-      const media = await gen.next(garbage);
-      // if (typeof media.value === "object" && "title" in media.value) {
-      //   console.log("Output: ", Json.dump(media, { indent: 2 }));
-      //   await sleep(1000);
-      // }
-      if (
-        typeof media.value === "object" &&
-        "title" in media.value &&
-        media.value.video_total_duration_sec &&
-        media.value.platform === "xiaohongshu.com"
-      ) {
-        console.log("Output: ", Json.dump(media, { indent: 2 }));
-        await sleep(1000);
+      const media = await reader.next(garbage);
+      if (typeof media.value === "object" && "title" in media.value) {
+        await merger.next(media.value);
       }
-      // if (
-      //   typeof media.value === "object" &&
-      //   "related_questions" in media.value
-      // ) {
-      //   console.log("Output: ", Json.dump(media, { indent: 2 }));
-      //   await sleep(1000);
-      // }
-      //   console.log("Output: ", Json.dump(media, { indent: 2 }));
-      //   await sleep(1000);
     }
   }
+  console.log("Finish reader");
+  const merger_res = await merger.next("stop");
+  console.debug("merger_res is ", merger_res);
+  if (!merger_res.value) {
+    throw new Error("should return");
+  }
+  const [all_key, cache] = merger_res.value;
+  for (const [_k, v] of typeSafeObjectEntries(cache.get_batch(all_key))) {
+    console.log(await Promise.resolve(v));
+    await sleep(1000);
+  }
+  console.log('OK')
 }
 
 // ```

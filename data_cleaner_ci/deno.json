@@ -6,8 +6,10 @@
   "imports": {
     "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.48",
     "@std/assert": "jsr:@std/assert@^1.0.8",
+    "@types/deep-equal": "npm:@types/deep-equal@^1.0.4",
     "collection-utils": "npm:collection-utils@^1.0.1",
     "console-progress-bar": "npm:console-progress-bar@^1.0.9",
+    "deep-equal": "npm:deep-equal@^2.2.3",
     "encoding": "npm:encoding@^0.1.13",
     "jsonata": "npm:jsonata@^2.0.6",
     "nodejs-polars": "npm:nodejs-polars@^0.16.0",

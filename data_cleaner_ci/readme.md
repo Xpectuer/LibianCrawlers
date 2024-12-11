@@ -38,7 +38,7 @@ deno run --allow-env=PG*,READABLE_STREAM,CI --allow-read=./data_cleaner_ci_gener
    1. 答辩数据的一些答辩键值又与业务紧密耦合，比如 token、url …… 所以依然需要人来识别。
    2. 返回值啥都有，报错的、风控的、nullable 的……
    3. 类型系统不稳定，第三方 API 返回啥的都有。爬虫工程师和数据工程师之间有一道厚厚的类型之墙。
-   4. 解决方法: 使用 `typescript` 和 `quicktype` 来生成健壮的类型代码，并辅之以 `jsonata` 来做些 group by type 的小体操。
+   4. 解决方法: 使用 `typescript` 和 `quicktype` 来生成健壮的类型代码，并辅之以 `jsonata` 来做些便于区分 union type 的分组。
 
 2. 代码结构与业务隐私组合的麻烦，不能把业务代码硬编码到仓库中。
    1. 有时有一些自己的秘密数据，想复用代码不方便。
@@ -46,8 +46,8 @@ deno run --allow-env=PG*,READABLE_STREAM,CI --allow-read=./data_cleaner_ci_gener
    3. 解决方法: 使用 `init_config.ts` 脚本来生成用户个人代码区域。
 
 3. 把初次对齐列的数据去重合并。例如根据去重ID合并。
-   1. 这里面涉及到对大量流式数据进行合并，可能要用数据库做缓存和索引、但数据库列并不方便修改，因此要考虑ORM怎么设计。
 
 4. 对清洗好的数据做后续的业务，例如继续爬取详情、调用AI总结、OCR、转文字……
+
 
 
