@@ -256,7 +256,8 @@ export async function* read_garbage_for_libian_crawler(_param?: {
           like,
           duration,
         } = search_result;
-        const duration_sec = Times.parse_duration_sec(duration);
+        const duration_sec =
+          duration.trim() === "" ? null : Times.parse_duration_sec(duration);
         if (typeof duration_sec === "string") {
           _logw("Parse duration failed !", [
             duration,
@@ -523,7 +524,7 @@ async function _main() {
     console.log(await Promise.resolve(v));
     await sleep(1000);
   }
-  console.log('OK')
+  console.log("OK");
 }
 
 // ```
