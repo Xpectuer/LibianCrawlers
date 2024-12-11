@@ -336,7 +336,9 @@ export type MediaContentMerged = Omit<
   ip_location: Set<string>;
   authors: Map<
     MediaContent["authors"][number]["platform_user_id"],
-    Omit<MediaContent["authors"][number], "platform_user_id">[]
+    DataMerge.Timeline<
+      Omit<MediaContent["authors"][number], "platform_user_id">
+    >
   >;
   content_link_urls: Set<string>;
   from_search_questions: Set<string>;
@@ -429,14 +431,13 @@ export async function* merge_media_content_for_libian_crawler() {
     const authors: MediaContentMerged["authors"] = prev?.authors ?? new Map();
     for (const author of cur.authors) {
       const { platform_user_id } = author;
-      if (!authors.has(platform_user_id)) {
-        authors.set(platform_user_id, []);
-      }
-      authors.get(platform_user_id)!.push({
-        nickname: author.nickname,
-        avater_url: author.avater_url,
-        home_link_url: author.home_link_url,
+      const authors_timeline = DataMerge.merge_and_sort_timeline({
+        old: authors.get(platform_user_id) ?? [],
+        timeline: chain(() => author)
+          .array_wrap_nonnull()
+          .map((it) => to_timeline_item(it)),
       });
+      authors.set(platform_user_id, authors_timeline);
     }
     const content_link_urls = prev?.content_link_urls ?? new Set();
     if (Strs.is_not_empty(cur.content_link_url)) {

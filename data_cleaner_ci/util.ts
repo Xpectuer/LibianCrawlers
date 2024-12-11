@@ -14,7 +14,7 @@ export function chain<T>(init_value: () => T) {
   };
   return {
     get_value() {
-      return is_nullish(cache.value)
+      return !is_nullish(cache.value)
         ? cache.value
         : (cache.value = init_value());
     },
@@ -321,14 +321,24 @@ export namespace Strs {
 
 // deno-lint-ignore no-namespace
 export namespace Times {
-  export function unix_to_time(unix_ms_or_s: number): Date {
+  export function unix_to_time(unix_ms_or_s: number): Date | null {
     let unit: "s" | "ms";
-    if (unix_ms_or_s < 12345678900) {
+    if (unix_ms_or_s === 0) {
+      return null;
+    }
+
+    if (unix_ms_or_s > 12345678900) {
       unit = "ms";
     } else {
       unit = "s";
     }
-    return new Date(unix_ms_or_s / (unit === "ms" ? 1000 : 1));
+    const timestamp_s = unix_ms_or_s / (unit === "ms" ? 1000 : 1);
+    if (timestamp_s < 123456789) {
+      throw new Error(
+        `197x year timestamp ? unit is ${unit} , timestamp is ${timestamp_s} , unix_ms_or_s is ${unix_ms_or_s}`
+      );
+    }
+    return new Date(timestamp_s * 1000);
   }
 
   export function parse_duration_sec(text: string) {
@@ -493,7 +503,7 @@ export namespace DataMerge {
     });
     for (let i = 0; i < arr.length; ) {
       const a = arr[i];
-      if (i >= arr.length) {
+      if (i >= arr.length - 1) {
         break;
       }
       const b = arr[i + 1];
