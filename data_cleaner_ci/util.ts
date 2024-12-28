@@ -2,10 +2,49 @@
 import path from "node:path";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
 import deepEqual from "deep-equal";
-export type Nullish = null | undefined;
+
+import { MultiProgressBar } from "jsr:@deno-library/progress";
+import { time } from "node:console";
 
 export function is_nullish(obj: any): obj is null | undefined {
   return obj === null || obj === undefined;
+}
+
+export function is_deep_equal<B>(a: unknown, b: B): a is B {
+  if (a === b) {
+    return true;
+  }
+  if (a && b && typeof a == "object" && typeof b == "object") {
+    if (a.constructor !== b.constructor) return false;
+    // let length, i, keys;
+    if (Array.isArray(a)) {
+      if (!Array.isArray(b)) {
+        return false;
+      }
+      const length = a.length;
+      if (length != b.length) return false;
+      for (let i = length - 1; i >= 0; i--) {
+        if (!is_deep_equal(a[i], b[i])) return false;
+      }
+      return true;
+    } else {
+      const keys = Object.keys(a);
+      const length = keys.length;
+      if (length !== Object.keys(b).length) return false;
+
+      for (let i = length - 1; i >= 0; i--)
+        if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
+
+      for (let i = length - 1; i >= 0; i--) {
+        const key = keys[i];
+        if (!is_deep_equal((a as any)[key], (b as any)[key])) return false;
+      }
+      return true;
+    }
+  } else {
+    // true if both NaN, false otherwise
+    return a !== a && b !== b;
+  }
 }
 
 export function chain<T>(init_value: () => T) {
@@ -21,9 +60,9 @@ export function chain<T>(init_value: () => T) {
     map<R>(mapper: (value: T) => R) {
       return chain(() => mapper(this.get_value()));
     },
-    array_wrap_nonnull(): T extends Nullish
+    array_wrap_nonnull(): T extends Typings.Nullish
       ? []
-      : Nullish extends T
+      : Typings.Nullish extends T
       ? [T] | []
       : [T] {
       const v = this.get_value();
@@ -105,97 +144,52 @@ export async function write_file(param: {
   return file_info;
 }
 
-export function sleep(ms: number) {
-  return new Promise<void>((rs, rj) => {
-    if (ms <= 0) {
-      rs();
-    } else {
-      setTimeout(() => {
-        try {
-          rs();
-        } catch (err) {
-          rj(err);
-        }
-      }, ms);
-    }
-  });
-}
+// deno-lint-ignore no-namespace
+export namespace Typings {
+  export type Nullish = null | undefined;
 
-export type DeepReadonly<T> = Readonly<{
-  [K in keyof T]: T[K] extends number | string | symbol // Is it a primitive? Then make it readonly
-    ? Readonly<T[K]>
-    : // Is it an array of items? Then make the array readonly and the item as well
-    T[K] extends Array<infer A>
-    ? Readonly<Array<DeepReadonly<A>>>
-    : // It is some other object, make it readonly as well
-      DeepReadonly<T[K]>;
-}>;
-
-type TuplesOfLengthsUpToAndBeyond<
-  N extends number,
-  T extends 0[] = [0]
-> = T[N] extends undefined
-  ?
-      | TuplesOfLengthsUpToAndBeyond<N, [...T, ...T]>
-      | [...T, ...TuplesOfLengthsUpToAndBeyond<N, [...T, ...T]>]
-  : [];
-
-type LessThanOrEqual<N extends number> =
-  TuplesOfLengthsUpToAndBeyond<N> extends infer O
-    ? O extends any[]
-      ? O[N] extends undefined
-        ? O["length"]
-        : never
+  /**
+   * Copy from:
+   * https://stackoverflow.com/a/73369825/21185704
+   */
+  export type LengthOfString<
+    S extends string,
+    Acc extends 0[] = []
+  > = string extends S
+    ? S extends string
+      ? number
       : never
-    : never;
+    : S extends `${string}${infer $Rest}`
+    ? LengthOfString<$Rest, [...Acc, 0]>
+    : Acc["length"];
 
-/**
- * Copy from:
- * https://stackoverflow.com/a/65054841/21185704
- */
-export type LessThan<N extends number> = Exclude<LessThanOrEqual<N>, N>;
+  export type DeepReadonly<T> = Readonly<{
+    [K in keyof T]: T[K] extends number | string | symbol // Is it a primitive? Then make it readonly
+      ? Readonly<T[K]>
+      : // Is it an array of items? Then make the array readonly and the item as well
+      T[K] extends Array<infer A>
+      ? Readonly<Array<DeepReadonly<A>>>
+      : // It is some other object, make it readonly as well
+        DeepReadonly<T[K]>;
+  }>;
 
-/**
- * Copy from:
- * https://stackoverflow.com/a/73369825/21185704
- */
-export type LengthOfString<
-  S extends string,
-  Acc extends 0[] = []
-> = string extends S
-  ? S extends string
-    ? number
-    : never
-  : S extends `${string}${infer $Rest}`
-  ? LengthOfString<$Rest, [...Acc, 0]>
-  : Acc["length"];
+  export type Comparable = bigint | number | Date;
 
-/**
- * Object.fromEntries
- *
- * Copy from:
- * https://stackoverflow.com/a/76176570/21185704
- */
-export const typeSafeObjectFromEntries = <
-  const T extends ReadonlyArray<readonly [PropertyKey, unknown]>
->(
-  entries: T
-): { [K in T[number] as K[0]]: K[1] } => {
-  return Object.fromEntries(entries) as { [K in T[number] as K[0]]: K[1] };
-};
+  /**
+   * Copy from:
+   * https://stackoverflow.com/a/76698672/21185704
+   */
+  export type Range<
+    T extends number,
+    Arr extends number[] = []
+  > = Arr["length"] extends T ? Arr[number] : Range<T, [...Arr, Arr["length"]]>;
 
-/**
- * Object.entries
- * (add const param for less broader types (ie. string -> "apple") -> const T extends Record<PropertyKey, unknown>)
- *
- * Copy from:
- * https://stackoverflow.com/a/76176570/21185704
- */
-export const typeSafeObjectEntries = <T extends Record<PropertyKey, unknown>>(
-  obj: T
-): { [K in keyof T]: [K, T[K]] }[keyof T][] => {
-  return Object.entries(obj) as { [K in keyof T]: [K, T[K]] }[keyof T][];
-};
+  export type MapToRecord<
+    P extends Map<K, V>,
+    K extends keyof any = Parameters<P["get"]>[0],
+    V = NonNullable<ReturnType<P["get"]>>
+  > = ReturnType<typeof Mappings.map_to_record<K, V>>;
+}
 
 // deno-lint-ignore no-namespace
 export namespace Strs {
@@ -300,7 +294,7 @@ export namespace Strs {
 
   export function check_length_property<S extends string>(
     _text: S
-  ): _text is S & Record<"length", LengthOfString<S>> {
+  ): _text is S & Record<"length", Typings.LengthOfString<S>> {
     return true;
   }
 
@@ -335,7 +329,9 @@ export namespace Times {
     const timestamp_s = unix_ms_or_s / (unit === "ms" ? 1000 : 1);
     if (timestamp_s < 123456789) {
       throw new Error(
-        `197x year timestamp ? unit is ${unit} , timestamp is ${timestamp_s} , unix_ms_or_s is ${unix_ms_or_s}`
+        `197x year timestamp ? unit is ${unit} , timestamp is ${timestamp_s} , unix_ms_or_s is ${unix_ms_or_s} , to date is ${new Date(
+          timestamp_s
+        )}`
       );
     }
     return new Date(timestamp_s * 1000);
@@ -377,6 +373,24 @@ export namespace Times {
       sum += sec_unit * v;
     }
     return sum;
+  }
+
+  export function format_yyyymmddhhmmss(date: Date) {
+    const d = new Date(date),
+      year = d.getFullYear();
+    let month = "" + (d.getMonth() + 1),
+      day = "" + d.getDate(),
+      hour = "" + d.getHours(),
+      minute = "" + d.getMinutes(),
+      second = "" + d.getSeconds();
+
+    if (month.length < 2) month = "0" + month;
+    if (day.length < 2) day = "0" + day;
+    if (hour.length < 2) hour = "0" + hour;
+    if (minute.length < 2) minute = "0" + minute;
+    if (second.length < 2) second = "0" + second;
+
+    return [year, month, day, hour, minute, second].join("");
   }
 }
 
@@ -426,25 +440,9 @@ export namespace Json {
 
 // deno-lint-ignore no-namespace
 export namespace Nums {
-  export type Comparable = bigint | number | Date;
-
-  export type NaturalNumber = bigint;
-
-  export function requireNaturalNumber(n: number): NaturalNumber {
-    try {
-      const r = BigInt(n.toString());
-      if (r < 0) {
-        throw new Error(`less then zero : ${r}`);
-      }
-      return r;
-    } catch (err) {
-      throw new Error(`not integer : ${n} <<< cause by ${err}`);
-    }
-  }
-
   export function take_extreme_value<
     A extends readonly [T, ...T[]],
-    T extends Comparable | null = A[number]
+    T extends Typings.Comparable | null = A[number]
   >(
     mode: "max" | "min",
     nums: A
@@ -464,6 +462,13 @@ export namespace Nums {
     }
     return res_max as any;
   }
+
+  // export type NumberLike = number | `${number}`;
+
+  // export type IsZero<N extends NumberLike> = Typings.CheckLeftIsExtendsRight<
+  //   N,
+  //   0 | "0"
+  // >;
 }
 
 // deno-lint-ignore no-namespace
@@ -480,6 +485,147 @@ export namespace Arrays {
 
   export function first<T>(arr: [T, ...T[]]) {
     return arr[0];
+  }
+
+  export function first_or_null<T>(arr: T[]) {
+    if (length_greater_then_0(arr)) {
+      return first(arr);
+    } else {
+      return null;
+    }
+  }
+
+  export function last<T>(arr: [T, ...T[]]) {
+    return arr[arr.length - 1];
+  }
+
+  export function last_or_null<T>(arr: T[]) {
+    if (length_greater_then_0(arr)) {
+      return last(arr);
+    } else {
+      return null;
+    }
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace Mappings {
+  /**
+   * Object.fromEntries
+   *
+   * Copy from:
+   * https://stackoverflow.com/a/76176570/21185704
+   */
+  export const object_from_entries = <
+    const T extends ReadonlyArray<readonly [PropertyKey, unknown]>
+  >(
+    entries: T
+  ): { [K in T[number] as K[0]]: K[1] } => {
+    return Object.fromEntries(entries) as { [K in T[number] as K[0]]: K[1] };
+  };
+
+  /**
+   * Object.entries
+   * (add const param for less broader types (ie. string -> "apple") -> const T extends Record<PropertyKey, unknown>)
+   *
+   * Copy from:
+   * https://stackoverflow.com/a/76176570/21185704
+   */
+  export const object_entries = <T extends Record<PropertyKey, unknown>>(
+    obj: T
+  ): { [K in keyof T]: [K, T[K]] }[keyof T][] => {
+    return Object.entries(obj) as { [K in keyof T]: [K, T[K]] }[keyof T][];
+  };
+
+  export function filter_keys<
+    T extends Record<string, any>,
+    OPT extends "omit" | "pick",
+    KS extends (keyof T)[]
+  >(
+    obj: T,
+    opt: OPT,
+    keys: KS
+  ): typeof opt extends "omit"
+    ? Omit<T, (typeof keys)[number]>
+    : Pick<T, (typeof keys)[number]> {
+    return object_from_entries(
+      object_entries(obj).filter(([k, _]) =>
+        opt === "omit" ? keys.indexOf(k) < 0 : keys.indexOf(k) >= 0
+      )
+    ) as any;
+  }
+
+  export function map_to_record<K extends keyof any, V>(
+    m: Map<K, V>
+  ): Record<K, V> {
+    const obj: Record<K, V> = {} as any;
+    for (const [key, value] of m) {
+      obj[key] = value;
+    }
+    return obj;
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace DataClean {
+  export type HttpUrl = `https://${string}` | `http://${string}`;
+
+  export function url_use_https_noempty<S extends string>(url: S) {
+    if (!Strs.is_not_empty(url)) {
+      throw new Error(`url is empty : ${JSON.stringify(url)}`);
+    }
+    if (Strs.startswith(url, "https://")) {
+      return url;
+    }
+    if (Strs.startswith(url, "http://")) {
+      const _url: `http://${string}` = url;
+      return `https://${Strs.remove_prefix(_url, "http://")}` as const;
+    }
+    if (url.indexOf("://") >= 0) {
+      throw new Error(`Not http or https protocol : ${url}`);
+    }
+    let url2: string = url;
+    while (Strs.startswith(url2, "/")) {
+      url2 = Strs.remove_prefix(url2, "/");
+    }
+    return `https://${url2}` as const;
+  }
+
+  export function url_use_https_emptyable<S extends string>(url: S | null) {
+    if (Strs.is_not_empty(url)) {
+      return url_use_https_noempty(url);
+    } else {
+      return null;
+    }
+  }
+
+  export type NaturalNumber = bigint;
+
+  export function cast_and_must_be_natural_number(n: number): NaturalNumber {
+    if (isNaN(n)) {
+      throw new Error("NaN");
+    }
+    if (!Number.isInteger(n)) {
+      throw new Error(`${n} is not integer`);
+    }
+    if (typeof n !== "number") {
+      throw new Error(`${n} is not type number`);
+    }
+    if (n < 0) {
+      throw new Error(`${n} is less then zero`);
+    }
+    return BigInt(n);
+  }
+
+  export function nan_to_null(n: number | string | null | undefined) {
+    if (n === null || n === undefined) {
+      return null;
+    }
+    if (typeof n === "string") {
+      return nan_to_null(parseFloat(n));
+    } else {
+      return isNaN(n) ? null : n;
+    }
   }
 }
 
@@ -515,36 +661,158 @@ export namespace DataMerge {
     }
     return arr;
   }
+
+  export function timeline_to_json<V>(timeline: Timeline<V>) {
+    return timeline.map((it) => {
+      return {
+        time: it.time === "unknown" ? "unknown" : it.time.toISOString(),
+        value: it.value,
+      };
+    });
+  }
 }
 
-// export function group_by<K extends string | number, T>(
-//   arr: T[],
-//   get_key: (it: T) => K,
-//   on_key_duplicate: (
-//     old: T & { group: T[] },
-//     cur: T,
-//     key: K
-//   ) => T & { group: T[] } = (old, cur, _key) => ({
-//     ...cur,
-//     group: [...old.group, cur],
-//   })
-// ) {
-//   // const { arr, get_key, on_duplicate } = param;
-//   const res = new Map<string | number, T & { group: T[] }>();
-//   for (const cur of arr) {
-//     const k = get_key(cur);
-//     if (res.has(k)) {
-//       const old = res.get(k);
-//       if (old === undefined) {
-//         throw new Error(`why got undefined when has key ${k} , res is ${res}`);
-//       }
-//       res.set(k, on_key_duplicate(old, cur, k));
-//     } else {
-//       res.set(k, {
-//         ...cur,
-//         group: [cur],
-//       });
-//     }
-//   }
-//   return res;
-// }
+// deno-lint-ignore no-namespace
+export namespace ProcessBar {
+  export function create_scope<R>(
+    setting: {
+      title: string;
+    },
+    scope: (bars: {
+      render: (
+        render_param: {
+          completed: number;
+          total: number;
+          text: string;
+        }[]
+      ) => Promise<void>;
+    }) => Promise<R>
+  ) {
+    const { title } = setting;
+    const bars = new MultiProgressBar({
+      title,
+      complete: "=",
+      incomplete: "-",
+      display: "[:bar] :percent :time :completed/:total :text |",
+    });
+    return (async () => {
+      const res = await scope({
+        render: async (render_param) => {
+          await bars.render(render_param);
+        },
+      });
+      await bars.end();
+      return res;
+    })();
+  }
+
+  export type SingleBarSetter = {
+    set_completed: (value: number) => Promise<void>;
+    set_total: (value: number) => Promise<void>;
+    set_text: (value: string) => Promise<void>;
+  };
+
+  /**
+   * 每个任务一个进度条
+   */
+  export function bind_each<
+    P,
+    R,
+    Tasks extends ((param: P, bar: SingleBarSetter) => Promise<R>)[]
+  >(
+    tasks: Tasks,
+    bars_render: Parameters<Parameters<typeof create_scope>[1]>[0]["render"]
+  ) {
+    const render_params_handler: {
+      value: null | Parameters<typeof bars_render>[0];
+    } = {
+      value: null,
+    };
+    const update = async () => {
+      if (render_params_handler.value) {
+        await bars_render(Json.copy(render_params_handler.value));
+      }
+    };
+
+    const tasks_wrap = tasks.map((task, idx) => {
+      const render_param = {
+        completed: 0,
+        total: 100,
+        text: `(function ${task.name} [at ${idx}])`,
+      };
+      const bar = {
+        set_completed: async (value: number) => {
+          if (render_param.completed !== value) {
+            render_param.completed = value;
+            await update();
+          }
+        },
+        set_total: async (value: number) => {
+          if (render_param.total !== value) {
+            render_param.total = value;
+            await update();
+          }
+        },
+        set_text: async (value: string) => {
+          if (render_param.text !== value) {
+            render_param.text = value;
+            await update();
+          }
+        },
+      };
+      return {
+        task: (param: P) => task(param, bar),
+        render_param,
+      };
+    });
+
+    const render_params = tasks_wrap.map((it) => it.render_param);
+    render_params_handler.value = render_params;
+
+    return tasks_wrap.map((it) => it.task);
+  }
+
+  /**
+   * 一个代表完成所有任务的进度条
+   */
+  export function bind_all<R, Tasks extends (() => Promise<R>)[]>(
+    tasks: Tasks,
+    bars_render: Parameters<Parameters<typeof create_scope>[1]>[0]["render"]
+  ) {
+    let completed = 0;
+    return tasks.map((task) => {
+      return async () => {
+        const res = await task();
+        completed++;
+        await bars_render([{ completed, total: tasks.length, text: "" }]);
+        return res;
+      };
+    });
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace Streams {
+  export function* split_array_use_batch_size<T>(batch_size: number, arr: T[]) {
+    if (batch_size <= 0 || typeof batch_size !== "number") {
+      throw new Error(`Invalid batch_size ${batch_size}`);
+    }
+    for (let start = 0; start < arr.length; start += batch_size) {
+      const end = Math.min(start + batch_size, arr.length);
+      yield {
+        start,
+        end,
+        total: arr.length,
+        sliced: arr.slice(start, end),
+      };
+    }
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace Errors {
+  export function logerror_and_throw(msg: string, obj: object): never {
+    console.error(msg, obj);
+    throw new Error(`${msg}`, { cause: obj });
+  }
+}

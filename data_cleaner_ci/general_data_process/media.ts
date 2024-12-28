@@ -1,4 +1,4 @@
-import { Nums } from "../util.ts";
+import { DataClean } from "../util.ts";
 
 export enum PlatformEnum {
   小红书 = "xiaohongshu.com",
@@ -21,11 +21,11 @@ export type MediaContentAuthor = {
   /**
    * 头像
    */
-  avater_url: string;
+  avater_url: DataClean.HttpUrl | null;
   /**
    * 用户主页链接
    */
-  home_link_url: string;
+  home_link_url: DataClean.HttpUrl;
 };
 
 export type MediaSearchContext = {
@@ -51,7 +51,7 @@ export type MediaContent = {
   /**
    * 正文内容链接
    */
-  content_link_url: string;
+  content_link_url: DataClean.HttpUrl;
   /**
    * 发布者
    */
@@ -67,11 +67,11 @@ export type MediaContent = {
   /**
    * 阅览数
    */
-  count_read: Nums.NaturalNumber | null;
+  count_read: DataClean.NaturalNumber | null;
   /**
    * 点赞数
    */
-  count_like: Nums.NaturalNumber;
+  count_like: DataClean.NaturalNumber;
   /**
    * 从搜索中读取
    */
@@ -95,19 +95,19 @@ export type MediaContent = {
   /**
    * 封面链接
    */
-  cover_url: string | null;
+  cover_url: DataClean.HttpUrl | null;
   /**
    * 分享数
    */
-  count_share: Nums.NaturalNumber | null;
+  count_share: DataClean.NaturalNumber | null;
   /**
    * 收藏数
    */
-  count_star: Nums.NaturalNumber | null;
+  count_star: DataClean.NaturalNumber | null;
   /**
    * 总弹幕数
    */
-  video_total_count_danmaku: Nums.NaturalNumber | null;
+  video_total_count_danmaku: DataClean.NaturalNumber | null;
   /**
    * 总视频时长
    */
@@ -115,11 +115,11 @@ export type MediaContent = {
   /**
    * 评论数
    */
-  count_comment: Nums.NaturalNumber | null;
+  count_comment: DataClean.NaturalNumber | null;
   /**
    * 平台所提供的排序排名值
    */
-  platform_rank_score: Nums.NaturalNumber | null;
+  platform_rank_score: number | null;
   /**
    * 视频列表
    */
@@ -130,20 +130,20 @@ export type MediaVideo = {
   /**
    * 视频播放量
    */
-  count_play: Nums.NaturalNumber | null;
+  count_play: DataClean.NaturalNumber | null;
   /**
    * 视频重播数
    */
-  count_review: Nums.NaturalNumber | null;
+  count_review: DataClean.NaturalNumber | null;
   /**
    * 弹幕数
    */
-  count_danmaku: Nums.NaturalNumber | null;
+  count_danmaku: DataClean.NaturalNumber | null;
   /**
    * 视频下载地址
    */
   download_urls: {
-    url: string;
+    url: DataClean.HttpUrl;
     is_master: boolean;
     key: string;
   }[];
@@ -160,7 +160,7 @@ export type MediaRelatedSearches = {
   question: string;
   related_questions: {
     name: string;
-    cover_url: string | null;
+    cover_url: DataClean.HttpUrl | null;
     search_word: string;
   }[];
   tip_text: string;

@@ -14,6 +14,7 @@ function template_config() {
           password: "<INPUT>",
           host: "<INPUT>",
           port: 5432,
+          ssl: "require",
         },
         dataset_tables: [
           {

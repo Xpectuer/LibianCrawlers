@@ -1,6 +1,7 @@
 import postgres from "postgres";
-import ProgressBar from "console-progress-bar";
+import { ColumnType, JSONColumnType } from "kysely";
 import jsonata from "jsonata";
+import { Json } from "./util.ts";
 
 export type PostgresConnectionParam = {
   dbname: string;
@@ -8,6 +9,7 @@ export type PostgresConnectionParam = {
   password: string;
   host: string;
   port: number;
+  ssl: boolean | "require" | "allow" | "prefer" | "verify-full";
 };
 
 export type PostgresTableDefine = {
@@ -20,7 +22,10 @@ export async function* read_postgres_table(
     PostgresTableDefine & {
       batch_size?: number;
       idle_timeout?: number;
-      progress_bar?: boolean;
+      on_bar?: (bar_render_param: {
+        completed: number;
+        total: number;
+      }) => Promise<void>;
     }
 ) {
   console.debug("Start read postgres table :", params);
@@ -31,10 +36,11 @@ export async function* read_postgres_table(
     host,
     port,
     schema,
+    ssl,
     tablename,
     batch_size,
     idle_timeout,
-    progress_bar,
+    on_bar,
   } = params;
   const sql = postgres({
     host,
@@ -42,7 +48,7 @@ export async function* read_postgres_table(
     user,
     password,
     database: dbname,
-    // ssl: "require",
+    ssl,
     debug: true,
     idle_timeout: idle_timeout ?? 5,
   });
@@ -54,17 +60,19 @@ export async function* read_postgres_table(
   if (isNaN(total)) {
     throw new Error("Count(*) return NAN");
   }
-  const bar: { addValue: (it: number) => void } | null = progress_bar
-    ? new ProgressBar({ maxValue: total })
-    : null;
+  // const bar: { addValue: (it: number) => void } | null = progress_bar
+  //   ? new ProgressBar({ maxValue: total })
+  //   : null;
   const cursor = sql`SELECT * FROM ${sql(schema)}.${sql(tablename)}`.cursor(
     batch_size ?? 1
   );
+  let completed = 0;
   for await (const rows of cursor) {
-    yield rows;
-    if (bar) {
-      bar.addValue(rows.length);
+    completed += rows.length;
+    if (on_bar) {
+      await on_bar({ completed, total });
     }
+    yield rows;
   }
 }
 
@@ -90,4 +98,12 @@ export async function* read_postgres_table_type_wrap<T>(param: {
       })
     );
   }
+}
+
+// deno-lint-ignore no-namespace
+export namespace PostgresColumnType {
+  export type Numeric = ColumnType<string, number | string, number | string>;
+
+  export type JSON<T extends null | Json.JSONArray | Json.JSONObject> =
+    JSONColumnType<T, T, T>;
 }
