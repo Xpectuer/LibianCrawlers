@@ -79,7 +79,8 @@ deno run --allow-env=PG* general_data_process/libian_crawler/clean_and_merge.ts
 ```
 
 `clean_and_merge.ts` 脚本会先运行数据库迁移（在 `general_data_process/libian_crawler/migrations/` 目录下），
-然后读取在 `user_code/LibianCrawlerGarbage.ts` 中指定的迭代器，最后将结果增量更新到 Postgres 中。
+然后读取在 `user_code/LibianCrawlerGarbage.ts` 中指定的迭代器，然后合并ID相同的多条数据（可能时间不同、也可能爬了很多次），
+最后将合并后的结果增量更新到 Postgres 中。
 
 
 
