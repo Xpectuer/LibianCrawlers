@@ -1,6 +1,8 @@
-# 数据清洗与计算 CI
+# 数据清洗 CI
 
 ## 启动工程
+
+### 1. 安装 deno 和依赖。
 
 先安装 deno:
 
@@ -18,36 +20,74 @@ deno --version
 deno install
 ```
 
-然后初始化配置文件。
+### 2. 启动代码生成
+
+> 代码生成脚本将会为你执行以下操作:
+> 
+> 1. 创建 `./data_cleaner_ci_generated/` 目录和 `./user_code/` 符号链接目录。这两个目录已被 `.gitignore` 排除，不会被代码管理。
+> 
+> 2. 在 `./data_cleaner_ci_generated/` 目录中执行以下操作：
+> 
+>    - 生成配置文件并保存到用户家目录的配置中，然后将配置文件符号链接至 `./data_cleaner_ci_generated/config.json`，以便进行 TypeScript 类型检查。
+> 
+>    - 根据配置文件内容，在 `./data_cleaner_ci_generated` 目录下生成数仓中的数据类型和接口 API。
+> 
+> 3. 创建私人代码目录 `$HOME/.libian/crawler/data_cleaner_ci/user_code` 并将其符号链接至 `./user_code/`。
+> 
+>    - 以便进行 TypeScript 类型检查。
+> 
+>    - 其他公共的脚本需要访问特定数据时，必须从 `./user_code/` 目录中导入文件，以便为私人代码中的类型创建类型别名等二次处理。
+
+1. 首先，执行以下命令生成配置文件:
 
 ```shell
 deno run init_config.ts
 ```
 
-然后启动类型生成。
+生成的配置文件将保存在 `$HOME/.libian/crawler/config` 目录中，并创建符号链接到 `data_cleaner_ci_generated/config.json`。
+
+2. 接下来，请更新配置文件，并在 `repositories` 键数组中设置您自己的数据仓库，比如 PostgreSQL 连接参数。
+
+3. 在设置好数据仓库后，执行以下命令以生成数仓的 API代码:
 
 ```shell
 deno run --allow-env=PG*,READABLE_STREAM,CI --allow-read=./data_cleaner_ci_generated --allow-write=./data_cleaner_ci_generated code_gen.ts
 ```
 
-## 需求
+4. 完成上述三个步骤后，初始化工作就已经完成。然而，如果您需要适配并运行 `general_data_process` 目录下的公用脚本，您需要手动处理 TypeScript 类型导入。
+
+您可以通过运行以下命令检查生成后的文件和公用脚本的类型适配情况：
+
+```shell
+deno check --all **/*.ts
+```
+
+## 数据清洗的详细步骤 - 以 libian_crawler 为例
+
+由于每个开发人员的数据库连接配置不同，因此请将自己的设置写在 `data_cleaner_ci_generated/config.json` 中，并且将其排除在版本管理外。
+
+
+
+
+
+
+<!-- ## 需求
 
 自动化的数据清洗是个究极难题。它难就难在：
 
 1. 各种数仓里的答辩数据什么都有。
+
    1. 答辩数据的一些答辩键值又与业务紧密耦合，比如 token、url …… 所以依然需要人来识别。
    2. 返回值啥都有，报错的、风控的、nullable 的……
    3. 类型系统不稳定，第三方 API 返回啥的都有。爬虫工程师和数据工程师之间有一道厚厚的类型之墙。
    4. 解决方法: 使用 `typescript` 和 `quicktype` 来生成健壮的类型代码，并辅之以 `jsonata` 来做些便于区分 union type 的分组。
 
 2. 代码结构与业务隐私组合的麻烦，不能把业务代码硬编码到仓库中。
+
    1. 有时有一些自己的秘密数据，想复用代码不方便。
    2. 但爬虫都写入仓库了，总得把对应的清洗代码放进去。
    3. 解决方法: 使用 `init_config.ts` 脚本来生成用户个人代码区域。
 
-3. 把初次对齐列的数据去重合并。例如根据去重ID合并。
+3. 把初次对齐列的数据去重合并。例如根据去重 ID 合并。
 
-4. 对清洗好的数据做后续的业务，例如继续爬取详情、调用AI总结、OCR、转文字……
-
-
-
+4. 对清洗好的数据做后续的业务，例如继续爬取详情、调用 AI 总结、OCR、转文字…… -->

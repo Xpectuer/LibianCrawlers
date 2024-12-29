@@ -1,4 +1,3 @@
-import { delay } from "@std/async/delay";
 import {
   LibianCrawlerGarbage,
   read_LibianCrawlerGarbage,
