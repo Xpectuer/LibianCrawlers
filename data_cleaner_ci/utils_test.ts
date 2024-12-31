@@ -22,7 +22,7 @@ Deno.test(function parseNumberTest() {
     ["1.5万", 15000],
     ["1.5亿", 150000000],
   ]) {
-    assertEquals(n, Strs.parse_number(t));
+    assertEquals(n, DataClean.parse_number(t));
   }
 });
 
@@ -33,8 +33,8 @@ Deno.test(function stripHtmlTest() {
     [`<div v-if="value>123" >hello<b>world</b></div>`, "helloworld"],
     [`<div v-if="value>123" >hello <b> world </b> </div>`, "hello  world  "],
   ]) {
-    console.info("strip html result", Strs.strip_html(t));
-    assertEquals(r, Strs.strip_html(t));
+    console.info("strip html result", DataClean.strip_html(t));
+    assertEquals(r, DataClean.strip_html(t));
   }
 });
 

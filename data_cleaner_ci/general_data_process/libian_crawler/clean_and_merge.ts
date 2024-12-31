@@ -25,7 +25,7 @@ import {
   PlatformEnum,
   MediaRelatedSearches,
 } from "../media.ts";
-import { to_tag } from "../paragraph_analysis.ts";
+import { Paragraphs } from "../paragraph_analysis.ts";
 import {
   create_and_init_libian_srawler_database_scope,
   MediaPostTable,
@@ -112,16 +112,16 @@ export async function* read_garbage_for_libian_crawler(_param?: {
         create_time: Times.unix_to_time(time),
         update_time: Times.unix_to_time(last_update_time),
         count_like: DataClean.cast_and_must_be_natural_number(
-          Strs.parse_number(liked_count)
+          DataClean.parse_number(liked_count)
         ),
         count_share: DataClean.cast_and_must_be_natural_number(
-          Strs.parse_number(share_count)
+          DataClean.parse_number(share_count)
         ),
         count_star: DataClean.cast_and_must_be_natural_number(
-          Strs.parse_number(collected_count)
+          DataClean.parse_number(collected_count)
         ),
         count_comment: DataClean.cast_and_must_be_natural_number(
-          Strs.parse_number(comment_count)
+          DataClean.parse_number(comment_count)
         ),
         count_read: null,
         video_total_count_danmaku: null,
@@ -194,7 +194,7 @@ export async function* read_garbage_for_libian_crawler(_param?: {
             platform: PlatformEnum.小红书,
             platform_duplicate_id: `${note_card.type}__${id}`,
             count_like: DataClean.cast_and_must_be_natural_number(
-              Strs.parse_number(interact_info.liked_count)
+              DataClean.parse_number(interact_info.liked_count)
             ),
             from_search_context: [
               {
@@ -351,8 +351,6 @@ export async function* read_garbage_for_libian_crawler(_param?: {
 
 export type MediaContentMerged = Omit<
   MediaContent,
-  // | "content_text_summary"
-  // | "content_text_detail"
   | "count_read"
   | "title"
   | "ip_location"
@@ -361,9 +359,9 @@ export type MediaContentMerged = Omit<
   | "from_search_context"
   | "cover_url"
   | "platform_rank_score"
+  | "tags"
   | "content_text_summary"
   | "content_text_detail"
-  | "tags"
   | "videos"
 > & {
   count_read: NonNullable<MediaContent["count_read"]>;
@@ -383,6 +381,8 @@ export type MediaContentMerged = Omit<
     NonNullable<MediaContent["platform_rank_score"]>
   >;
   tag_texts: Set<string>;
+  content_text_summary_uncleaned_timeline: DataMerge.Timeline<string>;
+  content_text_detail_uncleaned_timeline: DataMerge.Timeline<string>;
 };
 
 export async function* merge_media_content_for_libian_crawler() {
@@ -451,7 +451,7 @@ export async function* merge_media_content_for_libian_crawler() {
       cur.video_total_duration_sec,
     ]);
     const title = prev?.title ?? new Set();
-    const cur_title = Strs.strip_html(cur.title).trim();
+    const cur_title = DataClean.strip_html(cur.title).trim();
     if (Strs.is_not_empty(cur_title)) {
       title.add(cur_title);
     }
@@ -493,7 +493,7 @@ export async function* merge_media_content_for_libian_crawler() {
     }
     const tag_texts = prev?.tag_texts ?? new Set();
     const on_tag = (t: string) => {
-      const tag = to_tag(t);
+      const tag = Paragraphs.to_tag(t);
       if (tag) {
         tag_texts.add(tag);
       }
@@ -509,6 +509,22 @@ export async function* merge_media_content_for_libian_crawler() {
         .array_wrap_nonnull()
         .map((it) => to_timeline_item(it)),
     });
+    const content_text_summary_uncleaned = cur.content_text_summary;
+    const content_text_summary_uncleaned_timeline =
+      DataMerge.merge_and_sort_timeline({
+        old: prev?.content_text_summary_uncleaned_timeline ?? [],
+        timeline: chain(() => content_text_summary_uncleaned)
+          .array_wrap_nonnull()
+          .map((it) => to_timeline_item(it)),
+      });
+    const content_text_detail_uncleaned = cur.content_text_detail;
+    const content_text_detail_uncleaned_timeline =
+      DataMerge.merge_and_sort_timeline({
+        old: prev?.content_text_detail_uncleaned_timeline ?? [],
+        timeline: chain(() => content_text_detail_uncleaned)
+          .array_wrap_nonnull()
+          .map((it) => to_timeline_item(it)),
+      });
 
     return {
       platform: cur.platform,
@@ -531,7 +547,9 @@ export async function* merge_media_content_for_libian_crawler() {
       cover_urls,
       platform_rank_score_timeline,
       tag_texts,
-    };
+      content_text_summary_uncleaned_timeline,
+      content_text_detail_uncleaned_timeline,
+    } satisfies MediaContentMerged;
   };
   while (1) {
     const content: MediaContent | "stop" = yield;
@@ -600,6 +618,26 @@ export async function insert_or_update(
         const author_first_platform_user_id = chain(() => author_first?.[0])
           .map((it) => (it === null ? null : `${it}`))
           .get_value();
+        const {
+          content_text_timeline_count,
+          context_text_latest_str_length,
+          context_text_latest,
+          content_text_deleted_at_least_once,
+          content_text_deleted_first_time,
+          content_text_resume_after_deleted,
+          content_text_timeline,
+          found_tags_in_context_text,
+        } = DataClean.select_context_text({
+          content_text_summary_uncleaned_timeline:
+            value.content_text_summary_uncleaned_timeline,
+          content_text_detail_uncleaned_timeline:
+            value.content_text_detail_uncleaned_timeline,
+          platform: value.platform,
+        });
+        const tag_texts = new Set([
+          ...value.tag_texts,
+          ...found_tags_in_context_text,
+        ]);
         const res = {
           ...Mappings.filter_keys(value, "pick", [
             "platform",
@@ -643,8 +681,28 @@ export async function insert_or_update(
           platform_rank_score_timeline: DataMerge.timeline_to_json(
             value.platform_rank_score_timeline
           ),
-          tag_texts: [...value.tag_texts],
-          tag_text_joined: [...value.tag_texts].join(";"),
+          tag_texts: [...tag_texts],
+          tag_text_joined: [...tag_texts].join(";"),
+          content_text_timeline_count,
+          context_text_latest_str_length,
+          context_text_latest,
+          content_text_deleted_at_least_once,
+          content_text_deleted_first_time:
+            content_text_deleted_first_time === "unknown"
+              ? null
+              : content_text_deleted_first_time,
+          content_text_resume_after_deleted,
+          content_text_timeline: DataMerge.timeline_to_json(
+            content_text_timeline
+          ),
+          content_text_summary_uncleaned_timeline: DataMerge.timeline_to_json(
+            value.content_text_summary_uncleaned_timeline
+          ),
+          content_text_detail_uncleaned_timeline: DataMerge.timeline_to_json(
+            value.content_text_detail_uncleaned_timeline
+          ),
+          context_text_latest_lines_count:
+            context_text_latest?.split("\n").length ?? null,
         } satisfies Omit<
           Parameters<
             ReturnType<
@@ -653,19 +711,21 @@ export async function insert_or_update(
           >[0],
           "id"
         >;
-        const _check_res = res satisfies Omit<
+        const _res_typecheck = res satisfies Omit<
           // deno-lint-ignore no-explicit-any
           { [P in keyof MediaPostTable]: any },
           "id"
         >;
-        return res;
+        return _res_typecheck;
       };
 
       const update_results = [];
-      let samed_count = 0;
+      const samed_count = {
+        value: 0,
+      };
       const update_bar = async () =>
         await on_bar_text(
-          `(updated ${update_results.length} + samed ${samed_count} / existed ${existed_list.length} / total ${values.length})`
+          `(updated ${update_results.length} + samed ${samed_count.value} / existed ${existed_list.length} / total ${values.length})`
         );
       for (const existed of existed_list) {
         await update_bar();
@@ -682,7 +742,7 @@ export async function insert_or_update(
           ...get_dto_for_insert_or_update(value),
         };
         if (is_deep_equal(existed, expect_existed)) {
-          samed_count++;
+          samed_count.value += 1;
           continue;
         } else {
           // console.debug("data changed", {

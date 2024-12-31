@@ -4,7 +4,8 @@ import { DOMParser } from "jsr:@b-fuze/deno-dom";
 import deepEqual from "deep-equal";
 
 import { MultiProgressBar } from "jsr:@deno-library/progress";
-import { time } from "node:console";
+import { PlatformEnum } from "./general_data_process/media.ts";
+import { Paragraphs } from "./general_data_process/paragraph_analysis.ts";
 
 export function is_nullish(obj: any): obj is null | undefined {
   return obj === null || obj === undefined;
@@ -238,60 +239,6 @@ export namespace Strs {
     }
   }
 
-  export function parse_number<R extends number>(
-    value: string | number,
-    nan_if: (
-      source_value: string | number | null,
-      cause_value: string | number
-    ) => R = (source_value, cause_value) => {
-      throw new Error(
-        `Why NaN on parse_number : source_value=${source_value}, cause_value=${cause_value}`
-      );
-    },
-    source_value: string | number | null = null
-  ): R | number {
-    if (typeof value === "number") {
-      return value;
-    }
-    const source_value_v2 = source_value === null ? value : source_value;
-    value = value.trim();
-    if (startswith(value, ".")) {
-      return parse_number(concat_string("0", value), nan_if, source_value_v2);
-    }
-    const chinese_quantifier_endings = [
-      ["十", 10],
-      ["百", 100],
-      ["千", 1000],
-      ["万", 10000],
-      ["亿", 10000_0000],
-    ] as const;
-    for (const [
-      chinese_quantifier,
-      chinese_quantifier_multi,
-    ] of chinese_quantifier_endings) {
-      if (endswith(value, chinese_quantifier)) {
-        const x = remove_suffix(value, chinese_quantifier);
-        return (
-          parse_number(x, nan_if, source_value_v2) * chinese_quantifier_multi
-        );
-      }
-    }
-    const parse_float_res = parseFloat(value);
-    if (!isNaN(parse_float_res)) {
-      return parse_float_res;
-    } else {
-      return nan_if(source_value, value);
-    }
-  }
-
-  export function strip_html(html_text: string) {
-    const doc = new DOMParser().parseFromString(
-      `<p>${html_text}</p>`,
-      "text/html"
-    );
-    return doc.textContent;
-  }
-
   export function check_length_property<S extends string>(
     _text: S
   ): _text is S & Record<"length", Typings.LengthOfString<S>> {
@@ -363,7 +310,7 @@ export namespace Times {
         default:
           return "Split array length out of range";
       }
-      const v = Strs.parse_number(arr[i], () => NaN);
+      const v = DataClean.parse_number(arr[i], () => NaN);
       if (isNaN(v)) {
         return "NaN";
       }
@@ -627,6 +574,202 @@ export namespace DataClean {
       return isNaN(n) ? null : n;
     }
   }
+
+  export function parse_number<R extends number>(
+    value: string | number,
+    nan_if: (
+      source_value: string | number | null,
+      cause_value: string | number
+    ) => R = (source_value, cause_value) => {
+      throw new Error(
+        `Why NaN on parse_number : source_value=${source_value}, cause_value=${cause_value}`
+      );
+    },
+    source_value: string | number | null = null
+  ): R | number {
+    if (typeof value === "number") {
+      return value;
+    }
+    const source_value_v2 = source_value === null ? value : source_value;
+    value = value.trim();
+    if (Strs.startswith(value, ".")) {
+      return parse_number(
+        Strs.concat_string("0", value),
+        nan_if,
+        source_value_v2
+      );
+    }
+    const chinese_quantifier_endings = [
+      ["十", 10],
+      ["百", 100],
+      ["千", 1000],
+      ["万", 10000],
+      ["亿", 10000_0000],
+    ] as const;
+    for (const [
+      chinese_quantifier,
+      chinese_quantifier_multi,
+    ] of chinese_quantifier_endings) {
+      if (Strs.endswith(value, chinese_quantifier)) {
+        const x = Strs.remove_suffix(value, chinese_quantifier);
+        return (
+          parse_number(x, nan_if, source_value_v2) * chinese_quantifier_multi
+        );
+      }
+    }
+    const parse_float_res = parseFloat(value);
+    if (!isNaN(parse_float_res)) {
+      return parse_float_res;
+    } else {
+      return nan_if(source_value, value);
+    }
+  }
+
+  export function strip_html(html_text: string) {
+    const doc = new DOMParser().parseFromString(
+      `<p>${html_text}</p>`,
+      "text/html"
+    );
+    return doc.textContent;
+  }
+
+  export function select_context_text(param: {
+    content_text_summary_uncleaned_timeline: DataMerge.Timeline<string>;
+    content_text_detail_uncleaned_timeline: DataMerge.Timeline<string>;
+    platform: PlatformEnum | null;
+  }) {
+    //
+    const {
+      content_text_summary_uncleaned_timeline,
+      content_text_detail_uncleaned_timeline,
+    } = param;
+    // const is_deleted = () => false;
+    let content_text_timeline: DataMerge.Timeline<{
+      text: string;
+      is_summary: boolean;
+    }> = [];
+    const found_tags_in_context_text = new Set<string>();
+    const clean_text = (value: string) => {
+      const _clean = (v: string | null) => {
+        if (v === null) {
+          return null;
+        }
+        v = v.trim();
+        v = DataClean.strip_html(v);
+        const tag_res = Paragraphs.find_and_clean_tags_in_text(v);
+        tag_res.tags.forEach((tag) => {
+          found_tags_in_context_text.add(tag);
+        });
+        v = tag_res.text_cleaned;
+        if (["-", "/", "#"].indexOf(v) >= 0) {
+          v = "";
+        }
+        if (v === "") {
+          v = null;
+        }
+        return v;
+      };
+
+      let v1: string | null = value;
+      let v2: string | null = v1;
+      do {
+        v1 = v2;
+        v2 = _clean(v1);
+      } while (v2 !== v1);
+
+      return v2;
+    };
+    for (const detail of content_text_detail_uncleaned_timeline) {
+      const _value_cleand = clean_text(detail.value);
+      if (_value_cleand === null) {
+        continue;
+      }
+      content_text_timeline = DataMerge.merge_and_sort_timeline({
+        old: content_text_timeline,
+        timeline: [
+          {
+            value: {
+              text: _value_cleand,
+              is_summary: false,
+            },
+            time: detail.time,
+          },
+        ],
+      });
+    }
+    for (const summary of content_text_summary_uncleaned_timeline) {
+      let { value, time } = summary;
+      while (true) {
+        const _value_cleand = clean_text(value);
+        if (_value_cleand === null) {
+          break;
+        }
+        value = _value_cleand;
+        let is_break = true;
+        for (const suffix of [".", "…", " ", "更多", "展开"] as const) {
+          while (Strs.endswith(value, suffix)) {
+            is_break = false;
+            value = Strs.remove_suffix(value, suffix);
+          }
+        }
+        if (is_break) {
+          break;
+        }
+      }
+      if (
+        content_text_timeline.filter((text) =>
+          text.value.text.startsWith(value)
+        ) !== undefined
+      ) {
+        // 已经爬到了展开后的内容
+        continue;
+      } else {
+        const _value_cleand = clean_text(value);
+        if (_value_cleand === null) {
+          continue;
+        }
+        content_text_timeline = DataMerge.merge_and_sort_timeline({
+          old: content_text_timeline,
+          timeline: [
+            {
+              value: {
+                text: _value_cleand,
+                is_summary: true,
+              },
+              time: time,
+            },
+          ],
+        });
+      }
+    }
+
+    const is_deleted = (it: (typeof content_text_timeline)[number]) => false;
+    const obj_deleted_first = content_text_timeline.find(is_deleted) ?? null;
+    const context_text_latest =
+      content_text_timeline.findLast((it) => !is_deleted(it))?.value.text ??
+      null;
+    let content_text_resume_after_deleted: boolean;
+
+    if (Arrays.length_greater_then_0(content_text_timeline)) {
+      // 如果有被删除的元素，但最后一个元素没有被删除，说明被恢复了。
+      content_text_resume_after_deleted =
+        obj_deleted_first != null && !is_deleted(content_text_timeline[0]);
+    } else {
+      content_text_resume_after_deleted = false;
+    }
+
+    return {
+      content_text_timeline_count: content_text_timeline.length,
+      context_text_latest_str_length: context_text_latest?.length ?? 0,
+      context_text_latest,
+      content_text_deleted_at_least_once:
+        content_text_timeline.length > 0 && obj_deleted_first !== null,
+      content_text_deleted_first_time: obj_deleted_first?.time ?? null,
+      content_text_resume_after_deleted,
+      content_text_timeline,
+      found_tags_in_context_text,
+    };
+  }
 }
 
 // deno-lint-ignore no-namespace
@@ -636,10 +779,15 @@ export namespace DataMerge {
     value: V;
   }[];
 
-  export function merge_and_sort_timeline<V>(param: {
-    old: Timeline<V>;
-    timeline: Timeline<V>;
-  }) {
+  /**
+   * 根据时间排序。
+   *
+   * 在排序后，如果前后两个元素的值一样（时间可以不同），则移除后面的元素。
+   */
+  export function merge_and_sort_timeline<
+    V,
+    T extends Timeline<V> = Timeline<V>
+  >(param: { old: T; timeline: T }) {
     const { old, timeline } = param;
     const arr = [...old, ...timeline];
     arr.sort((a, b) => {

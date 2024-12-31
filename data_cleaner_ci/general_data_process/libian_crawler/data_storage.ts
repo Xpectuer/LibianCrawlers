@@ -1,10 +1,9 @@
-import { JSONColumnType, Kysely, Migrator } from "kysely";
+import { Kysely, Migrator } from "kysely";
 import config from "../../config.ts";
 import { MediaContent, PlatformEnum } from "../media.ts";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
-import { DataMerge, Typings } from "../../util.ts";
-import { MediaContentMerged } from "./clean_and_merge.ts";
+import { DataMerge } from "../../util.ts";
 import { PostgresColumnType } from "../../pg.ts";
 
 export const _libian_crawler_cleaned = "libian_crawler_cleaned" as const;
@@ -49,7 +48,6 @@ export interface MediaPostTable {
         >
       >;
     }[]
-    // Typings.MapToRecord<MediaContentMerged["authors"]>
   >;
   cover_first_url: string | null;
   cover_urls: PostgresColumnType.JSON<string[]>;
@@ -58,6 +56,27 @@ export interface MediaPostTable {
   >;
   tag_texts: PostgresColumnType.JSON<string[]>;
   tag_text_joined: string;
+  content_text_timeline_count: PostgresColumnType.Numeric;
+  context_text_latest_str_length: PostgresColumnType.Numeric;
+  context_text_latest: string | null;
+  content_text_deleted_at_least_once: boolean;
+  content_text_deleted_first_time: Date | null;
+  content_text_resume_after_deleted: boolean;
+  content_text_timeline: PostgresColumnType.JSON<
+    ReturnType<
+      typeof DataMerge.timeline_to_json<{
+        text: string;
+        is_summary: boolean;
+      }>
+    >
+  >;
+  content_text_summary_uncleaned_timeline: PostgresColumnType.JSON<
+    ReturnType<typeof DataMerge.timeline_to_json<string>>
+  >;
+  content_text_detail_uncleaned_timeline: PostgresColumnType.JSON<
+    ReturnType<typeof DataMerge.timeline_to_json<string>>
+  >;
+  context_text_latest_lines_count: PostgresColumnType.Numeric | null;
 }
 
 export async function create_and_init_libian_srawler_database_scope<R>(
@@ -81,7 +100,7 @@ export async function create_and_init_libian_srawler_database_scope<R>(
       migrationLockTableName: migration.lock_table,
       provider: {
         async getMigrations() {
-          const { migrations } = await import("./data_storage_migration.ts");
+          const { migrations } = await import("./migrations/index.ts");
           return migrations;
         },
       },

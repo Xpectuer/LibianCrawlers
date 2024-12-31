@@ -1,3 +1,4 @@
+import { PostgresColumnType } from "../../pg.ts";
 import {
   LibianCrawlerDatabase,
   _libian_crawler_cleaned,
@@ -10,23 +11,7 @@ import {
   Migration,
   InsertObject,
   Expression,
-  sql,
 } from "kysely";
-import Migration20241225 from "./migrations/20241225.ts";
-import Migration20241227 from "./migrations/20241227.ts";
-import { Mappings } from "../../util.ts";
-import { PostgresColumnType } from "../../pg.ts";
-
-// export type InsertExpression<DB, TN extends keyof DB> = InsertObject<DB, TN>;
-// export type DefaultValueExpression<
-//   DB,
-//   TN extends keyof DB,
-//   CN extends keyof InsertExpression<DB, TN>
-// > = InsertExpression<DB, TN>[CN];
-
-export const migrations = Mappings.object_from_entries(
-  [Migration20241225, Migration20241227].map((it) => [it.version, it] as const)
-);
 
 export type CreateOrAlterTableBuilder<N extends string> =
   | CreateTableBuilder<N>
@@ -69,9 +54,11 @@ export function create_migration<
                     : NonNullable<TB[CN]> extends Date
                     ? "timestamptz"
                     : NonNullable<TB[CN]> extends PostgresColumnType.Numeric
-                    ? "decimal" | "bigint"
+                    ? "decimal" | "bigint" | "integer"
                     : NonNullable<TB[CN]> extends JSONColumnType<object | null>
                     ? "jsonb"
+                    : NonNullable<TB[CN]> extends boolean
+                    ? "boolean"
                     : string);
               } & (
                 | { pk: true }
