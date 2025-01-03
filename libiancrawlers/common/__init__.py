@@ -6,11 +6,15 @@ import re
 from datetime import datetime
 from typing import Callable, Optional, Awaitable, Any
 
+import unicodedata
 from aiofiles import os as aioos
+from aioify import aioify
 from loguru import logger
 
 from libiancrawlers.common.playwright_util import shutdown_playwright
 from libiancrawlers.common.types import Initiator
+
+aios = aioify(obj=os, name='aios')
 
 
 def is_windows():
@@ -72,6 +76,23 @@ def log_debug_which_object_maybe_very_length(*, prefix: str, obj: Any, max_outpu
     if len(out) > max_output_length:
         out = out[0:max_output_length] + '...'
     logger.debug(out)
+
+
+def filename_slugify(value, *, allow_unicode: bool):
+    """
+    Taken from https://github.com/django/django/blob/master/django/utils/text.py
+    Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+    dashes to single dashes. Remove characters that aren't alphanumerics,
+    underscores, or hyphens. Convert to lowercase. Also strip leading and
+    trailing whitespace, dashes, and underscores.
+    """
+    value = str(value)
+    if allow_unicode:
+        value = unicodedata.normalize('NFKC', value)
+    else:
+        value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value.lower())
+    return re.sub(r'[-\s]+', '-', value).strip('-_')
 
 
 if __name__ == '__main__':

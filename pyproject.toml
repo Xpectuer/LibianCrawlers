@@ -18,6 +18,9 @@ async-to-sync = "^0.2.3"
 aioify = "^0.4.1"
 asyncpg = "^0.30.0"
 confection = "^0.1.5"
+charset-normalizer = "^3.4.1"
+html-to-json = "^2.0.0"
+python-magic-bin = "0.4.14"
 
 [tool.poetry.dev-dependencies]
 
@@ -58,6 +61,7 @@ taobao-search = "libiancrawlers.taobao.search:cli"
 zhihu-search = "libiancrawlers.zhihu.search:cli"
 launch-camoufox-server = "libiancrawlers.camoufox_server.launch_camoufox_server:cli"
 camoufox-server-to-browser-scan = "libiancrawlers.camoufox_server.test_connect:to_browser_scan"
+webpage-smart-extract = "libiancrawlers.webpage.smart_extract:cli"
 
 [[tool.poetry.source]]
 name = "tsinghua"

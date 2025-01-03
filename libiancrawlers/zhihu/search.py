@@ -52,6 +52,7 @@ async def search(*,
                 logger.info('等待用户在浏览器登陆知乎...')
                 if not already_goto_index:
                     await b_page.goto('https://www.zhihu.com', wait_until="domcontentloaded")
+                    await b_page.bring_to_front()
                     already_goto_index = True
                 await sleep(20, checker=check_page_close)
             logger.debug('首页 cookies : {}', await b_page.context.cookies())

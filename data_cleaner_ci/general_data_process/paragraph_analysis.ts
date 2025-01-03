@@ -20,6 +20,8 @@ export namespace Paragraphs {
 
   export function find_qq_number() {}
 
+  export function find_wechat() {}
+
   export function find_web_url() {}
 
   export function find_intent_url() {}
