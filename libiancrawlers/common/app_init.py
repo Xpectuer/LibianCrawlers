@@ -10,6 +10,8 @@ _APP_INIT_CONF: Optional[Initiator] = None
 
 
 def get_app_init_conf():
+    if _APP_INIT_CONF is None:
+        raise Exception('You need call init_app')
     return _APP_INIT_CONF
 
 

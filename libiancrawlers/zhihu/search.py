@@ -4,10 +4,10 @@ from typing import Union, Tuple, Literal, Optional
 import json5
 from loguru import logger
 
-from libiancrawlers.common import sleep
 from libiancrawlers.common.app_init import exit_app, init_app
 from libiancrawlers.common.playwright_util import get_browser
 from libiancrawlers.common.types import Initiator, LaunchBrowserParam
+from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.zhihu import zhihu_check_login_state, zhihu_req_get
 
 
@@ -26,6 +26,7 @@ async def search(*,
                  ):
     from libiancrawlers.common import on_before_retry_default
     from libiancrawlers.common.search import SearchByKeywordContext, SearchByKeywordResult, abstract_search
+    from libiancrawlers.camoufox_server.best_launch_options import get_best_launch_options
 
     b_page = None
 
@@ -33,10 +34,10 @@ async def search(*,
         logger.debug('start get browser')
         browser_context, _ = await get_browser(
             mode=LaunchBrowserParam(browser_data_dir_id='login-zhihu'),
-            launch_options={
-                'os': 'macos',
-                'locale': 'zh-CN',
-            }
+            launch_options=await get_best_launch_options(
+                os='macos',
+                locale='zh-CN'
+            )
         )
         logger.debug('finish get browser , start new page')
         b_page = await browser_context.new_page()

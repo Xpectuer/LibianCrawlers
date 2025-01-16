@@ -19,14 +19,20 @@ aioify = "^0.4.1"
 asyncpg = "^0.30.0"
 confection = "^0.1.5"
 charset-normalizer = "^3.4.1"
-html-to-json = "^2.0.0"
 python-magic-bin = "0.4.14"
+bs4 = "^0.0.2"
+pytest-asyncio = "^0.25.1"
+filetype = "^1.2.0"
 
 [tool.poetry.dev-dependencies]
 
 
 [tool.poetry.group.test]
 optional = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.poetry.group.test.dependencies]
 pytest-randomly = "^3.15.0"
@@ -60,7 +66,9 @@ bilibili-search = "libiancrawlers.bilibili.search:cli"
 taobao-search = "libiancrawlers.taobao.search:cli"
 zhihu-search = "libiancrawlers.zhihu.search:cli"
 launch-camoufox-server = "libiancrawlers.camoufox_server.launch_camoufox_server:cli"
-camoufox-server-to-browser-scan = "libiancrawlers.camoufox_server.test_connect:to_browser_scan"
+camoufox-to-browser-scan = "libiancrawlers.camoufox_server.test_connect:to_browser_scan"
+camoufox-to-ip138 = "libiancrawlers.camoufox_server.test_connect:to_ip138"
+launch-dns-proxy = "libiancrawlers.common.networks.dnsproxy:cli"
 webpage-smart-extract = "libiancrawlers.webpage.smart_extract:cli"
 
 [[tool.poetry.source]]

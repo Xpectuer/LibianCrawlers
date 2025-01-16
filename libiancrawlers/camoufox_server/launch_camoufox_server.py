@@ -1,62 +1,42 @@
 # -*- coding: UTF-8 -*-
-from typing import Optional, Union, Tuple
+import asyncio
+from typing import NoReturn
 
 from camoufox.server import launch_server
 from loguru import logger
 
+from libiancrawlers.camoufox_server.best_launch_options import get_best_launch_options
 
-def launch_camoufox_server(
-        *,
-        os: Optional[Union[str, Tuple[str]]] = None,
-        headless=False,
-        geoip=True,
-        humanize=True,
-        locale=None,
-        debug: Optional[bool] = None,
-        proxy_server: Optional[str] = None,
-        proxy_username: Optional[str] = None,
-        proxy_password: Optional[str] = None,
+
+async def launch_camoufox_server(
+        **launch_options,
 ):
-    logger.debug('cli params : {}', locals())
-    proxy = None if \
-        proxy_server is None \
-        and proxy_username is None \
-        and proxy_password is None \
-        else \
-        dict(
-            **({} if proxy_server is None else dict(server=proxy_server)),
-            **({} if proxy_username is None else dict(username=proxy_username)),
-            **({} if proxy_password is None else dict(password=proxy_password)),
-        )
-    logger.debug('proxy is {}', proxy)
-    if os is None:
-        os = ['windows']
-    if isinstance(os, str):
-        os = os.split(',')
-    logger.debug('os is {}', os)
-    launch_server(
-        os=os,
-        headless=headless,
-        humanize=humanize,
-        geoip=geoip,
-        proxy=proxy,
-        locale=locale,
-        debug=debug,
-        config={
-            'screen.availWidth': 1824,
-            'screen.availHeight': 988,
-            'screen.width': 1920,
-            'screen.height': 1080,
-            'screen.colorDepth': 24,
-            'screen.pixelDepth': 24,
-            'screen.availTop': 0,
-            'screen.availLeft': 0,
-        },
-    )
+    from libiancrawlers.common.app_init import exit_app
+
+    try:
+        logger.debug('launch param : {}', locals())
+        if launch_options is None:
+            launch_options = await get_best_launch_options()
+
+        def _launch() -> NoReturn:
+            return launch_server(
+                **launch_options
+            )
+
+        from concurrent.futures import ThreadPoolExecutor
+        await asyncio.get_event_loop().run_in_executor(ThreadPoolExecutor(), _launch)
+    finally:
+        await exit_app()
 
 
 def cli():
     from fire import Fire
+    from libiancrawlers.common.app_init import init_app
+    from libiancrawlers.common import Initiator
+    init_app(Initiator(
+        playwright=False,
+        postgres=False,
+    ))
     Fire(launch_camoufox_server)
 
 

@@ -3,9 +3,11 @@ import asyncio
 import base64
 import os.path
 from dataclasses import dataclass
-from typing import Optional, Literal, Union, Dict, Callable, Awaitable, Tuple, Any
+from typing import Optional, Literal, Union, Dict, Callable, Awaitable, Any
 from urllib.parse import urlparse, parse_qs, parse_qsl
 
+import aiofiles.os
+import aiofiles.ospath
 import playwright.async_api
 # noinspection PyProtectedMember
 from camoufox import AsyncCamoufox
@@ -16,10 +18,9 @@ from playwright.async_api import async_playwright, BrowserContext, Browser
 
 from libiancrawlers.common.app_init import get_app_init_conf
 from libiancrawlers.common.config import read_config, read_config_get_path
-from libiancrawlers.common.types import AppInitConfDisable, LaunchBrowserParam
-
-import aiofiles.os
-import aiofiles.ospath
+from libiancrawlers.common.networks.iputil import MyPublicIpInfo
+from libiancrawlers.common.types import LibianCrawlerInitConfDisabled, LaunchBrowserParam
+from libiancrawlers.util.fs import filename_slugify
 
 PLAYWRIGHT_LOCK = asyncio.Lock()
 PLAYWRIGHT_CONTEXT: Optional[PlaywrightContextManager] = None
@@ -43,7 +44,7 @@ async def _get_ctx():
     if PLAYWRIGHT_CONTEXT is None:
         async with PLAYWRIGHT_LOCK:
             if not get_app_init_conf().playwright:
-                raise AppInitConfDisable('playwright')
+                raise LibianCrawlerInitConfDisabled('playwright')
             if PLAYWRIGHT_CONTEXT is None:
                 PLAYWRIGHT_CONTEXT = async_playwright()
     return PLAYWRIGHT_CONTEXT
@@ -54,11 +55,9 @@ async def get_browser(*,
                           Literal["connect"],
                           LaunchBrowserParam,
                       ],
-                      launch_options=None):
-    from libiancrawlers.common import filename_slugify
-
-    if launch_options is None:
-        launch_options = {}
+                      my_public_ip_info: MyPublicIpInfo,
+                      launch_options: Dict[str, Any],
+                      ):
     ctx = await _get_ctx()
     pw = await ctx.__aenter__()
     if mode == 'connect':
@@ -179,19 +178,25 @@ async def page_info_to_dict(page: playwright.async_api.Page, *,
                             on_screenshot: Optional[BlobOutput] = None,
                             ):
     async def screenshot_mode_file(pth: str):
-        return await page.screenshot(
+        logger.debug('start screenshot , pth is {}', pth)
+        res = await page.screenshot(
             type='png',
             path=pth,
             full_page=True,
             scale='css',
         )
+        logger.debug('finish screenshot')
+        return res
 
     async def screenshot_mode_base64():
-        return await page.screenshot(
+        logger.debug('start screenshot to base64')
+        res = await page.screenshot(
             type='png',
             full_page=True,
             scale='css',
         )
+        logger.debug('finish screenshot to base64')
+        return res
 
     return dict(
         url=url_parse_to_dict(page.url),

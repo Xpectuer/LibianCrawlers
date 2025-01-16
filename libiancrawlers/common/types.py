@@ -17,16 +17,30 @@ class Initiator:
     postgres: bool
 
 
-class TODO(Exception):
-    def __init__(self, *args: object) -> None:
-        super().__init__(*args)
-
-
-class AppInitConfDisable(Exception):
-    def __init__(self, *args: object) -> None:
-        super().__init__(*args)
-
-
 @dataclass(frozen=True)
 class LaunchBrowserParam:
     browser_data_dir_id: str
+
+
+class LibianCrawlerException(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
+class LibianCrawlerInitConfDisabled(LibianCrawlerException):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
+class LibianCrawlerPermissionException(LibianCrawlerException):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
+class LibianCrawlerBugException(LibianCrawlerException):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+
+class TodoException(LibianCrawlerBugException):
+    pass

@@ -1,16 +1,14 @@
 # -*- coding: UTF-8 -*-
 import json
 import time
-from typing import Literal
 
+from backoff import on_exception, expo
+from loguru import logger
+from ratelimit import limits, sleep_and_retry
 from xhs import DataFetchError
 
 from libiancrawlers.common.postgres import require_init_table, insert_to_garbage_table
-from loguru import logger
-
 from libiancrawlers.xiaohongshu import get_global_xhs_client, concat_xhs_note_url, create_xhs_client
-from ratelimit import limits, sleep_and_retry
-from backoff import on_exception, expo
 
 
 @on_exception(expo, DataFetchError, max_tries=3)

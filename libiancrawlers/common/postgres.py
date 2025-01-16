@@ -8,7 +8,7 @@ from loguru import logger
 import asyncpg
 from libiancrawlers.common.app_init import get_app_init_conf
 from libiancrawlers.common.config import read_config
-from libiancrawlers.common.types import JSON, AppInitConfDisable
+from libiancrawlers.common.types import JSON, LibianCrawlerInitConfDisabled
 
 _CHECKED_GARBAGE_TABLE_EXIST = False
 
@@ -38,7 +38,7 @@ async def get_pool():
         async with _INIT_POOL_LOCK:
             if _POOL is None:
                 if not get_app_init_conf().postgres:
-                    raise AppInitConfDisable('postgres')
+                    raise LibianCrawlerInitConfDisabled('postgres')
                 logger.debug('Create global pg pool')
                 _POOL = await asyncpg.create_pool(
                     database=dbname,

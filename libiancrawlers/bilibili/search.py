@@ -4,7 +4,7 @@ from typing import Union, Tuple, Optional
 from bilibili_api.search import SearchObjectType, search_by_type
 from loguru import logger
 
-from libiancrawlers.common import Initiator
+from libiancrawlers.common.types import Initiator
 from libiancrawlers.common.app_init import exit_app, init_app
 
 
@@ -16,7 +16,7 @@ async def search(*,
                  fetch_all_comment: bool = False,
                  retry: int = 0,
                  ):
-    from libiancrawlers.common import on_before_retry_default
+    from libiancrawlers.common.crawlers_util import on_before_retry_default
     from libiancrawlers.common.search import SearchByKeywordContext, SearchByKeywordResult, abstract_search
 
     search_type_allow = [e.value for e in SearchObjectType]

@@ -1,12 +1,42 @@
 # -*- coding: UTF-8 -*-
 import json
-import re
-from typing import Union, Callable, Any, Optional, TypedDict, List, Dict, Tuple
+from typing import Union, Callable, Any, Optional, TypedDict, List, Dict, TypeVar
 
 import charset_normalizer
-import html_to_json
 import json5
+from bs4 import BeautifulSoup, PageElement, Tag, NavigableString
+from loguru import logger
 from magic import magic
+
+from libiancrawlers.util.jsons import is_json_basic_type
+
+T = TypeVar('T')
+
+
+def parse_json(t: str):
+    j_err = None
+    try:
+        j = json.loads(t)
+    except Exception as err:
+        j = None
+        j_err = err
+
+    j5_err = None
+    try:
+        j5 = json5.loads(t)
+    except ValueError as err:
+        j5 = None
+        j5_err = err
+
+    if j_err is not None and j5_err is not None:
+        logger.debug('try parse json failed , text is {} , json err is {} , json5 err is {}',
+                     f'{t[0:30]}... (len is {len(t)})' if len(t) > 30 else t,
+                     j_err,
+                     j5_err,
+                     )
+
+    return j, j5
+
 
 CharsetMatchDict = TypedDict('CharsetMatchDict', {
     "multi_byte_usage": float,
@@ -112,75 +142,253 @@ def _decode_bytes(_buf: bytes) -> DecodeBytesResult:
     )
 
 
-AllCjkNodes = TypedDict('AllCjkNodes', {"value": Any, "ids": List[Union[str, int]], })
-HtmlMagicExtractResult = TypedDict('HtmlMagicExtractResult', {"all_cjk_nodes": AllCjkNodes, })
+# AllCjkNodes = TypedDict('AllCjkNodes', {"value": Any, "idxs": List[Union[str, int]], })
+# HtmlMagicExtractResult = TypedDict('HtmlMagicExtractResult', {
+#     "all_cjk_nodes": Dict[str, str],
+# })
+
+# ITag = Dict[str, Any]
+ITag = TypedDict('ITag', {
+    "bs4_type": str,
+    "name": str,
+    # "namespace": Optional[str],
+    # "prefix": Optional[str],
+    # "sourceline": Optional[int],
+    # "sourcepos": Optional[int],
+    # "known_xml": Optional[bool],
+    "attrs": Optional[Dict[str, str]],
+    "hidden": bool,
+    # "can_be_empty_element": Optional[bool],
+    # "cdata_list_attributes": Optional[list[str]],
+    # "preserve_whitespace_tags": Optional[list[str]],
+    # 'is_empty_element': bool,
+    # 'isSelfClosing': bool,
+    'str': Optional[str],
+    # '__len__': int,
+    # '__bool__': bool,
+    'children': Optional[List['IPageElement']]
+})
+
+Bs4ToDictIgnoreConfig = TypedDict('Bs4ToDictIgnoreConfig', {
+    'style_str': bool,
+    'script_str': bool,
+    'str_max_length': int,
+})
 
 
-def html_magic_extract(root: Any, *, detect_by_cjk: bool) -> Optional[HtmlMagicExtractResult]:
+def _bs4_tag_to_dict(t: Tag, *, children: bool, ignore_conf: Bs4ToDictIgnoreConfig) -> ITag:
+    n = t.name
+    s = t.string
+    skip_length_check = False
+    if s is None:
+        pass
+    elif ignore_conf.get('style_str') and n == 'style':
+        s = 'Ignore style'
+    elif ignore_conf.get('script_str') and n == 'script':
+        s = 'Ignore script'
+    elif n in ['pre', 'textarea']:
+        j, j5 = parse_json(s.strip())
+        if j is not None or j5 is not None:
+            skip_length_check = True
+    else:
+        s = s.strip()
+
+    if not skip_length_check:
+        str_max_length = ignore_conf.get('str_max_length')
+        if s is not None and str_max_length is not None and 0 <= str_max_length < len(s):
+            s = f'Ignore length greater then {str_max_length}'
+
+    cld = None if not children else [
+        _bs4_page_element_to_dict(c,
+                                  children=children,
+                                  ignore_conf=ignore_conf
+                                  ) for c in t.children]
+
+    if cld is not None and len(cld) == 1:
+        c = [c for c in t.children][0]
+        if isinstance(c, NavigableString) and str(c) == t.string:
+            cld = []
+
+    if cld is None or len(cld) == 0:
+        cld = None
+
+    return {
+        'bs4_type': str(type(t)),
+        'name': n,
+        # 'namespace': t.namespace,
+        # 'prefix': t.prefix,
+        # 'sourceline': t.sourceline,
+        # 'sourcepos': t.sourcepos,
+        # 'known_xml': t.known_xml,
+        'attrs': t.attrs,
+        'hidden': t.hidden,
+        # 'can_be_empty_element': t.can_be_empty_element,
+        # 'cdata_list_attributes': [*t.cdata_list_attributes],
+        # 'preserve_whitespace_tags': [*t.preserve_whitespace_tags],
+        # 'is_empty_element': t.is_empty_element,
+        # 'isSelfClosing': t.isSelfClosing,
+        'str': s,
+        # '__bool__': t.__bool__(),
+        'children': cld,
+    }
+
+
+INavigableString = TypedDict('INavigableString', {
+    "bs4_type": str,
+    'str': str,
+})
+
+
+def _bs4_navigable_string_to_dict(s: NavigableString) -> INavigableString:
+    return {
+        'bs4_type': str(type(s)),
+        'str': str(s),
+    }
+
+
+IPageElementUnknownType = TypedDict('IPageElementUnknownType', {
+    "bs4_type": str,
+})
+
+IPageElement = Union[ITag, INavigableString, IPageElementUnknownType]
+
+
+def _bs4_page_element_to_dict(p: PageElement, *, children: bool, ignore_conf: Bs4ToDictIgnoreConfig) -> IPageElement:
+    if isinstance(p, Tag):
+        return _bs4_tag_to_dict(p, children=children, ignore_conf=ignore_conf)
+    if isinstance(p, NavigableString):
+        return _bs4_navigable_string_to_dict(p)
+    d = p.__dict__
+    r: IPageElementUnknownType = {
+        'bs4_type': str(type(p)),
+        **{
+            k: d[k] for k in d if is_json_basic_type(d[k])
+        }
+    }
+    return r
+
+
+ParseHtmlInfoResult = TypedDict('ParseHtmlInfoResult', {
+    "title": Optional[ITag],
+    "all_links": List[IPageElement],
+    "root": Optional[ITag],
+})
+
+
+def parse_html_info(html_doc: Optional[str]) -> Optional[ParseHtmlInfoResult]:
+    if html_doc is None:
+        return None
+    soup = BeautifulSoup(html_doc, 'html.parser')
+    _title = soup.__getattr__('title')
+    r: ParseHtmlInfoResult = {
+        'title': None if _title is None else _bs4_tag_to_dict(_title,
+                                                              children=True,
+                                                              ignore_conf={
+                                                                  'style_str': False,
+                                                                  'script_str': False,
+                                                                  'str_max_length': -1,
+                                                              }),
+        'all_links': [
+            _bs4_page_element_to_dict(a,
+                                      children=True,
+                                      ignore_conf={
+                                          'style_str': False,
+                                          'script_str': False,
+                                          'str_max_length': -1,
+                                      }) for a in soup.find_all('a')
+        ],
+        'root': _bs4_tag_to_dict(soup,
+                                 children=True,
+                                 ignore_conf={
+                                     'style_str': True,
+                                     'script_str': True,
+                                     'str_max_length': 1024,
+                                 }),
+    }
+
+    return r
+
+
+# def html_magic_extract(root: Any,
+#                        *,
+#                        detect_by_cjk: bool) -> Optional[HtmlMagicExtractResult]:
+#     if root is None:
+#         return None
+#
+#     nodes = dict()
+#     all_cjk_nodes: Dict[str, AllCjkNodes] = dict()
+#
+#     def idxs_to_key(_idxs: List[Union[str, int]]):
+#         return '___'.join([__id if isinstance(__id, str) else str(__id).rjust(4, '0') for __id in _idxs])
+#
+#     def has_cjk_char(s: str):
+#         if not detect_by_cjk:
+#             return False
+#         for _n in re.findall(r'[\u4e00-\u9fff]+', s):
+#             return True
+#         return False
+#
+#     def travel(node: Any, idxs: List[str]):
+#         if node is None:
+#             return
+#         nodes[idxs_to_key(idxs)] = node
+#         if isinstance(node, float) or isinstance(node, int):
+#             return
+#         if isinstance(node, bool):
+#             return
+#         if isinstance(node, str):
+#             if len(node) > 1024:
+#                 return
+#             if has_cjk_char(node):
+#                 _key = idxs_to_key(idxs)
+#                 all_cjk_nodes[_key] = {
+#                     'value': nodes[_key],
+#                     'idxs': [*idxs]
+#                 }
+#                 return
+#             return
+#         if isinstance(node, tuple) or isinstance(node, list) or isinstance(node, set):
+#             for idx, item in enumerate(node):
+#                 travel(item, [*idxs, idx])
+#             return
+#         if isinstance(node, dict):
+#             for k in node:
+#                 travel(node[k], [*idxs, k])
+#             return
+#
+#         raise ValueError(f'Invalid type in json node , type is {type(node)} , node is {node}')
+#
+#     travel(root, [])
+#
+#     return {
+#         'all_cjk_nodes': {k: all_cjk_nodes[k].get('value') for k in all_cjk_nodes},
+#     }
+
+
+# def finding_elements_with_similar_positions():
+#     pass
+
+
+TreeTypingExtracted = Any
+
+
+def tree_typing_extract(root: Optional[T],
+                        *,
+                        children_key: Any,
+                        detect_by_cjk: bool) -> Optional[TreeTypingExtracted]:
     if root is None:
         return None
 
-    nodes = dict()
-    all_cjk_nodes: Dict[str, AllCjkNodes] = dict()
-
-    def ids_to_key(_ids: List[Union[str, int]]):
-        return '___'.join([__id if isinstance(__id, str) else str(__id).rjust(4, '0') for __id in _ids])
-
-    def has_cjk_char(s: str):
-        if not detect_by_cjk:
-            return False
-        for _n in re.findall(r'[\u4e00-\u9fff]+', s):
-            return True
-        return False
-
-    def travel(node: Any, ids: List[str]):
-        if node is None:
-            return
-        nodes[ids_to_key(ids)] = node
-        if isinstance(node, float) or isinstance(node, int):
-            return
-        if isinstance(node, bool):
-            return
-        if isinstance(node, str):
-            if has_cjk_char(node):
-                _key = ids_to_key(ids)
-                all_cjk_nodes[_key] = {
-                    'value': nodes[_key],
-                    'ids': [*ids]
-                }
-                return
-            return
-        if isinstance(node, tuple) or isinstance(node, list) or isinstance(node, set):
-            for idx, item in enumerate(node):
-                travel(item, [*ids, idx])
-            return
-        if isinstance(node, dict):
-            for k in node:
-                if k == 'style' or k == 'script':
-                    continue
-                travel(node[k], [*ids, k])
-            return
-
-        raise ValueError(f'Invalid type in json node , type is {type(node)} , node is {node}')
-
-    travel(root, [])
-
-    # """
-    # 当发现某一位置出现中日韩字符时，将会搜索其父路径上各个数组下标的”不同下标值的相同位置“是否存在类似的内容。
-    # """
-    # for cjk_node in all_cjk_nodes.values():
-    #     _cjk_ids = cjk_node.get('ids')
-    #     for idx_of_cjk in range(len(_cjk_ids) - 1, -1, -1):
-    #         item_of_cjk = _cjk_ids[idx_of_cjk]
-    #         if isinstance(item_of_cjk, int):
-    #
-    #             pass
-    #         else:
-    #             continue
-
-    return {
-        'all_cjk_nodes': all_cjk_nodes
-    }
+    # children = None
+    # for k in root:
+    #     if k == children_key:
+    #         children = root[k]
+    #     else:
+    #         v = root[k]
+    #     pass
+    # if children is not None:
+    #     for c in children:
+    #         pass
 
 
 MagicInfo = TypedDict('MagicInfo', {
@@ -191,10 +399,31 @@ MagicInfo = TypedDict('MagicInfo', {
     "str_encoded": Optional[EncodeStrWithoutEncoded],
     "value_json": Any,
     "value_json5": Any,
-    "html_magic_extracted": Any,
-    "value_html_to_json": Any,
+    "html_tree_typing_extracted": Optional[TreeTypingExtracted],
+    "html_info": Optional[ParseHtmlInfoResult],
     "text": Optional[str],
 })
+
+
+def find_tag(t: Optional[ITag], names: List[str], prop: Optional[str]):
+    if t is None:
+        return None
+    n = t.get('name')
+    if n == names[0]:
+        # noinspection PyTypedDict
+        # return t[prop] if prop is not None else t
+        if len(names) >= 2:
+            cld = t.get('children')
+            if cld is None or not isinstance(cld, list) or len(cld) <= 0:
+                return None
+            for c in cld:
+                r = find_tag(c, names[1:len(names)], prop)
+                if r is not None:
+                    return r
+        else:
+            # noinspection PyTypedDict
+            return t[prop] if prop is not None else t
+    return None
 
 
 def get_magic_info(buf: Union[str, bytes], *, html_extract_detect_by_cjk: bool) -> MagicInfo:
@@ -221,33 +450,29 @@ def get_magic_info(buf: Union[str, bytes], *, html_extract_detect_by_cjk: bool) 
 
     try:
         if text.strip().startswith('<'):
-            value_html_to_json = html_to_json.convert(text)
+            html_info = parse_html_info(text)
         else:
-            value_html_to_json = None
-    except BaseException:
-        value_html_to_json = None
+            html_info = None
+    except BaseException as err:
+        logger.debug('parse html failed : {}', err)
+        html_info = None
 
-    html_magic_extracted = html_magic_extract(value_html_to_json, detect_by_cjk=html_extract_detect_by_cjk)
-
-    def parse_json(t: str):
-        try:
-            j = json.loads(t)
-        except Exception:
-            j = None
-
-        try:
-            j5 = json5.loads(t)
-        except ValueError:
-            j5 = None
-
-        return j, j5
+    if html_info is not None:
+        html_tree_typing_extracted = tree_typing_extract(html_info.get('root'),
+                                                         children_key='children',
+                                                         detect_by_cjk=html_extract_detect_by_cjk)
+    else:
+        html_tree_typing_extracted = None
 
     value_json, value_json5 = parse_json(text)
     if value_json is None and value_json5 is None:
         try:
-            value_json, value_json5 = parse_json(value_html_to_json['html'][0]['body'][0]['pre'][0]['_value'])
-        except BaseException:
-            pass
+            if html_info is not None:
+                firefox_plain_text_tag = find_tag(html_info.get('root'), ['[document]', 'html', 'body', 'pre'], 'str')
+                logger.debug('try find firefox plain text tag in html , result is {}', firefox_plain_text_tag)
+                value_json, value_json5 = parse_json(firefox_plain_text_tag)
+        except BaseException as err:
+            logger.debug('parse json and json5 from html.body.pre failed : {}', err)
 
     # noinspection PyTypeChecker
     _decoded: Optional[DecodeBytesResult] = None if decoded is None else dict(
@@ -266,6 +491,11 @@ def get_magic_info(buf: Union[str, bytes], *, html_extract_detect_by_cjk: bool) 
         "errors": str_encoded['errors'],
     }
 
+    if value_json is not None:
+        logger.debug('result value json is {}', value_json)
+    elif value_json5 is not None:
+        logger.debug('result value json5 is {}', value_json5)
+
     return dict(
         mime=mime,
         desc=desc,
@@ -274,9 +504,9 @@ def get_magic_info(buf: Union[str, bytes], *, html_extract_detect_by_cjk: bool) 
         str_encoded=_str_encoded,
         value_json=value_json,
         value_json5=value_json5,
-        html_magic_extracted=html_magic_extracted,
-        value_html_to_json=value_html_to_json,
-        text=None if value_html_to_json is not None else text
+        html_tree_typing_extracted=html_tree_typing_extracted,
+        html_info=html_info,
+        text=None if html_info is not None else text
     )
 
 

@@ -13,6 +13,8 @@ from xhs.exception import NeedVerifyError, SignError
 from libiancrawlers.common.config import read_config, is_config_truthy, read_config_sync
 
 
+
+
 def _sign(uri: str, data=None, a1="", web_session=""):
     sign_server_path = read_config_sync('crawler', 'platform', 'xiaohongshu', 'sign-server-path')
     res = requests.post(sign_server_path,
@@ -127,7 +129,7 @@ def create_xhs_client(*, cookie: str):
                            sign=_sign,
                            user_agent=random_user_agent()
                            )
-    xhs_client.__session = requests.session.Session()
+    xhs_client.__session = requests.session.Session(impersonate="chrome124")
     logger.debug('create xhs client {}', xhs_client)
     return xhs_client
 
