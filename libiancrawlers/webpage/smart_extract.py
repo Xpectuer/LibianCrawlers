@@ -197,12 +197,10 @@ async def smart_extract(*,
         resp_goto = await response_to_dict(_resp_goto)
 
         logger.debug('start parse body_resp_goto')
-        body_resp_goto = get_magic_info(await _resp_goto.body(),
-                                        html_extract_detect_by_cjk=html_extract_detect_by_cjk)
+        body_resp_goto = get_magic_info(await _resp_goto.body())
 
         logger.debug('start parse page_content')
-        page_content = get_magic_info(await b_page.content(),
-                                      html_extract_detect_by_cjk=html_extract_detect_by_cjk)
+        page_content = get_magic_info(await b_page.content())
 
         common_info = dict(
             resp_goto=resp_goto,

@@ -142,30 +142,12 @@ def _decode_bytes(_buf: bytes) -> DecodeBytesResult:
     )
 
 
-# AllCjkNodes = TypedDict('AllCjkNodes', {"value": Any, "idxs": List[Union[str, int]], })
-# HtmlMagicExtractResult = TypedDict('HtmlMagicExtractResult', {
-#     "all_cjk_nodes": Dict[str, str],
-# })
-
-# ITag = Dict[str, Any]
 ITag = TypedDict('ITag', {
     "bs4_type": str,
     "name": str,
-    # "namespace": Optional[str],
-    # "prefix": Optional[str],
-    # "sourceline": Optional[int],
-    # "sourcepos": Optional[int],
-    # "known_xml": Optional[bool],
     "attrs": Optional[Dict[str, str]],
     "hidden": bool,
-    # "can_be_empty_element": Optional[bool],
-    # "cdata_list_attributes": Optional[list[str]],
-    # "preserve_whitespace_tags": Optional[list[str]],
-    # 'is_empty_element': bool,
-    # 'isSelfClosing': bool,
     'str': Optional[str],
-    # '__len__': int,
-    # '__bool__': bool,
     'children': Optional[List['IPageElement']]
 })
 
@@ -215,20 +197,9 @@ def _bs4_tag_to_dict(t: Tag, *, children: bool, ignore_conf: Bs4ToDictIgnoreConf
     return {
         'bs4_type': str(type(t)),
         'name': n,
-        # 'namespace': t.namespace,
-        # 'prefix': t.prefix,
-        # 'sourceline': t.sourceline,
-        # 'sourcepos': t.sourcepos,
-        # 'known_xml': t.known_xml,
         'attrs': t.attrs,
         'hidden': t.hidden,
-        # 'can_be_empty_element': t.can_be_empty_element,
-        # 'cdata_list_attributes': [*t.cdata_list_attributes],
-        # 'preserve_whitespace_tags': [*t.preserve_whitespace_tags],
-        # 'is_empty_element': t.is_empty_element,
-        # 'isSelfClosing': t.isSelfClosing,
         'str': s,
-        # '__bool__': t.__bool__(),
         'children': cld,
     }
 
@@ -309,88 +280,6 @@ def parse_html_info(html_doc: Optional[str]) -> Optional[ParseHtmlInfoResult]:
     return r
 
 
-# def html_magic_extract(root: Any,
-#                        *,
-#                        detect_by_cjk: bool) -> Optional[HtmlMagicExtractResult]:
-#     if root is None:
-#         return None
-#
-#     nodes = dict()
-#     all_cjk_nodes: Dict[str, AllCjkNodes] = dict()
-#
-#     def idxs_to_key(_idxs: List[Union[str, int]]):
-#         return '___'.join([__id if isinstance(__id, str) else str(__id).rjust(4, '0') for __id in _idxs])
-#
-#     def has_cjk_char(s: str):
-#         if not detect_by_cjk:
-#             return False
-#         for _n in re.findall(r'[\u4e00-\u9fff]+', s):
-#             return True
-#         return False
-#
-#     def travel(node: Any, idxs: List[str]):
-#         if node is None:
-#             return
-#         nodes[idxs_to_key(idxs)] = node
-#         if isinstance(node, float) or isinstance(node, int):
-#             return
-#         if isinstance(node, bool):
-#             return
-#         if isinstance(node, str):
-#             if len(node) > 1024:
-#                 return
-#             if has_cjk_char(node):
-#                 _key = idxs_to_key(idxs)
-#                 all_cjk_nodes[_key] = {
-#                     'value': nodes[_key],
-#                     'idxs': [*idxs]
-#                 }
-#                 return
-#             return
-#         if isinstance(node, tuple) or isinstance(node, list) or isinstance(node, set):
-#             for idx, item in enumerate(node):
-#                 travel(item, [*idxs, idx])
-#             return
-#         if isinstance(node, dict):
-#             for k in node:
-#                 travel(node[k], [*idxs, k])
-#             return
-#
-#         raise ValueError(f'Invalid type in json node , type is {type(node)} , node is {node}')
-#
-#     travel(root, [])
-#
-#     return {
-#         'all_cjk_nodes': {k: all_cjk_nodes[k].get('value') for k in all_cjk_nodes},
-#     }
-
-
-# def finding_elements_with_similar_positions():
-#     pass
-
-
-TreeTypingExtracted = Any
-
-
-def tree_typing_extract(root: Optional[T],
-                        *,
-                        children_key: Any,
-                        detect_by_cjk: bool) -> Optional[TreeTypingExtracted]:
-    if root is None:
-        return None
-
-    # children = None
-    # for k in root:
-    #     if k == children_key:
-    #         children = root[k]
-    #     else:
-    #         v = root[k]
-    #     pass
-    # if children is not None:
-    #     for c in children:
-    #         pass
-
-
 MagicInfo = TypedDict('MagicInfo', {
     "mime": str,
     "desc": str,
@@ -399,7 +288,6 @@ MagicInfo = TypedDict('MagicInfo', {
     "str_encoded": Optional[EncodeStrWithoutEncoded],
     "value_json": Any,
     "value_json5": Any,
-    "html_tree_typing_extracted": Optional[TreeTypingExtracted],
     "html_info": Optional[ParseHtmlInfoResult],
     "text": Optional[str],
 })
@@ -426,7 +314,7 @@ def find_tag(t: Optional[ITag], names: List[str], prop: Optional[str]):
     return None
 
 
-def get_magic_info(buf: Union[str, bytes], *, html_extract_detect_by_cjk: bool) -> MagicInfo:
+def get_magic_info(buf: Union[str, bytes]) -> MagicInfo:
     mime = magic.from_buffer(buffer=buf, mime=True)
     desc = magic.from_buffer(buffer=buf, mime=False)
 
@@ -456,13 +344,6 @@ def get_magic_info(buf: Union[str, bytes], *, html_extract_detect_by_cjk: bool) 
     except BaseException as err:
         logger.debug('parse html failed : {}', err)
         html_info = None
-
-    if html_info is not None:
-        html_tree_typing_extracted = tree_typing_extract(html_info.get('root'),
-                                                         children_key='children',
-                                                         detect_by_cjk=html_extract_detect_by_cjk)
-    else:
-        html_tree_typing_extracted = None
 
     value_json, value_json5 = parse_json(text)
     if value_json is None and value_json5 is None:
@@ -504,7 +385,6 @@ def get_magic_info(buf: Union[str, bytes], *, html_extract_detect_by_cjk: bool) 
         str_encoded=_str_encoded,
         value_json=value_json,
         value_json5=value_json5,
-        html_tree_typing_extracted=html_tree_typing_extracted,
         html_info=html_info,
         text=None if html_info is not None else text
     )
