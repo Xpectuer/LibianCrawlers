@@ -345,6 +345,29 @@ export async function* read_garbage_for_libian_crawler(_param?: {
         };
         yield res;
       }
+    } else {
+      const webpage_entry =
+        Mappings.find_entry_which_defined_value_and_key_startswith(
+          "group__webpage_smart_extract",
+          garbage
+        );
+      if (webpage_entry) {
+        const { g_create_time } = webpage_entry[1];
+        const webpage_title =
+          webpage_entry[1].g_content.page_info_smart_wait.title;
+
+        const xhs_note_entry =
+          Mappings.find_entry_which_defined_value_and_key_startswith(
+            "group__webpage_smart_extract__xhs_note:",
+            garbage
+          );
+        if (xhs_note_entry) {
+          const xhs_note = xhs_note_entry[1];
+
+          // const res: MediaContent = {};
+          // yield res;
+        }
+      }
     }
   }
 }

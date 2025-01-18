@@ -94,8 +94,11 @@ def url_parse_to_dict(url: Optional[str]):
         path_arr_len=len(_url.path.split('/')),
         params=_url.params,
         query=_url.query,
-        parse_qs=parse_qs(_url.query),
-        parse_qsl=parse_qsl(_url.query),
+        query_dict={
+            k: None if v is None or len(v) == 0 or (len(v) == 1 and v[0].strip() == '') else v[0] if len(v) == 1 else v
+            for k, v in parse_qs(_url.query).items()},
+        # parse_qs=parse_qs(_url.query),
+        # parse_qsl=parse_qsl(_url.query),
         fragment=_url.fragment,
         username=_url.username,
         password=_url.password,

@@ -13,7 +13,7 @@ from loguru import logger
 from libiancrawlers.common.networks import update_proxies
 from libiancrawlers.common.networks.iputil import get_my_public_ip_info
 from libiancrawlers.common.playwright_util import get_browser, response_to_dict, \
-    page_info_to_dict, BlobOutput
+    page_info_to_dict, BlobOutput, url_parse_to_dict
 from libiancrawlers.common.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.common.types import LaunchBrowserParam, LibianCrawlerBugException
 from libiancrawlers.util.coroutines import sleep
@@ -233,6 +233,8 @@ async def smart_extract(*,
             await insert_to_garbage_table(
                 g_type=f'webpage_smart_extract',
                 g_content=dict(
+                    cmd_param_json=json.loads(_param_json),
+                    cmd_param_url=url_parse_to_dict(url),
                     crawler_tag=f'{tag_group}:{tag_version_2}',
                     common_info=common_info,
                     page_info_smart_wait=page_info_smart_wait_insert_to_db,

@@ -478,10 +478,45 @@ export namespace Mappings {
    * Copy from:
    * https://stackoverflow.com/a/76176570/21185704
    */
-  export const object_entries = <T extends Record<PropertyKey, unknown>>(
+  export const object_entries = <T extends Record<PropertyKey, any>>(
     obj: T
-  ): { [K in keyof T]: [K, T[K]] }[keyof T][] => {
-    return Object.entries(obj) as { [K in keyof T]: [K, T[K]] }[keyof T][];
+  ): NonNullable<{ [K in keyof T]: [K, T[K]] }[keyof T]>[] => {
+    return Object.entries(obj);
+  };
+
+  export const object_keys = <T extends Record<string, any>>(
+    obj: T
+  ): (string & keyof T)[] => {
+    return Object.keys(obj);
+  };
+
+  export const find_entry_which_defined_value_and_key_startswith = <
+    P extends string,
+    T extends Record<string, any>
+  >(
+    prefix: P,
+    obj: T
+  ) => {
+    return (
+      object_keys(obj)
+        .map((key) => {
+          if (Strs.startswith(key, prefix)) {
+            const k: `${P}${string}` & keyof T = key;
+            if (k === undefined) {
+              return null;
+            }
+            const o: T & Record<typeof k, unknown> = obj;
+            const v = o[k];
+            if (v === undefined) {
+              return null;
+            }
+            return [k, v] as const;
+          } else {
+            return null;
+          }
+        })
+        .find((it) => it) ?? null
+    );
   };
 
   export function filter_keys<

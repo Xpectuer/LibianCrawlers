@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 import json
+import re
 from typing import Union, Callable, Any, Optional, TypedDict, List, Dict, TypeVar
 
 import charset_normalizer
@@ -145,7 +146,7 @@ def _decode_bytes(_buf: bytes) -> DecodeBytesResult:
 ITag = TypedDict('ITag', {
     "bs4_type": str,
     "name": str,
-    "attrs": Optional[Dict[str, str]],
+    "attrs": Optional[Dict[str, Union[str, List[str]]]],
     "hidden": bool,
     'str': Optional[str],
     'children': Optional[List['IPageElement']]
