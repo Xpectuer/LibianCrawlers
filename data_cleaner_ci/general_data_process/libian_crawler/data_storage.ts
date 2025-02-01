@@ -77,6 +77,7 @@ export interface MediaPostTable {
     ReturnType<typeof DataMerge.timeline_to_json<string>>
   >;
   context_text_latest_lines_count: PostgresColumnType.Numeric | null;
+  last_crawl_time: Date;
 }
 
 export async function create_and_init_libian_srawler_database_scope<R>(

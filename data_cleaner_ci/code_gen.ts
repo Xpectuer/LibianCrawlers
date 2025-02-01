@@ -1,22 +1,66 @@
 import path from "node:path";
 import config from "./config.ts";
 import { read_postgres_table, read_postgres_table_type_wrap } from "./pg.ts";
+import { jsonInputForTargetLanguage } from "quicktype-core";
+import jsonata from "jsonata";
+import { data_cleaner_ci_generated } from "./consts.ts";
+import { Jsons, ProcessBar } from "./util.ts";
 import {
   quicktype,
   InputData,
-  jsonInputForTargetLanguage,
+  TypeScriptTargetLanguage,
+  TypeScriptRenderer,
+  RenderContext,
+  getOptionValues,
+  tsFlowOptions,
+  EnumType,
+  Name,
 } from "quicktype-core";
-import jsonata from "jsonata";
-import { data_cleaner_ci_generated } from "./consts.ts";
-import { ProcessBar } from "./util.ts";
-import { delay } from "@std/async/delay";
+import { utf16StringEscape } from "quicktype-core/dist/support/Strings.js";
+
+// https://github.com/glideapps/quicktype/issues/1234
+export class MyTypeScriptTargetLanguage extends TypeScriptTargetLanguage {
+  protected override makeRenderer(
+    renderContext: RenderContext,
+    untypedOptionValues: { [name: string]: any }
+  ): MyTypeScriptRenderer {
+    console.debug("untypedOptionValues : ", untypedOptionValues);
+    return new MyTypeScriptRenderer(
+      this,
+      renderContext,
+      getOptionValues(tsFlowOptions, untypedOptionValues)
+    );
+  }
+
+  // public override get supportsUnionsWithBothNumberTypes(): boolean {
+  //   return true;
+  // }
+}
+
+export class MyTypeScriptRenderer extends TypeScriptRenderer {
+  protected override emitEnum(e: EnumType, enumName: Name): void {
+    this.emitDescription(this.descriptionForType(e));
+    this.emitLine(["export type ", enumName, " = "]);
+    this.forEachEnumCase(e, "none", (_name, jsonName, position) => {
+      const suffix = position === "last" || position === "only" ? ";" : " | ";
+      this.indent(() =>
+        this.emitLine(`"${utf16StringEscape(jsonName)}"`, suffix)
+      );
+    });
+  }
+}
 
 const _TIP = `此文件由 code_gen.ts 生成。
 请通过修改 ${data_cleaner_ci_generated}/config.json 来修改此文件，
 而不是直接修改此文件。` as const;
 
-function j(o: string | number) {
-  return JSON.stringify(o, null, 2).split("\n").join("\n  ");
+function j(o: string | number | boolean) {
+  let text = JSON.stringify(o, null, 2).split("\n").join("\n  ");
+  if (Jsons.is_have_u2028_or_u2029(text)) {
+    console.warn(`Found \\u2028 or \\u2029`);
+    text = Jsons.replace_u2028_or_u2029_to_empty(text);
+  }
+  return text;
 }
 
 export async function code_gen_main() {
@@ -47,6 +91,10 @@ export async function generate_repository_api(
                 ? jsonata(table.group_by_jsonata)
                 : null;
             await bar.set_text(typename);
+            const cache_by_id = {
+              typename,
+              enable: table.cache_by_id === true,
+            };
             const samples_gen = read_postgres_table_type_wrap({
               jsonata_exp,
               rows_gen: read_postgres_table({
@@ -57,7 +105,9 @@ export async function generate_repository_api(
                   await bar.set_total(bar_render_param.total);
                   await bar.set_completed(bar_render_param.completed);
                 },
+                cache_by_id,
               }),
+              cache_by_id,
             });
             await generate_repository_api_type({
               typename,
@@ -86,6 +136,11 @@ export async function generate_repository_api(
   void
   >{
   
+  const cache_by_id = {
+    typename: ${j(typename)},
+    enable: ${j(table.cache_by_id === true)},
+  };
+
   const rows_gen = read_postgres_table({
   dbname: ${j(repository.param.dbname)},
   user: ${j(repository.param.user)},
@@ -100,6 +155,7 @@ export async function generate_repository_api(
   schema: ${j(table.schema)},
   tablename: ${j(table.tablename)},
   batch_size: ${j(table.batch_size.api)},
+  cache_by_id,
   });
   
   const jsonata_exp = ${
@@ -111,6 +167,7 @@ export async function generate_repository_api(
   return read_postgres_table_type_wrap<${typename}>({
   rows_gen,
   jsonata_exp,
+  cache_by_id,
   })
   }
   
@@ -163,7 +220,25 @@ export async function generate_repository_api_type<T>(param: {
   inputData.addInput(jsonInput);
   const res_quicktype = await quicktype({
     inputData,
-    lang: "typescript",
+    lang: new MyTypeScriptTargetLanguage(),
+    checkProvenance: true,
+    debugPrintTimes: true,
+    fixedTopLevels: true,
+    rendererOptions: {
+      declareUnions: true,
+      preferUnions: true,
+      preferConstValues: true,
+      runtimeTypecheck: true,
+      runtimeTypecheckIgnoreUnknownProperties: true,
+    },
+    combineClasses: true,
+    // inferMaps: false,
+    // inferEnums: true,
+    // inferUuids: false,
+    // inferDateTimes: false,
+    // inferIntegerStrings: false,
+    // inferBooleanStrings: false,
+    // ignoreJsonRefs: true,
   });
   const res_file_path = path.join(data_cleaner_ci_generated, typename + ".ts");
   await Deno.writeTextFile(res_file_path, res_quicktype.lines.join("\n"));

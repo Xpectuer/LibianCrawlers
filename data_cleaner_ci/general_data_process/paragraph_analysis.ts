@@ -7,7 +7,7 @@ export namespace Paragraphs {
     while (Strs.startswith(tag, "#")) {
       tag = Strs.remove_prefix(tag, "#").trim();
     }
-    if (Strs.is_not_empty(tag)) {
+    if (Strs.is_not_blank(tag)) {
       return tag;
     } else {
       return false;

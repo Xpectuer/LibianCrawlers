@@ -62,6 +62,12 @@ deno run --allow-env=PG*,READABLE_STREAM,CI --allow-read=./data_cleaner_ci_gener
 deno check --all **/*.ts
 ```
 
+您可以运行一下测试，看看一切是否正常:
+
+```shell
+deno test
+```
+
 ## 数据清洗的详细步骤 - 以 libian_crawler 为例
 
 由于每个开发人员的数据库连接配置不同，因此请将自己的设置写在 `data_cleaner_ci_generated/config.json` 中，并且将其排除在版本管理外。
@@ -75,7 +81,7 @@ deno check --all general_data_process/libian_crawler/clean_and_merge.ts
 没问题的话就运行。
 
 ```shell
-deno run --allow-env=PG* general_data_process/libian_crawler/clean_and_merge.ts
+deno run --allow-env=PG* --allow-read=data_cleaner_ci_generated/.cache_by_id  general_data_process/libian_crawler/clean_and_merge.ts
 ```
 
 `clean_and_merge.ts` 脚本会先运行数据库迁移（在 `general_data_process/libian_crawler/migrations/` 目录下），

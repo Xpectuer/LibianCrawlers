@@ -1,51 +1,85 @@
 // deno-lint-ignore-file no-explicit-any
 import path from "node:path";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
-import deepEqual from "deep-equal";
-
+import { parseChineseNumber } from "parse-chinese-number";
 import { MultiProgressBar } from "jsr:@deno-library/progress";
 import { PlatformEnum } from "./general_data_process/media.ts";
 import { Paragraphs } from "./general_data_process/paragraph_analysis.ts";
+import JSON5 from "json5";
+import NumberParser from "intl-number-parser";
+import english2number from "english2number";
+import fast_deep_equal from "fast-deep-equal";
 
 export function is_nullish(obj: any): obj is null | undefined {
   return obj === null || obj === undefined;
 }
 
+/**
+ *
+ * NaN会视为相等
+ */
 export function is_deep_equal<B>(a: unknown, b: B): a is B {
+  if (typeof a !== typeof b) {
+    return false;
+  }
   if (a === b) {
     return true;
   }
-  if (a && b && typeof a == "object" && typeof b == "object") {
-    if (a.constructor !== b.constructor) return false;
-    // let length, i, keys;
-    if (Array.isArray(a)) {
-      if (!Array.isArray(b)) {
-        return false;
-      }
-      const length = a.length;
-      if (length != b.length) return false;
-      for (let i = length - 1; i >= 0; i--) {
-        if (!is_deep_equal(a[i], b[i])) return false;
-      }
-      return true;
-    } else {
-      const keys = Object.keys(a);
-      const length = keys.length;
-      if (length !== Object.keys(b).length) return false;
-
-      for (let i = length - 1; i >= 0; i--)
-        if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
-
-      for (let i = length - 1; i >= 0; i--) {
-        const key = keys[i];
-        if (!is_deep_equal((a as any)[key], (b as any)[key])) return false;
-      }
-      return true;
-    }
-  } else {
-    // true if both NaN, false otherwise
-    return a !== a && b !== b;
+  if (a !== a && b !== b) {
+    return true; // both NaN
   }
+  return fast_deep_equal(a, b);
+
+  // if (a && b && typeof a == "object" && typeof b == "object") {
+  //   return deepEqual(a, b);
+  //   // if (a.constructor !== b.constructor) return false;
+
+  //   // // let length, i, keys;
+  //   // if (Array.isArray(a)) {
+  //   //   if (!Array.isArray(b)) {
+  //   //     return false;
+  //   //   }
+  //   //   const length = a.length;
+  //   //   if (length != b.length) return false;
+  //   //   for (let i = length - 1; i >= 0; i--) {
+  //   //     if (!is_deep_equal(a[i], b[i])) return false;
+  //   //   }
+  //   //   return true;
+  //   // } else {
+  //   //   const get_properties = (obj: object) => {
+  //   //     const result: PropertyKey[] = [];
+  //   //     const add = (prop: PropertyKey) => {
+  //   //       if (result.indexOf(prop) < 0) {
+  //   //         result.push(prop);
+  //   //       }
+  //   //     };
+  //   //     for (const prop in obj) {
+  //   //       add(prop);
+  //   //     }
+  //   //     for (const prop in Object.getPrototypeOf(obj as any)) {
+  //   //       add(prop);
+  //   //     }
+  //   //     return result;
+  //   //   };
+
+  //   //   const keys = get_properties(a);
+  //   //   console.debug("keys", keys);
+  //   //   const length = keys.length;
+  //   //   if (length !== get_properties(b).length) return false;
+
+  //   //   for (let i = length - 1; i >= 0; i--)
+  //   //     if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
+
+  //   //   for (let i = length - 1; i >= 0; i--) {
+  //   //     const key = keys[i];
+  //   //     if (!is_deep_equal((a as any)[key], (b as any)[key])) return false;
+  //   //   }
+  //   //   return true;
+  //   // }
+  // } else {
+  //   // true if both NaN, false otherwise
+  //   return a !== a && b !== b;
+  // }
 }
 
 export function chain<T>(init_value: () => T) {
@@ -88,21 +122,27 @@ export async function write_file(param: {
         old: string;
         allow_old_not_found: boolean;
       };
-  log_tag: {
-    alia_name: string;
-  };
+  log_tag:
+    | "no"
+    | {
+        alia_name: string;
+      };
 }) {
   const { file_path, creator, log_tag } = param;
-  const { alia_name } = log_tag;
+  const { alia_name } = log_tag === "no" ? {} : log_tag;
   let file_info: Deno.FileInfo;
   try {
     file_info = await Deno.lstat(file_path);
-    console.log(`exists ${alia_name} at ${file_path}`);
+    if (log_tag !== "no") {
+      console.log(`exists ${alia_name} at ${file_path}`);
+    }
   } catch (err) {
     if (!(err instanceof Deno.errors.NotFound)) {
       throw err;
     }
-    console.log(`not exists ${alia_name} and creating it on ${file_path}`);
+    if (log_tag !== "no") {
+      console.log(`not exists ${alia_name} and creating it on ${file_path}`);
+    }
     await Deno.mkdir(path.dirname(file_path), {
       recursive: true,
       mode: 0o700,
@@ -111,32 +151,42 @@ export async function write_file(param: {
       const fsfile = await Deno.create(file_path);
       try {
         await fsfile.write(new TextEncoder().encode(await creator.content()));
-        console.log(`success write text for ${alia_name} at ${file_path}`);
+        if (log_tag !== "no") {
+          console.log(`success write text for ${alia_name} at ${file_path}`);
+        }
       } finally {
         fsfile.close();
       }
     } else if (creator.mode === "symlink") {
       try {
         const old_info = await Deno.lstat(creator.old);
-        console.log(
-          `exists old target at ${creator.old} , create symlink at ${file_path} , old info is`,
-          old_info
-        );
+        if (log_tag !== "no") {
+          console.log(
+            `exists old target at ${creator.old} , create symlink at ${file_path} , old info is`,
+            old_info
+          );
+        }
       } catch (err) {
         if (!(err instanceof Deno.errors.NotFound)) {
           throw err;
         }
         if (creator.allow_old_not_found) {
-          console.warn("not found old target at", creator.old);
+          if (log_tag !== "no") {
+            console.warn("not found old target at", creator.old);
+          }
         } else {
-          console.error("not found old target at", creator.old);
+          if (log_tag !== "no") {
+            console.error("not found old target at", creator.old);
+          }
           throw err;
         }
       }
       await Deno.symlink(creator.old, file_path);
-      console.log(
-        `success symlink for ${alia_name} from ${creator.old} to ${file_path}`
-      );
+      if (log_tag !== "no") {
+        console.log(
+          `success symlink for ${alia_name} from ${creator.old} to ${file_path}`
+        );
+      }
     } else {
       throw Error("Invalid param `creator.mode` , creator is", creator);
     }
@@ -174,7 +224,9 @@ export namespace Typings {
         DeepReadonly<T[K]>;
   }>;
 
-  export type Comparable = bigint | number | Date;
+  export type ComparableUseOpt = bigint | number | Date;
+  export type ComparableUseProto = Temporal.Instant;
+  export type Comparable = ComparableUseOpt | ComparableUseProto;
 
   /**
    * Copy from:
@@ -190,6 +242,102 @@ export namespace Typings {
     K extends keyof any = Parameters<P["get"]>[0],
     V = NonNullable<ReturnType<P["get"]>>
   > = ReturnType<typeof Mappings.map_to_record<K, V>>;
+
+  // -------------------------------------------
+  // https://stackoverflow.com/a/55128956/21185704
+
+  // oh boy don't do this
+  export type UnionToIntersection<U> = (
+    U extends any ? (k: U) => void : never
+  ) extends (k: infer I) => void
+    ? I
+    : never;
+  type LastOf<T> = UnionToIntersection<
+    T extends any ? () => T : never
+  > extends () => infer R
+    ? R
+    : never;
+
+  // TS4.0+
+  type Push<T extends any[], V> = [...T, V];
+
+  // TS4.1+
+  export type TuplifyUnion<
+    T,
+    L = LastOf<T>,
+    N = [T] extends [never] ? true : false
+  > = true extends N ? [] : Push<TuplifyUnion<Exclude<T, L>>, L>;
+  // -------------------------------------------
+
+  // export type KeyNonNullableExclude<T, E = never> = {
+  //   [K in keyof T]-?: K extends E
+  //     ? NonNullable<T[K]> | null
+  //     : NonNullable<T[K]>;
+  // };
+
+  // export type KeyNonNullableInclude<T, I> = {
+  //   [K in keyof T]-?: K extends I
+  //     ? NonNullable<T[K]>
+  //     : NonNullable<T[K]> | null;
+  // };
+
+  export type MinusOptional<T, K extends keyof T> = Pick<
+    T,
+    Exclude<keyof T, K>
+  > & {
+    [P in K]-?: T[P];
+  };
+
+  export function has_nonnull_property_2<T, P extends keyof T>(
+    t: T,
+    p: P
+  ): t is T &
+    (Extract<T, { P?: any }> extends { P?: infer V }
+      ? Record<P, NonNullable<V>>
+      : Record<P, unknown>) {
+    return has_nonnull_property(t, p);
+  }
+
+  export type HasNonnullProperty<
+    T,
+    P extends string | number | symbol | keyof T
+  > = T &
+    (Extract<T, { P?: unknown } | { P: unknown }> extends { P?: infer V }
+      ? Record<P, NonNullable<V>>
+      : Record<P, unknown>);
+
+  export function has_nonnull_property<
+    T,
+    P extends string | number | symbol | keyof T
+  >(t: T, p: P): t is HasNonnullProperty<T, P> {
+    if (typeof t !== "object" || t === null) {
+      return false;
+    }
+    if (p in t) {
+      const _t: any = t;
+      return _t[p] !== undefined && _t[p] !== null;
+    } else {
+      return false;
+    }
+  }
+
+  export type Values<T> = T[keyof T];
+
+  export type Concrete<T> = { [P in keyof T]-?: T[P] };
+
+  export type AvailableKeys<T> = Exclude<
+    T extends T ? keyof T : never,
+    keyof unknown[]
+  >;
+
+  type _Test_AvailableKeys = AvailableKeys<
+    | { id: 1 }
+    | { id: 2 }
+    | { str?: "aa" }
+    | { str?: "bb" }
+    | { name: "a" }
+    | { name?: "b" }
+  >;
 }
 
 // deno-lint-ignore no-namespace
@@ -253,16 +401,86 @@ export namespace Strs {
     return r;
   }
 
-  export function is_not_empty(
-    x: string | null | undefined
-  ): x is string & Exclude<string, ""> {
-    return x !== null && x !== undefined && x.trim() !== "";
+  export function to_unicode(str: string) {
+    const add_zeros = (str2: string) => {
+      return ("0000" + str2).slice(-4);
+    };
+    return str
+      .split("")
+      .map((char) => add_zeros(char.charCodeAt(0).toString(16)))
+      .join("");
   }
+
+  /**
+   * 判断是否非空白。一些字符也会被视为空白。
+   *
+   * 视为空白的字符，参见： @var empty_chars
+   */
+  export function is_not_blank(x: string | null | undefined): x is string {
+    if (x === null || x === undefined) {
+      return false;
+    }
+    let x2 = x;
+    while (true) {
+      x2 = x2.trim();
+      for (const ch of empty_chars) {
+        x2 = x2.replaceAll(ch, "");
+      }
+      if (x2 === "") {
+        return false;
+      }
+      if (x === x2) {
+        return true;
+      }
+      x = x2;
+    }
+  }
+
+  // TODO:
+  // https://invisible-characters.com/
+  //
+
+  export const empty_chars_cannot_trim = [
+    "\0", // 0000
+    "\u00ad",
+    "\u2800",
+    "\u034f",
+    "\u061c",
+    "\u115f",
+    "\u1160",
+    "\u17b4",
+  ] as const;
+
+  export const empty_chars_can_trim = [
+    "\t", // 0009
+    "\n", // 000a
+    " ", // 0020
+    "\u00a0",
+    "\u2000",
+    "\u2001",
+    "\u2002",
+    "\u2003",
+    "\u2004",
+    "\u2005",
+    "\u2006",
+    "\u2007",
+    "\u2008",
+    "\u2009",
+    "\u200a",
+    "\u2028",
+    "\u205f",
+    "\u3000",
+  ] as const;
+
+  export const empty_chars = [
+    ...empty_chars_can_trim,
+    ...empty_chars_cannot_trim,
+  ] as const;
 }
 
 // deno-lint-ignore no-namespace
 export namespace Times {
-  export function unix_to_time(unix_ms_or_s: number): Date | null {
+  export function unix_to_time(unix_ms_or_s: number): Temporal.Instant | null {
     let unit: "s" | "ms";
     if (unix_ms_or_s === 0) {
       return null;
@@ -273,7 +491,7 @@ export namespace Times {
     } else {
       unit = "s";
     }
-    const timestamp_s = unix_ms_or_s / (unit === "ms" ? 1000 : 1);
+    const timestamp_s = unix_ms_or_s / (unit === "ms" ? 1000.0 : 1);
     if (timestamp_s < 123456789) {
       throw new Error(
         `197x year timestamp ? unit is ${unit} , timestamp is ${timestamp_s} , unix_ms_or_s is ${unix_ms_or_s} , to date is ${new Date(
@@ -281,7 +499,7 @@ export namespace Times {
         )}`
       );
     }
-    return new Date(timestamp_s * 1000);
+    return Temporal.Instant.fromEpochMilliseconds(timestamp_s * 1000);
   }
 
   export function parse_duration_sec(text: string) {
@@ -322,27 +540,69 @@ export namespace Times {
     return sum;
   }
 
-  export function format_yyyymmddhhmmss(date: Date) {
-    const d = new Date(date),
-      year = d.getFullYear();
-    let month = "" + (d.getMonth() + 1),
-      day = "" + d.getDate(),
-      hour = "" + d.getHours(),
-      minute = "" + d.getMinutes(),
-      second = "" + d.getSeconds();
-
-    if (month.length < 2) month = "0" + month;
-    if (day.length < 2) day = "0" + day;
-    if (hour.length < 2) hour = "0" + hour;
-    if (minute.length < 2) minute = "0" + minute;
-    if (second.length < 2) second = "0" + second;
-
-    return [year, month, day, hour, minute, second].join("");
+  export function parse_text_to_instant(text: string) {
+    const errors = [];
+    try {
+      return Temporal.Instant.from(text);
+    } catch (err) {
+      errors.push(err);
+    }
+    try {
+      return Temporal.ZonedDateTime.from(text).toInstant();
+    } catch (err) {
+      errors.push(err);
+    }
+    try {
+      return Temporal.PlainDateTime.from(text)
+        .toZonedDateTime("UTC")
+        .toInstant();
+    } catch (err) {
+      errors.push(err);
+    }
+    try {
+      const date_ms = new Date(text).getTime();
+      if (isNaN(date_ms) || date_ms <= 0) {
+        throw new Error(`invalid Date.getTime() : ${date_ms}`);
+      }
+      return Temporal.Instant.fromEpochMilliseconds(date_ms);
+    } catch (err) {
+      errors.push(err);
+    }
+    throw new Error(`Failed parse ${JSON.stringify(text)} to instant`, {
+      cause: errors,
+    });
   }
+
+  export function instant_to_date<T extends Temporal.Instant | null>(
+    time: T
+  ): null extends T ? Date | null : Date {
+    if (time === null) {
+      return null as any;
+    }
+    return new Date(time.toString());
+  }
+
+  // export function format_yyyymmddhhmmss(date: Date) {
+  //   const d = new Date(date),
+  //     year = d.getFullYear();
+  //   let month = "" + (d.getMonth() + 1),
+  //     day = "" + d.getDate(),
+  //     hour = "" + d.getHours(),
+  //     minute = "" + d.getMinutes(),
+  //     second = "" + d.getSeconds();
+
+  //   if (month.length < 2) month = "0" + month;
+  //   if (day.length < 2) day = "0" + day;
+  //   if (hour.length < 2) hour = "0" + hour;
+  //   if (minute.length < 2) minute = "0" + minute;
+  //   if (second.length < 2) second = "0" + second;
+
+  //   return [year, month, day, hour, minute, second].join("");
+  // }
 }
 
 // deno-lint-ignore no-namespace
-export namespace Json {
+export namespace Jsons {
   export type JSONValue =
     | string
     | number
@@ -381,7 +641,40 @@ export namespace Json {
   }
 
   export function copy<T extends JSONValue>(obj: T) {
-    return JSON.parse(Json.dump(obj)) as T;
+    return JSON.parse(Jsons.dump(obj)) as T;
+  }
+
+  export async function load_file(file_path: URL | string): Promise<unknown> {
+    const bytes = await Deno.readFile(file_path);
+    const decoder = new TextDecoder("utf-8");
+    const text = decoder.decode(bytes);
+    // if (is_have_u2028_or_u2029(text)) {
+    //   console.warn(
+    //     `Found \\u2028 or \\u2029 on load json from file : ${file_path}`
+    //   );
+    //   text = replace_u2028_or_u2029_to_empty(text);
+    // }
+    return JSON5.parse(text);
+  }
+
+  /**
+   * https://stackoverflow.com/questions/2965293/javascript-parse-error-on-u2028-unicode-character
+   */
+  export function is_have_u2028_or_u2029(s: string) {
+    return s.indexOf("\u2028") >= 0 || s.indexOf("\u2029") >= 0;
+  }
+
+  export function replace_u2028_or_u2029_to_empty(text: string) {
+    let text2 = text;
+    while (true) {
+      text2 = text2.replaceAll("\u2028", "");
+      text2 = text2.replaceAll("\u2029", "");
+      if (text === text2) {
+        break;
+      }
+      text = text2;
+    }
+    return text;
   }
 }
 
@@ -394,23 +687,44 @@ export namespace Nums {
     mode: "max" | "min",
     nums: A
   ): Arrays.AllNullable<A> extends false ? NonNullable<T> : T | null {
-    let res_max: T = nums[0];
+    let res: T = nums[0];
     for (let i = 0; i < nums.length; i++) {
       const item = nums[i];
-      if (res_max === null) {
-        res_max = item;
+      if (res === null) {
+        res = item;
       } else if (item === null) {
         continue;
       } else if (mode === "max") {
-        res_max = item > res_max ? item : res_max;
+        if (
+          res instanceof Temporal.Instant &&
+          item instanceof Temporal.Instant
+        ) {
+          res = Temporal.Instant.compare(res, item) < 0 ? item : res;
+        } else {
+          res = item > res ? item : res;
+        }
       } else if (mode === "min") {
-        res_max = item < res_max ? item : res_max;
+        if (
+          res instanceof Temporal.Instant &&
+          item instanceof Temporal.Instant
+        ) {
+          res = Temporal.Instant.compare(item, res) < 0 ? item : res;
+        } else {
+          res = item < res ? item : res;
+        }
       }
     }
-    return res_max as any;
+    return res as any;
   }
 
-  // export type NumberLike = number | `${number}`;
+  export type NumberLike = number | `${number}`;
+
+  export function is_int(s: string | number): s is NumberLike {
+    if (typeof s === "number") {
+      return !isNaN(s) && s.toFixed(0) === s.toString();
+    }
+    return is_int(parseInt(s));
+  }
 
   // export type IsZero<N extends NumberLike> = Typings.CheckLeftIsExtendsRight<
   //   N,
@@ -452,6 +766,27 @@ export namespace Arrays {
     } else {
       return null;
     }
+  }
+
+  export type ExistStrInUnionArraySecondArg<A extends string[]> =
+    A extends (infer T)[] ? (string extends T ? never : T) : string;
+
+  export type ExistStrInUnionArray<
+    A extends string[],
+    S extends ExistStrInUnionArraySecondArg<A>
+  > = A extends (infer T)[]
+    ? Array<S> extends Array<T>
+      ? string extends T
+        ? never
+        : A
+      : never
+    : never;
+
+  export function exist_str_in_union_array<
+    A extends string[],
+    S extends A extends (infer T)[] ? (string extends T ? never : T) : string
+  >(arr: A, str: S): arr is ExistStrInUnionArray<A, S> {
+    return arr.indexOf(str) >= 0;
   }
 }
 
@@ -546,6 +881,110 @@ export namespace Mappings {
     }
     return obj;
   }
+
+  // deno-lint-ignore no-empty-interface
+  interface _EmptyInterface {}
+  type _EmptyRecord = Record<string | number | symbol, never>;
+  // deno-lint-ignore ban-types
+  type _EmptyObj = {};
+  export type Empty = _EmptyObj | _EmptyInterface | _EmptyRecord;
+
+  type _Test_Empty = [
+    _EmptyInterface extends _EmptyInterface ? 1 : 0,
+    _EmptyInterface extends _EmptyRecord ? 1 : 0,
+    _EmptyInterface extends _EmptyObj ? 1 : 0,
+    _EmptyInterface extends Empty ? "success" : "failed",
+    _EmptyRecord extends _EmptyRecord ? 1 : 0,
+    _EmptyRecord extends _EmptyInterface ? 1 : 0,
+    _EmptyRecord extends _EmptyObj ? 1 : 0,
+    _EmptyRecord extends Empty ? "success" : "failed",
+    _EmptyObj extends _EmptyObj ? 1 : 0,
+    _EmptyObj extends _EmptyInterface ? 1 : 0,
+    _EmptyObj extends _EmptyRecord ? 1 : 0,
+    _EmptyObj extends Empty ? "success" : "failed",
+    Empty extends Empty ? "success" : "failed",
+    Empty extends _EmptyInterface ? 1 : 0,
+    Empty extends _EmptyRecord ? 1 : 0,
+    Empty extends _EmptyObj ? 1 : 0
+  ];
+
+  export type IsNotConcreteEmpty<T> = T extends Empty
+    ? Empty extends Typings.Concrete<T>
+      ? never
+      : T
+    : T;
+
+  // should be never
+  type _Test_Empty_1 = IsNotConcreteEmpty<_EmptyInterface>;
+  // should be never
+  // deno-lint-ignore ban-types
+  type _Test_Empty_2 = IsNotConcreteEmpty<{}>;
+  // should not be never
+  type _Test_Empty_3 = IsNotConcreteEmpty<{ id: number }>;
+  // should not be never
+  type _Test_Empty_4 = IsNotConcreteEmpty<{ id?: number }>;
+  // should be { id?: number }
+  // deno-lint-ignore ban-types
+  type _Test_Empty_5 = IsNotConcreteEmpty<{} | { id?: number }>;
+
+  export function is_not_concrete_empty<T>(t: T): t is IsNotConcreteEmpty<T> {
+    return typeof t === "object" && t !== null && object_keys(t).length > 0;
+  }
+
+  export type HasKeys<
+    T,
+    KS extends Array<Typings.AvailableKeys<T>> = Array<Typings.AvailableKeys<T>>
+  > = {
+    [P in KS[number]]: Extract<
+      T,
+      | {
+          [P2 in P]?: any;
+        }
+      | {
+          [P2 in P]: any;
+        }
+    >[P];
+  } & T;
+
+  export function has_keys<
+    T extends object,
+    KS extends Array<Typings.AvailableKeys<T>>
+  >(t: T, keys: KS): t is HasKeys<T, KS> {
+    if (!is_not_concrete_empty(t)) {
+      return false;
+    }
+    for (const k of keys) {
+      if (!(k in t)) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace Trees {
+  export type ChildrenType<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? N | _TreesChildrenType._ChildrenType_1<N, K>
+          : N
+        : R);
+
+  export function* travel_node_dfs<R, K extends string & keyof R>(param: {
+    root: R;
+    children_key: K;
+  }): Generator<ChildrenType<R, K>> {
+    const { children_key, root } = param;
+    yield root;
+    const children = root[children_key];
+    if (Array.isArray(children)) {
+      for (const c of children) {
+        yield* travel_node_dfs({ children_key, root: c });
+      }
+    }
+  }
 }
 
 // deno-lint-ignore no-namespace
@@ -553,7 +992,7 @@ export namespace DataClean {
   export type HttpUrl = `https://${string}` | `http://${string}`;
 
   export function url_use_https_noempty<S extends string>(url: S) {
-    if (!Strs.is_not_empty(url)) {
+    if (!Strs.is_not_blank(url)) {
       throw new Error(`url is empty : ${JSON.stringify(url)}`);
     }
     if (Strs.startswith(url, "https://")) {
@@ -574,7 +1013,7 @@ export namespace DataClean {
   }
 
   export function url_use_https_emptyable<S extends string>(url: S | null) {
-    if (Strs.is_not_empty(url)) {
+    if (Strs.is_not_blank(url)) {
       return url_use_https_noempty(url);
     } else {
       return null;
@@ -612,29 +1051,109 @@ export namespace DataClean {
 
   export function parse_number<R extends number>(
     value: string | number,
-    nan_if: (
-      source_value: string | number | null,
-      cause_value: string | number
-    ) => R = (source_value, cause_value) => {
-      throw new Error(
-        `Why NaN on parse_number : source_value=${source_value}, cause_value=${cause_value}`
-      );
-    },
-    source_value: string | number | null = null
+    on_nan:
+      | "raise"
+      | "allow_nan"
+      | ((
+          source_value: string | number | null,
+          cause_value: string | number
+        ) => R) = "raise",
+    source_value: string | number | null = null,
+    debug: null | ((text: string) => void) = null
   ): R | number {
+    if (on_nan === "raise") {
+      on_nan = (__source_value, cause_value) => {
+        if (debug) {
+          debug(
+            `not a number sourced ${__source_value} cause by ${cause_value}`
+          );
+        }
+        throw new Error(
+          `Disallow NaN on parse_number : sourced ${__source_value} cause by ${cause_value}`
+        );
+      };
+    } else if (on_nan === "allow_nan") {
+      on_nan = (__source_value, cause_value) => {
+        if (debug) {
+          debug(
+            `not a number sourced ${__source_value} cause by ${cause_value}`
+          );
+        }
+        return NaN as R;
+      };
+    }
     if (typeof value === "number") {
       return value;
     }
-    const source_value_v2 = source_value === null ? value : source_value;
+    const source_value_v2 =
+      source_value === null || source_value === undefined
+        ? value
+        : source_value;
+    if (source_value_v2 === null || source_value_v2 === undefined) {
+      throw new Error("BUG");
+    }
     value = value.trim();
+    _out_ignore_end_loop: while (true) {
+      for (const ignore_end of ["+", "以上"] as const) {
+        if (Strs.endswith(value, ignore_end)) {
+          value = Strs.remove_suffix(value, ignore_end);
+          continue _out_ignore_end_loop;
+        }
+      }
+      break;
+    }
     if (Strs.startswith(value, ".")) {
-      return parse_number(
-        Strs.concat_string("0", value),
-        nan_if,
-        source_value_v2
-      );
+      value = "0" + value;
+    }
+    if (/^-?[0-9_\.]+$/g.test(value)) {
+      if (value.split(".").length > 2 || value.split("-").length > 2) {
+        return on_nan(source_value_v2, value);
+      }
+      const parse_float_res = parseFloat(value);
+      if (!isNaN(parse_float_res)) {
+        if (debug) {
+          debug(
+            `parsed float number sourced ${source_value_v2} from ${value} to ${parse_float_res}`
+          );
+        }
+        return parse_float_res;
+      } else {
+        throw new Error(
+          `Parse should be success , why failed ? source_value_v2 is ${source_value_v2}`
+        );
+      }
+    }
+    const intl_number = NumberParser("en-US", {})(value);
+    if (typeof intl_number === "number" && !isNaN(intl_number)) {
+      if (debug) {
+        debug(
+          `parsed intl number sourced ${source_value_v2} from ${value} to ${intl_number}`
+        );
+      }
+      return intl_number;
+    }
+    const chinese_number = parseChineseNumber(value);
+    if (typeof chinese_number === "number" && !isNaN(chinese_number)) {
+      if (debug) {
+        debug(
+          `parsed chinese number sourced ${source_value_v2} from ${value} to ${chinese_number}`
+        );
+      }
+      return chinese_number;
+    }
+    if (/^[a-zA-Z\s]+$/g.test(value)) {
+      const english_number = english2number(value);
+      if (typeof english_number === "number" && !isNaN(english_number)) {
+        if (debug) {
+          debug(
+            `parsed english number sourced ${source_value_v2} from ${value} to ${english_number}`
+          );
+        }
+        return english_number;
+      }
     }
     const chinese_quantifier_endings = [
+      ["个", 1],
       ["十", 10],
       ["百", 100],
       ["千", 1000],
@@ -647,17 +1166,21 @@ export namespace DataClean {
     ] of chinese_quantifier_endings) {
       if (Strs.endswith(value, chinese_quantifier)) {
         const x = Strs.remove_suffix(value, chinese_quantifier);
+        if (debug) {
+          debug(
+            `recursion call parsed number sourced ${source_value_v2} , x = ${x}`
+          );
+        }
         return (
-          parse_number(x, nan_if, source_value_v2) * chinese_quantifier_multi
+          parse_number(x, on_nan, source_value_v2, debug) *
+          chinese_quantifier_multi
         );
       }
     }
-    const parse_float_res = parseFloat(value);
-    if (!isNaN(parse_float_res)) {
-      return parse_float_res;
-    } else {
-      return nan_if(source_value, value);
+    if (debug) {
+      debug(`no method to parse ${source_value_v2}`);
     }
+    return on_nan(source_value_v2, value);
   }
 
   export function strip_html(html_text: string) {
@@ -805,12 +1328,79 @@ export namespace DataClean {
       found_tags_in_context_text,
     };
   }
+
+  export function parse_gray_font_at_note_end(param: {
+    crawl_time: Temporal.Instant;
+    text: string;
+    locale: string;
+  }) {
+    const { crawl_time, text, locale } = param;
+    let edited = false;
+    let datetime: {
+      before_time_text: string;
+      value: Temporal.Instant;
+      after_time_text: string;
+    } | null = null;
+
+    for (const ch of ["编辑于", "修改于", "edited"]) {
+      if (text.indexOf(ch) >= 0) {
+        edited = true;
+        break;
+      }
+    }
+
+    if (datetime === null) {
+      const t = text.replaceAll(",", " ").split(" ");
+      const len = t.length;
+      _loop_parse_time: for (let l = len; l > 0; l--) {
+        for (let i = 0; len - i - l >= 0; i++) {
+          // const date_parsed = any_date_parser.fromString(t.slice(i, i + l));
+          // for (const parser of datetime_parsers) {
+          //   const res = parser(t.slice(i, i + l).join(" "));
+          //   if (res && !isNaN(res.getTime()) && res.getTime() !== 0) {
+          //     datetime = {
+          //       value: res,
+          //       before_time_text: t.slice(0, i).join(" "),
+          //       after_time_text: t.slice(i + l).join(" "),
+          //     };
+          //     break _loop_parse_time;
+          //   }
+          // }
+          // if (date_parsed.isValid()) {
+          //   datetime = {
+          //     value: new Date(date_parsed),
+          //     before_time_text: t.slice(0, i),
+          //     after_time_text: t.slice(i + l),
+          //   };
+          //   break _loop_parse_time;
+          // }
+        }
+      }
+    }
+
+    const match_before_days =
+      /\s(.+?)天前/.exec(" " + text) ??
+      /\s([0-9a-zA-Z\s]+?)+day[s]?[\s]+ago/.exec(" " + text);
+
+    if (datetime === null && match_before_days) {
+      const before_days = parse_number(match_before_days[1], "allow_nan");
+      if (!isNaN(before_days)) {
+        // datetime = new Date(crawl_time);
+        // datetime.setDate(crawl_time.getDate() - before_days);
+      }
+    }
+
+    return {
+      edited,
+      datetime,
+    };
+  }
 }
 
 // deno-lint-ignore no-namespace
 export namespace DataMerge {
   export type Timeline<V> = {
-    time: Date | "unknown";
+    time: Temporal.Instant | "unknown";
     value: V;
   }[];
 
@@ -826,8 +1416,8 @@ export namespace DataMerge {
     const { old, timeline } = param;
     const arr = [...old, ...timeline];
     arr.sort((a, b) => {
-      const at = a.time === "unknown" ? 0 : a.time.getTime();
-      const bt = b.time === "unknown" ? 0 : b.time.getTime();
+      const at = a.time === "unknown" ? 0 : a.time.epochMilliseconds;
+      const bt = b.time === "unknown" ? 0 : b.time.epochMilliseconds;
       return at - bt;
     });
     for (let i = 0; i < arr.length; ) {
@@ -836,7 +1426,7 @@ export namespace DataMerge {
         break;
       }
       const b = arr[i + 1];
-      if (deepEqual(a.value, b.value)) {
+      if (is_deep_equal(a.value, b.value)) {
         arr.splice(i + 1, 1);
       } else {
         i++;
@@ -848,10 +1438,117 @@ export namespace DataMerge {
   export function timeline_to_json<V>(timeline: Timeline<V>) {
     return timeline.map((it) => {
       return {
-        time: it.time === "unknown" ? "unknown" : it.time.toISOString(),
+        time:
+          it.time === "unknown"
+            ? "unknown"
+            : it.time.toZonedDateTimeISO("UTC").toString(),
         value: it.value,
       };
     });
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace DataCleanJsHtmlTree {
+  type _HasClassVarTypes<
+    T,
+    _VAR1_NODE = Typings.HasNonnullProperty<T, "attrs">,
+    _VAR2_NODE_ATTR = _VAR1_NODE extends { attrs?: any }
+      ? _VAR1_NODE["attrs"]
+      : unknown,
+    _VAR3_NODE_ATTR = Typings.HasNonnullProperty<_VAR2_NODE_ATTR, "class">,
+    _VAR4_NODE_ATTR = Mappings.IsNotConcreteEmpty<_VAR3_NODE_ATTR>,
+    _VAR5_NODE_ATTR_CLASS = _VAR4_NODE_ATTR extends { class?: any }
+      ? Mappings.IsNotConcreteEmpty<_VAR4_NODE_ATTR["class"]>
+      : unknown,
+    _VAR6_NODE_ATTR_CLASS extends string[] = _VAR5_NODE_ATTR_CLASS extends string[]
+      ? _VAR5_NODE_ATTR_CLASS
+      : never
+  > = {
+    t: T;
+    var1: _VAR1_NODE;
+    var4: _VAR4_NODE_ATTR;
+    var6: _VAR6_NODE_ATTR_CLASS;
+  };
+
+  type _HasClassFilterAttrsClass<
+    T,
+    C,
+    _Var1 = Exclude<
+      Extract<
+        T,
+        {
+          attrs?: {
+            class?: any;
+          };
+        }
+      >,
+      {
+        attrs?: {
+          class?: undefined;
+        };
+      }
+    >
+  > = _Var1 extends { attrs?: { class?: (infer T)[] } }
+    ? string extends C
+      ? _Var1
+      : string extends T
+      ? never
+      : C extends T
+      ? _Var1
+      : never
+    : never;
+
+  type _Test_HasClassFilterAttrsClass = _HasClassFilterAttrsClass<
+    // deno-lint-ignore ban-types
+    | {}
+    // deno-lint-ignore ban-types
+    | { attrs?: {} }
+    | { attrs?: { class: "a"[] } }
+    | { attrs?: { class?: "a"[] } }
+    | { attrs?: { class?: "x"[] } }
+    | { attrs?: { class?: ("a" | "b" | "c")[] } }
+    | { attrs?: { class?: string[] } },
+    "a"
+  >;
+
+  export type HasClass<
+    T,
+    C extends Arrays.ExistStrInUnionArraySecondArg<_VARS["var6"]>,
+    _VARS extends _HasClassVarTypes<T> = _HasClassVarTypes<T>,
+    Attrs = _VARS["var4"] & {
+      class: never extends C
+        ? string[]
+        : Arrays.ExistStrInUnionArray<_VARS["var6"], C>;
+    }
+  > = _HasClassFilterAttrsClass<_VARS["var1"], C> & {
+    attrs: Attrs; // & Mappings.HasKeys<Attrs>;
+  };
+
+  export function has_class<
+    T,
+    C extends Arrays.ExistStrInUnionArraySecondArg<_VARS["var6"]>,
+    _VARS extends _HasClassVarTypes<T> = _HasClassVarTypes<T>
+  >(node: T, classname: C): node is HasClass<T, C> {
+    if (
+      Typings.has_nonnull_property(node, "attrs") &&
+      Mappings.is_not_concrete_empty(node.attrs) &&
+      Typings.has_nonnull_property(node.attrs, "class") &&
+      Mappings.is_not_concrete_empty(node.attrs.class) &&
+      Arrays.exist_str_in_union_array<any, string>(node.attrs.class, classname)
+    ) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  export function has_class_no_typeguard<
+    T,
+    C extends Arrays.ExistStrInUnionArraySecondArg<_VARS["var6"]>,
+    _VARS extends _HasClassVarTypes<T> = _HasClassVarTypes<T>
+  >(node: T, classname: C | string): node is HasClass<T, C> {
+    return has_class(node, classname as any);
   }
 }
 
@@ -913,7 +1610,7 @@ export namespace ProcessBar {
     };
     const update = async () => {
       if (render_params_handler.value) {
-        await bars_render(Json.copy(render_params_handler.value));
+        await bars_render(Jsons.copy(render_params_handler.value));
       }
     };
 
@@ -976,7 +1673,10 @@ export namespace ProcessBar {
 
 // deno-lint-ignore no-namespace
 export namespace Streams {
-  export function* split_array_use_batch_size<T>(batch_size: number, arr: T[]) {
+  export function* split_array_use_batch_size<T>(
+    batch_size: number,
+    arr: readonly T[]
+  ) {
     if (batch_size <= 0 || typeof batch_size !== "number") {
       throw new Error(`Invalid batch_size ${batch_size}`);
     }
@@ -990,6 +1690,23 @@ export namespace Streams {
       };
     }
   }
+
+  export function find_first<T>(
+    condition: (it: T) => boolean,
+    items: Iterable<T>
+  ) {
+    let idx = 0;
+    for (const item of items) {
+      if (condition(item)) {
+        return {
+          idx,
+          item,
+        };
+      }
+      idx++;
+    }
+    return null;
+  }
 }
 
 // deno-lint-ignore no-namespace
@@ -998,4 +1715,277 @@ export namespace Errors {
     console.error(msg, obj);
     throw new Error(`${msg}`, { cause: obj });
   }
+}
+
+// ---------------------- internal utils ----------------------
+
+// deno-lint-ignore no-namespace
+namespace _TreesChildrenType {
+  export type _ChildrenType_1<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_2<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_2<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_3<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_3<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_4<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_4<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_5<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_5<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_6<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_6<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_7<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_7<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_8<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_8<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_9<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_9<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_10<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_10<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_11<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_11<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_12<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_12<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_13<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_13<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_14<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_14<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_15<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_15<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_16<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_16<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_17<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_17<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_18<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_18<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_19<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_19<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_20<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_20<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_21<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_21<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_22<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_22<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_23<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_23<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_24<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_24<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_25<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_25<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_26<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_26<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_27<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_27<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_28<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_28<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_29<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_29<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_30<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_30<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? _ChildrenType_31<N, K>
+          : N
+        : R);
+
+  export type _ChildrenType_31<R, K extends string & keyof R> =
+    | R
+    | (R[K] extends Array<infer N> | null | undefined
+        ? K extends keyof N
+          ? never
+          : N
+        : R);
+
+  // raise error on deep 32 ...
+}
+
+if (import.meta.main) {
+  const children_types_fmt = (i: number) => `
+  export type _ChildrenType_${i}<R, K extends string & keyof R> =
+      | R
+      | (R[K] extends Array<infer N> | null | undefined
+          ? K extends keyof N
+            ? _ChildrenType_${i + 1}<N, K>
+            : N
+          : R);
+`;
+
+  let s = "";
+  for (let i = 1; i <= 31; i++) {
+    s += children_types_fmt(i);
+  }
+  console.debug(s);
 }

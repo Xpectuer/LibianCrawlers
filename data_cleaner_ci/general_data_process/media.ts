@@ -1,5 +1,4 @@
 import { DataClean } from "../util.ts";
-
 export enum PlatformEnum {
   小红书 = "xiaohongshu.com",
   哔哩哔哩 = "bilibili.com",
@@ -7,6 +6,7 @@ export enum PlatformEnum {
 
 export type MediaContentTag = {
   text: string;
+  url?: DataClean.HttpUrl;
 };
 
 export type MediaContentAuthor = {
@@ -36,6 +36,7 @@ export type MediaSearchContext = {
 };
 
 export type MediaContent = {
+  last_crawl_time: Temporal.Instant;
   /**
    * 标题
    */
@@ -71,7 +72,7 @@ export type MediaContent = {
   /**
    * 点赞数
    */
-  count_like: DataClean.NaturalNumber;
+  count_like: DataClean.NaturalNumber | null;
   /**
    * 从搜索中读取
    */
@@ -79,11 +80,11 @@ export type MediaContent = {
   /**
    * 创建时间
    */
-  create_time: Date | null;
+  create_time: Temporal.Instant | null;
   /**
    * 最后更新时间
    */
-  update_time: Date | null;
+  update_time: Temporal.Instant | null;
   /**
    * Tag
    */
@@ -164,5 +165,5 @@ export type MediaRelatedSearches = {
     search_word: string;
   }[];
   tip_text: string;
-  request_time: Date;
+  request_time: Temporal.Instant;
 };

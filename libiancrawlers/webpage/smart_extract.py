@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+import asyncio
 import datetime
 import json
 import os.path
@@ -83,6 +84,16 @@ async def smart_extract(*,
         logger.debug('start page goto')
         _resp_goto = await b_page.goto(url=url)
 
+        def random_mouse_move():
+            return {
+                'fn': 'mouse_move',
+                'args': [random.randint(300, 1600), random.randint(300, 900)],
+                'kwargs': {
+                    'steps': 5
+                },
+                'on_timeout': 'continue',
+            }
+
         for waited in [
             {
                 'fn': 'bring_to_front',
@@ -107,28 +118,21 @@ async def smart_extract(*,
                 }
             },
             *([
-                {
-                    'fn': 'sleep',
-                    'args': [0.2],
-                }, {
-                    'fn': 'mouse_move',
-                    'args': [random.randint(0, 1920), random.randint(0, 1080)],
-                    'kwargs': {
-                        'steps': 5
-                    }
-                }
-            ].__mul__(4))
+                random_mouse_move()
+            ].__mul__(3)),
         ]:
-            timeout = waited['timeout'] * 1000 if waited.get('timeout') is not None else None
             try:
                 logger.debug('start wait , param is {}', waited)
                 if waited.get('fn') is not None:
+                    async def mouse_move(*args, **kwargs):
+                        await asyncio.wait_for(b_page.mouse.move(*args, **kwargs), timeout=3)
+
                     fn_map = {
                         'sleep': sleep,
                         'wait_for_load_state': b_page.wait_for_load_state,
                         'bring_to_front': b_page.bring_to_front,
                         'wait_for_function': b_page.wait_for_function,
-                        'mouse_move': b_page.mouse.move
+                        'mouse_move': mouse_move
                     }
                     _waited_args = waited.get('args')
                     _waited_kwargs = waited.get('kwargs')
@@ -137,11 +141,18 @@ async def smart_extract(*,
                     if _waited_kwargs is None:
                         _waited_kwargs = dict()
                     await fn_map[waited['fn']](*_waited_args, **_waited_kwargs)
-            except playwright.async_api.TimeoutError as err_timeout:
-                if waited.get('on_timeout') == 'continue':
-                    logger.debug('wait timeout but continue , err_timeout is {}', err_timeout)
-                    continue
-                raise
+            except BaseException as err_timeout:
+                for err_type_timeout in [playwright.async_api.TimeoutError,
+                                         asyncio.TimeoutError,
+                                         TimeoutError]:
+                    if isinstance(err_timeout, err_type_timeout):
+                        if waited.get('on_timeout') == 'continue':
+                            break
+                        raise TimeoutError(f'timeout on step : {waited}') from err_timeout
+                else:
+                    raise
+                logger.debug('wait timeout but continue , err_timeout is {}', err_timeout)
+                continue
 
         logger.debug('finished all waiter')
         if is_insert_to_db:
