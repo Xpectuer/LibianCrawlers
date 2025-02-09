@@ -337,7 +337,7 @@ export async function* read_garbage_for_libian_crawler(_param?: {
             ],
             platform: PlatformEnum.哔哩哔哩,
             platform_duplicate_id,
-            platform_rank_score: DataClean.nan_to_null(rank_score),
+            platform_rank_score: DataClean.nan_infinity_to_null(rank_score),
             count_read: DataClean.cast_and_must_be_natural_number(
               Math.max(play, like, review, video_review, favorites)
             ),
@@ -345,7 +345,7 @@ export async function* read_garbage_for_libian_crawler(_param?: {
             count_star: DataClean.cast_and_must_be_natural_number(favorites),
             video_total_count_danmaku:
               DataClean.cast_and_must_be_natural_number(danmaku),
-            video_total_duration_sec: DataClean.nan_to_null(duration_sec),
+            video_total_duration_sec: DataClean.nan_infinity_to_null(duration_sec),
             tags: [
               {
                 text: search_result.typename,

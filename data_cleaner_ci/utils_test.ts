@@ -3,10 +3,17 @@ import {
   is_deep_equal,
   Mappings,
   Nums,
+  ProcessBar,
+  Streams,
   Strs,
   Times,
 } from "./util.ts";
-import { assert, assertEquals, assertNotEquals } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertNotEquals,
+  assertThrows,
+} from "@std/assert";
 import { MultiProgressBar } from "jsr:@deno-library/progress";
 import { delay } from "jsr:@std/async";
 import { parseChineseNumber } from "parse-chinese-number";
@@ -65,7 +72,7 @@ Deno.test(function parseNumberTest() {
       n
     );
     console.debug("-----------------------");
-    // assertEquals(DataClean.parse_number(t, "allow_nan"), n);
+    assertEquals(DataClean.parse_number(t, "allow_nan"), n);
   }
 });
 
@@ -147,24 +154,36 @@ Deno.test(async function progress_bar_template_case() {
   await download();
 });
 
-Deno.test(function get_proto_chain_test() {
-  function getPrototypeChain(obj: any) {
-    let prototypeChain = [];
-    (function innerRecursiveFunction(obj) {
-      let currentPrototype = obj != null ? Object.getPrototypeOf(obj) : null;
-      prototypeChain.push(currentPrototype);
-      if (currentPrototype != null) {
-        innerRecursiveFunction(currentPrototype);
-      }
-    })(obj);
-    return prototypeChain;
-  }
-
-  console.debug("a", getPrototypeChain(new Date()));
-});
-
 Deno.test(function is_deep_equal_test() {
   assert(!is_deep_equal(new Date(10000), new Date(200000)));
+  assert(is_deep_equal(new Map(), new Map()));
+  assert(
+    !is_deep_equal(
+      (() => {
+        const m = new Map();
+        m.set("result", 1);
+        return m;
+      })(),
+      (() => {
+        const m = new Map();
+        return m;
+      })()
+    )
+  );
+  assert(
+    is_deep_equal(
+      (() => {
+        const m = new Map();
+        m.set("result", 1);
+        return m;
+      })(),
+      (() => {
+        const m = new Map();
+        m.set("result", 1);
+        return m;
+      })()
+    )
+  );
 });
 
 Deno.test(function is_deep_equal_test_2() {
@@ -174,6 +193,7 @@ Deno.test(function is_deep_equal_test_2() {
     [true, null, null],
     [true, undefined, undefined],
     [true, NaN, NaN],
+    [true, Infinity, Infinity],
     [true, new Date(0), new Date("Thu Jan 01 1970 08:00:00 GMT+0800")],
     [false, new Date(100), new Date("Thu Jan 01 1970 08:00:00 GMT+0800")],
     [false, new Date(10000), new Date("Thu Jan 01 1970 08:00:00 GMT+0800")],
@@ -181,6 +201,11 @@ Deno.test(function is_deep_equal_test_2() {
     [false, NaN, undefined],
     [false, NaN, 0],
     [false, NaN, ""],
+    [false, NaN, Infinity],
+    [false, Infinity, null],
+    [false, Infinity, undefined],
+    [false, Infinity, 0],
+    [false, Infinity, ""],
     [false, null, undefined],
     [false, null, 0],
     [false, null, ""],
@@ -253,11 +278,113 @@ Deno.test(function is_deep_equal_test_2() {
   }
 });
 
+Deno.test(function is_deep_equal_test_3() {
+  const maps = [
+    BigInt(1),
+    BigInt(0),
+    BigInt(-1),
+    1,
+    {
+      group: [0, -0],
+    },
+    -1,
+    {
+      group: [NaN, -NaN],
+    },
+    2,
+    3,
+    4,
+    Infinity,
+    -Infinity,
+    "1",
+    "0",
+    "-1",
+    "true",
+    true,
+    "false",
+    false,
+    "",
+    "\n",
+    "\t",
+    null,
+    "null",
+    undefined,
+    [],
+    {},
+    new Date(0),
+    new Date(1000),
+    new Date(),
+    new RegExp(""),
+    new RegExp("\t"),
+    new Map(),
+    {
+      group: [
+        (() => {
+          const m = new Map();
+          m.set("result", 1);
+          return m;
+        })(),
+        (() => {
+          const m = new Map();
+          m.set("result", 1);
+          return m;
+        })(),
+      ],
+    },
+    (() => {
+      const m = new Map();
+      m.set("result", 2);
+      return m;
+    })(),
+    new Set(),
+    new Set([1, 2, 3]),
+  ] as const;
+  const get_items = (idx: number) => {
+    const item = maps[idx];
+    if (typeof item === "object" && item && "group" in item) {
+      for (let i2 = 0; i2 < item.group.length; i2++) {
+        for (let j2 = 0; j2 < item.group.length; j2++) {
+          if (i2 === j2) {
+            continue;
+          }
+          assertEquals(item.group[i2], item.group[j2]);
+          assert(is_deep_equal(item.group[i2], item.group[j2]));
+        }
+      }
+      return item.group;
+    }
+    return [item];
+  };
+  for (let i = 0; i < maps.length; i++) {
+    for (let j = 0; j < maps.length; j++) {
+      if (i === j) {
+        continue;
+      }
+      for (const item_i of get_items(i)) {
+        for (const item_j of get_items(j)) {
+          assertNotEquals(item_i, item_j);
+          assert(!is_deep_equal(item_i, item_j));
+        }
+      }
+    }
+  }
+});
+
 Deno.test(function require_natural_number_test() {
   assertEquals(
     BigInt(114514),
     DataClean.cast_and_must_be_natural_number(114514)
   );
+
+  assertThrows(() => {
+    DataClean.cast_and_must_be_natural_number(NaN);
+  });
+  assertThrows(() => {
+    DataClean.cast_and_must_be_natural_number(Infinity);
+  });
+  assertThrows(() => {
+    DataClean.cast_and_must_be_natural_number(1 / 0);
+  });
 
   // DataClean.cast_and_must_be_natural_number(-114514);
 });
@@ -271,4 +398,86 @@ Deno.test(function parse_datetime_test() {
     max: Nums.take_extreme_value("max", [d1, null, d2]),
     min: Nums.take_extreme_value("min", [d1, d2]),
   });
+});
+
+Deno.test(async function parse_process_bar_bind_each_test() {
+  const _test_func = async (
+    step_delay: number,
+    totals: number[] = [30, 60, 100]
+  ) => {
+    // await delay(100);
+    await ProcessBar.create_scope({}, async (bars) => {
+      console.debug("start bind each tasks", { step_delay });
+      const create_task =
+        (total: number) =>
+        async (arg: number, ctx: ProcessBar.SingleBarSetter) => {
+          // console.debug(`start task`, arg);
+          await ctx.set_total(total);
+          for (let i = 0; i < total; i++) {
+            if (step_delay > 0) {
+              await delay(step_delay);
+            }
+            await ctx.set_completed(i + 1);
+          }
+          // console.debug("finish task", arg);
+          return arg;
+        };
+      const tasks = ProcessBar.bind_each<number, number>(
+        totals.map((total) => create_task(total)),
+        bars.render
+      );
+      console.debug("start wait promise all");
+      const res = await Promise.all([...tasks.map((task, idx) => task(idx))]);
+      console.debug("result is", res);
+    });
+  };
+
+  await _test_func(0);
+  await _test_func(1);
+  await _test_func(2);
+  await _test_func(3);
+  await _test_func(4);
+  await _test_func(8);
+  await _test_func(14);
+  await _test_func(20);
+  await _test_func(1, [1000]);
+});
+
+Deno.test(async function backpressure_test() {
+  const reader = async function* () {
+    for (let i = 0; i < 100; i++) {
+      await delay(50);
+      console.debug("read", i);
+      yield i;
+    }
+  };
+  const writer = Streams.backpressure({
+    gen: reader(),
+    queue_size: 20,
+    writer_delay_ms: () => Math.floor(300 * Math.random()),
+    before_event(ev) {
+      console.debug("before", ev);
+    },
+  });
+  for await (const item of writer()) {
+    console.debug("write", item);
+  }
+});
+
+Deno.test(function streams_deduplicate_test() {
+  const res = Streams.deduplicate([
+    1,
+    2,
+    3,
+    3,
+    1,
+    4,
+    5,
+    5,
+    { v: 3 },
+    { v: 3 },
+    { v: 4 },
+  ]);
+  console.debug("deduplicate res", res);
+  assertEquals(res, [1, 2, 3, 4, 5, { v: 3 }, { v: 4 }]);
 });

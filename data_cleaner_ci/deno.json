@@ -11,8 +11,12 @@
     "collection-utils": "npm:collection-utils@^1.0.1",
     "encoding": "npm:encoding@^0.1.13",
     "english2number": "npm:english2number@^1.0.8",
-    "fast-deep-equal": "npm:fast-deep-equal@^3.1.3",
     "intl-number-parser": "npm:intl-number-parser@^1.0.5",
+    "is-arguments": "npm:is-arguments@^1.2.0",
+    "is-array-buffer": "npm:is-array-buffer@^3.0.5",
+    "is-date-object": "npm:is-date-object@^1.1.0",
+    "is-regex": "npm:is-regex@^1.2.1",
+    "is-shared-array-buffer": "npm:is-shared-array-buffer@^1.0.4",
     "json5": "npm:json5@^2.2.3",
     "jsonata": "npm:jsonata@^2.0.6",
     "kysely": "npm:kysely@^0.27.5",
@@ -20,7 +24,11 @@
     "nodejs-polars": "npm:nodejs-polars@^0.16.0",
     "parse-chinese-number": "npm:parse-chinese-number@^1.0.5",
     "postgres": "npm:postgres@^3.4.5",
-    "quicktype-core": "npm:quicktype-core@^23.0.170"
+    "quicktype-core": "npm:quicktype-core@^23.0.170",
+    "typescript": "npm:typescript@^5.7.3",
+    "which-boxed-primitive": "npm:which-boxed-primitive@^1.1.1",
+    "which-collection": "npm:which-collection@^1.0.2",
+    "which-typed-array": "npm:which-typed-array@^1.1.18"
   },
   "nodeModulesDir": "auto",
   "unstable": [

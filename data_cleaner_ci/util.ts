@@ -8,78 +8,15 @@ import { Paragraphs } from "./general_data_process/paragraph_analysis.ts";
 import JSON5 from "json5";
 import NumberParser from "intl-number-parser";
 import english2number from "english2number";
-import fast_deep_equal from "fast-deep-equal";
+import { delay } from "@std/async/delay";
+import { equal } from "@std/assert/equal";
 
 export function is_nullish(obj: any): obj is null | undefined {
   return obj === null || obj === undefined;
 }
 
-/**
- *
- * NaN会视为相等
- */
 export function is_deep_equal<B>(a: unknown, b: B): a is B {
-  if (typeof a !== typeof b) {
-    return false;
-  }
-  if (a === b) {
-    return true;
-  }
-  if (a !== a && b !== b) {
-    return true; // both NaN
-  }
-  return fast_deep_equal(a, b);
-
-  // if (a && b && typeof a == "object" && typeof b == "object") {
-  //   return deepEqual(a, b);
-  //   // if (a.constructor !== b.constructor) return false;
-
-  //   // // let length, i, keys;
-  //   // if (Array.isArray(a)) {
-  //   //   if (!Array.isArray(b)) {
-  //   //     return false;
-  //   //   }
-  //   //   const length = a.length;
-  //   //   if (length != b.length) return false;
-  //   //   for (let i = length - 1; i >= 0; i--) {
-  //   //     if (!is_deep_equal(a[i], b[i])) return false;
-  //   //   }
-  //   //   return true;
-  //   // } else {
-  //   //   const get_properties = (obj: object) => {
-  //   //     const result: PropertyKey[] = [];
-  //   //     const add = (prop: PropertyKey) => {
-  //   //       if (result.indexOf(prop) < 0) {
-  //   //         result.push(prop);
-  //   //       }
-  //   //     };
-  //   //     for (const prop in obj) {
-  //   //       add(prop);
-  //   //     }
-  //   //     for (const prop in Object.getPrototypeOf(obj as any)) {
-  //   //       add(prop);
-  //   //     }
-  //   //     return result;
-  //   //   };
-
-  //   //   const keys = get_properties(a);
-  //   //   console.debug("keys", keys);
-  //   //   const length = keys.length;
-  //   //   if (length !== get_properties(b).length) return false;
-
-  //   //   for (let i = length - 1; i >= 0; i--)
-  //   //     if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
-
-  //   //   for (let i = length - 1; i >= 0; i--) {
-  //   //     const key = keys[i];
-  //   //     if (!is_deep_equal((a as any)[key], (b as any)[key])) return false;
-  //   //   }
-  //   //   return true;
-  //   // }
-  // } else {
-  //   // true if both NaN, false otherwise
-  //   return a !== a && b !== b;
-  // }
+  return equal(a, b);
 }
 
 export function chain<T>(init_value: () => T) {
@@ -476,6 +413,10 @@ export namespace Strs {
     ...empty_chars_can_trim,
     ...empty_chars_cannot_trim,
   ] as const;
+
+  export function parse_utf8(bytes: Uint8Array) {
+    return new TextDecoder("utf-8").decode(bytes);
+  }
 }
 
 // deno-lint-ignore no-namespace
@@ -561,7 +502,7 @@ export namespace Times {
     }
     try {
       const date_ms = new Date(text).getTime();
-      if (isNaN(date_ms) || date_ms <= 0) {
+      if (Nums.is_invalid(date_ms) || date_ms <= 0) {
         throw new Error(`invalid Date.getTime() : ${date_ms}`);
       }
       return Temporal.Instant.fromEpochMilliseconds(date_ms);
@@ -622,7 +563,18 @@ export namespace Jsons {
     indent?: number;
   };
 
-  export function dump(obj: any, option?: JsonDumpOption) {
+  export function dump<O>(
+    obj: O,
+    option?: JsonDumpOption
+  ): O extends null
+    ? `null`
+    : O extends undefined
+    ? `null`
+    : O extends string
+    ? `"${string}"`
+    : O extends boolean | bigint | number
+    ? `${O}`
+    : string {
     if (!option) {
       option = {};
     }
@@ -630,7 +582,7 @@ export namespace Jsons {
       return typeof v === "bigint" ? Number(v) : v;
     };
     if (option.mode === undefined || option.mode === "JSON") {
-      return JSON.stringify(obj, replacer, option.indent);
+      return JSON.stringify(obj, replacer, option.indent) as any;
     }
     // else if (option.mode === "JSON5") {
     //   return JSON5.stringify(obj, replacer, option.indent);
@@ -644,17 +596,24 @@ export namespace Jsons {
     return JSON.parse(Jsons.dump(obj)) as T;
   }
 
-  export async function load_file(file_path: URL | string): Promise<unknown> {
-    const bytes = await Deno.readFile(file_path);
-    const decoder = new TextDecoder("utf-8");
-    const text = decoder.decode(bytes);
-    // if (is_have_u2028_or_u2029(text)) {
-    //   console.warn(
-    //     `Found \\u2028 or \\u2029 on load json from file : ${file_path}`
-    //   );
-    //   text = replace_u2028_or_u2029_to_empty(text);
-    // }
-    return JSON5.parse(text);
+  export type ParseJsonValue<T extends string> = T extends `true`
+    ? true
+    : T extends `false`
+    ? false
+    : T extends `null`
+    ? null
+    : T extends `"${string}"`
+    ? string
+    : T extends `${number}`
+    ? number
+    : T extends `${bigint}`
+    ? number
+    : T extends `${boolean}`
+    ? boolean
+    : JSONValue;
+
+  export function load<T extends string>(s: T): ParseJsonValue<T> {
+    return JSON5.parse(s);
   }
 
   /**
@@ -680,6 +639,10 @@ export namespace Jsons {
 
 // deno-lint-ignore no-namespace
 export namespace Nums {
+  export function is_invalid(s: number): s is never {
+    return isNaN(s) || !isFinite(s);
+  }
+
   export function take_extreme_value<
     A extends readonly [T, ...T[]],
     T extends Typings.Comparable | null = A[number]
@@ -721,7 +684,7 @@ export namespace Nums {
 
   export function is_int(s: string | number): s is NumberLike {
     if (typeof s === "number") {
-      return !isNaN(s) && s.toFixed(0) === s.toString();
+      return !is_invalid(s) && s.toFixed(0) === s.toString();
     }
     return is_int(parseInt(s));
   }
@@ -1023,10 +986,10 @@ export namespace DataClean {
   export type NaturalNumber = bigint;
 
   export function cast_and_must_be_natural_number(n: number): NaturalNumber {
-    if (isNaN(n)) {
-      throw new Error("NaN");
+    if (Nums.is_invalid(n)) {
+      throw new Error("NaN or Infinity");
     }
-    if (!Number.isInteger(n)) {
+    if (!Nums.is_int(n)) {
       throw new Error(`${n} is not integer`);
     }
     if (typeof n !== "number") {
@@ -1038,14 +1001,14 @@ export namespace DataClean {
     return BigInt(n);
   }
 
-  export function nan_to_null(n: number | string | null | undefined) {
+  export function nan_infinity_to_null(n: number | string | null | undefined) {
     if (n === null || n === undefined) {
       return null;
     }
     if (typeof n === "string") {
-      return nan_to_null(parseFloat(n));
+      return nan_infinity_to_null(parseFloat(n));
     } else {
-      return isNaN(n) ? null : n;
+      return Nums.is_invalid(n) ? null : n;
     }
   }
 
@@ -1110,7 +1073,7 @@ export namespace DataClean {
         return on_nan(source_value_v2, value);
       }
       const parse_float_res = parseFloat(value);
-      if (!isNaN(parse_float_res)) {
+      if (!Nums.is_invalid(parse_float_res)) {
         if (debug) {
           debug(
             `parsed float number sourced ${source_value_v2} from ${value} to ${parse_float_res}`
@@ -1124,7 +1087,7 @@ export namespace DataClean {
       }
     }
     const intl_number = NumberParser("en-US", {})(value);
-    if (typeof intl_number === "number" && !isNaN(intl_number)) {
+    if (typeof intl_number === "number" && !Nums.is_invalid(intl_number)) {
       if (debug) {
         debug(
           `parsed intl number sourced ${source_value_v2} from ${value} to ${intl_number}`
@@ -1133,7 +1096,10 @@ export namespace DataClean {
       return intl_number;
     }
     const chinese_number = parseChineseNumber(value);
-    if (typeof chinese_number === "number" && !isNaN(chinese_number)) {
+    if (
+      typeof chinese_number === "number" &&
+      !Nums.is_invalid(chinese_number)
+    ) {
       if (debug) {
         debug(
           `parsed chinese number sourced ${source_value_v2} from ${value} to ${chinese_number}`
@@ -1143,7 +1109,10 @@ export namespace DataClean {
     }
     if (/^[a-zA-Z\s]+$/g.test(value)) {
       const english_number = english2number(value);
-      if (typeof english_number === "number" && !isNaN(english_number)) {
+      if (
+        typeof english_number === "number" &&
+        !Nums.is_invalid(english_number)
+      ) {
         if (debug) {
           debug(
             `parsed english number sourced ${source_value_v2} from ${value} to ${english_number}`
@@ -1353,28 +1322,7 @@ export namespace DataClean {
       const t = text.replaceAll(",", " ").split(" ");
       const len = t.length;
       _loop_parse_time: for (let l = len; l > 0; l--) {
-        for (let i = 0; len - i - l >= 0; i++) {
-          // const date_parsed = any_date_parser.fromString(t.slice(i, i + l));
-          // for (const parser of datetime_parsers) {
-          //   const res = parser(t.slice(i, i + l).join(" "));
-          //   if (res && !isNaN(res.getTime()) && res.getTime() !== 0) {
-          //     datetime = {
-          //       value: res,
-          //       before_time_text: t.slice(0, i).join(" "),
-          //       after_time_text: t.slice(i + l).join(" "),
-          //     };
-          //     break _loop_parse_time;
-          //   }
-          // }
-          // if (date_parsed.isValid()) {
-          //   datetime = {
-          //     value: new Date(date_parsed),
-          //     before_time_text: t.slice(0, i),
-          //     after_time_text: t.slice(i + l),
-          //   };
-          //   break _loop_parse_time;
-          // }
-        }
+        for (let i = 0; len - i - l >= 0; i++) {}
       }
     }
 
@@ -1384,7 +1332,7 @@ export namespace DataClean {
 
     if (datetime === null && match_before_days) {
       const before_days = parse_number(match_before_days[1], "allow_nan");
-      if (!isNaN(before_days)) {
+      if (!Nums.is_invalid(before_days)) {
         // datetime = new Date(crawl_time);
         // datetime.setDate(crawl_time.getDate() - before_days);
       }
@@ -1556,7 +1504,7 @@ export namespace DataCleanJsHtmlTree {
 export namespace ProcessBar {
   export function create_scope<R>(
     setting: {
-      title: string;
+      title?: string;
     },
     scope: (bars: {
       render: (
@@ -1576,11 +1524,14 @@ export namespace ProcessBar {
       display: "[:bar] :percent :time :completed/:total :text |",
     });
     return (async () => {
+      console.debug("--- Process bar scope enter ---");
       const res = await scope({
         render: async (render_param) => {
           await bars.render(render_param);
         },
       });
+      // await delay(1000);
+      console.debug("--- Process bar scope exit ---");
       await bars.end();
       return res;
     })();
@@ -1590,15 +1541,21 @@ export namespace ProcessBar {
     set_completed: (value: number) => Promise<void>;
     set_total: (value: number) => Promise<void>;
     set_text: (value: string) => Promise<void>;
+    get_completed: () => number;
+    get_total: () => number;
+    get_text: () => string;
   };
 
   /**
    * 每个任务一个进度条
    */
   export function bind_each<
-    P,
-    R,
-    Tasks extends ((param: P, bar: SingleBarSetter) => Promise<R>)[]
+    R = unknown,
+    P = unknown,
+    Tasks extends ((param: P, bar: SingleBarSetter) => Promise<R>)[] = ((
+      param: P,
+      bar: SingleBarSetter
+    ) => Promise<R>)[]
   >(
     tasks: Tasks,
     bars_render: Parameters<Parameters<typeof create_scope>[1]>[0]["render"]
@@ -1608,9 +1565,34 @@ export namespace ProcessBar {
     } = {
       value: null,
     };
+    const queue: Array<(typeof render_params_handler)["value"]> = [];
+
+    const get_now = () => new Date().getTime();
+
+    const last_update_time = {
+      value: get_now(),
+    };
+
     const update = async () => {
       if (render_params_handler.value) {
-        await bars_render(Jsons.copy(render_params_handler.value));
+        queue.push(Jsons.copy(render_params_handler.value));
+      } else {
+        console.warn("BUG , render_params_handler not init");
+      }
+      if (get_now() - last_update_time.value > 20) {
+        while (true) {
+          last_update_time.value = get_now();
+          const removed = Arrays.last_or_null(queue.splice(0, queue.length));
+          if (removed) {
+            await bars_render(removed);
+            continue;
+          } else {
+            break;
+          }
+        }
+        return "updated";
+      } else {
+        return "debounced";
       }
     };
 
@@ -1624,7 +1606,13 @@ export namespace ProcessBar {
         set_completed: async (value: number) => {
           if (render_param.completed !== value) {
             render_param.completed = value;
-            await update();
+            if (value >= render_param.total) {
+              while ((await update()) === "debounced") {
+                continue;
+              }
+            } else {
+              await update();
+            }
           }
         },
         set_total: async (value: number) => {
@@ -1639,6 +1627,9 @@ export namespace ProcessBar {
             await update();
           }
         },
+        get_completed: () => render_param.completed,
+        get_total: () => render_param.total,
+        get_text: () => render_param.text,
       };
       return {
         task: (param: P) => task(param, bar),
@@ -1673,6 +1664,30 @@ export namespace ProcessBar {
 
 // deno-lint-ignore no-namespace
 export namespace Streams {
+  export type MapItemsType<A extends Iterable<unknown>, R> = A extends Iterable<
+    infer T
+  >
+    ? A extends []
+      ? never[]
+      : A extends Array<T>
+      ? Array<R>
+      : Iterable<R>
+    : never;
+
+  // type _MapItemsType_Test_1 = MapItemsType<number[], string>;
+  // type _MapItemsType_Test_2 = MapItemsType<[1, 2, 4], string>;
+  // type _MapItemsType_Test_3 = MapItemsType<[], string>;
+  // type _MapItemsType_Test_4 = MapItemsType<Map<string, number>, string>;
+  // type _MapItemsType_Test_5 = MapItemsType<Set<number>, string>;
+
+  export type SubArray<A extends Iterable<unknown>> = A extends Iterable<
+    infer T
+  >
+    ? A extends []
+      ? never[]
+      : T[]
+    : never;
+
   export function* split_array_use_batch_size<T>(
     batch_size: number,
     arr: readonly T[]
@@ -1706,6 +1721,132 @@ export namespace Streams {
       idx++;
     }
     return null;
+  }
+
+  export function filter<T, R extends T>(
+    items: Iterable<T>,
+    filter: (it: T) => it is R
+  ): {
+    matched: SubArray<MapItemsType<typeof items, R>>;
+    not_matched: SubArray<MapItemsType<typeof items, Exclude<T, R>>>;
+  } {
+    const matched: R[] = [];
+    const not_matched: Exclude<T, R>[] = [];
+    for (const item of items) {
+      if (filter(item)) {
+        matched.push(item);
+      } else {
+        not_matched.push(item as any);
+      }
+    }
+    return {
+      matched,
+      not_matched,
+    };
+  }
+
+  export function filter2<T>(
+    items: Iterable<T>,
+    filter: (it: T) => boolean
+  ): {
+    matched: SubArray<typeof items>;
+    not_matched: SubArray<typeof items>;
+  } {
+    const matched: T[] = [];
+    const not_matched: T[] = [];
+    for (const item of items) {
+      if (filter(item)) {
+        matched.push(item);
+      } else {
+        not_matched.push(item as any);
+      }
+    }
+    return {
+      matched,
+      not_matched,
+    };
+  }
+
+  export function deduplicate<T>(
+    items: Iterable<T>,
+    is_deep_equal_func: (a: T, b: T) => boolean = is_deep_equal
+  ): SubArray<typeof items> {
+    const res: T[] = [];
+    items_loop: for (const item of items) {
+      for (const existed of res) {
+        if (is_deep_equal_func(item, existed)) {
+          continue items_loop;
+        }
+      }
+      res.push(item);
+    }
+    return res;
+  }
+
+  export function backpressure<
+    T,
+    G extends AsyncGenerator<T, void, undefined> = AsyncGenerator<
+      T,
+      void,
+      undefined
+    >
+  >(_param: {
+    gen: G;
+    queue_size: number;
+    reader_delay_ms?: () => number;
+    writer_delay_ms?: () => number;
+    before_event?: (
+      ev:
+        | "reader_delay_queue_full"
+        | "reader_inqueue"
+        | "reader_end"
+        | "write_pop"
+        | "writer_end"
+        | "writer_delay_queue_empty"
+    ) => void;
+  }): () => AsyncGenerator<T, void, undefined> {
+    const { gen, queue_size, reader_delay_ms, writer_delay_ms, before_event } =
+      _param;
+
+    const before = before_event ? before_event : () => {};
+
+    const get_delay = (deft: number, func: undefined | (() => number)) => {
+      const d = func ? func() : deft;
+      return d > 0 ? d : deft;
+    };
+    return async function* () {
+      const queue: T[] = [];
+      const is_end = {
+        value: false,
+      };
+      setTimeout(async () => {
+        for await (const item of gen) {
+          while (queue.length > queue_size) {
+            before("reader_delay_queue_full");
+            await delay(get_delay(33, reader_delay_ms));
+          }
+          before("reader_inqueue");
+          queue.push(item);
+        }
+        before("reader_end");
+        is_end.value = true;
+      }, 10);
+      while (true) {
+        const popped = queue.splice(0, 1)[0];
+        if (popped) {
+          before("write_pop");
+          yield popped;
+          continue;
+        } else if (is_end.value) {
+          before("writer_end");
+          break;
+        } else {
+          before("writer_delay_queue_empty");
+          const ms = get_delay(33, writer_delay_ms);
+          await delay(ms);
+        }
+      }
+    };
   }
 }
 

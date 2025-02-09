@@ -17,6 +17,8 @@ import {
   Name,
 } from "quicktype-core";
 import { utf16StringEscape } from "quicktype-core/dist/support/Strings.js";
+import ts from "typescript";
+import { fastype, OnTopLevelInput } from "./fastype/index.ts";
 
 // https://github.com/glideapps/quicktype/issues/1234
 export class MyTypeScriptTargetLanguage extends TypeScriptTargetLanguage {
@@ -55,12 +57,7 @@ const _TIP = `此文件由 code_gen.ts 生成。
 而不是直接修改此文件。` as const;
 
 function j(o: string | number | boolean) {
-  let text = JSON.stringify(o, null, 2).split("\n").join("\n  ");
-  if (Jsons.is_have_u2028_or_u2029(text)) {
-    console.warn(`Found \\u2028 or \\u2029`);
-    text = Jsons.replace_u2028_or_u2029_to_empty(text);
-  }
-  return text;
+  return Jsons.dump(o);
 }
 
 export async function code_gen_main() {
@@ -90,10 +87,13 @@ export async function generate_repository_api(
               "group_by_jsonata" in table
                 ? jsonata(table.group_by_jsonata)
                 : null;
-            await bar.set_text(typename);
+            await bar.set_text(`(1/2)reading ${typename}`);
             const cache_by_id = {
               typename,
               enable: table.cache_by_id === true,
+            };
+            const step1_total_remember = {
+              value: 0,
             };
             const samples_gen = read_postgres_table_type_wrap({
               jsonata_exp,
@@ -102,7 +102,8 @@ export async function generate_repository_api(
                 ...table,
                 batch_size: table.batch_size.code_gen,
                 on_bar: async (bar_render_param) => {
-                  await bar.set_total(bar_render_param.total);
+                  await bar.set_total(1 + bar_render_param.total);
+                  step1_total_remember.value = bar_render_param.total;
                   await bar.set_completed(bar_render_param.completed);
                 },
                 cache_by_id,
@@ -114,6 +115,14 @@ export async function generate_repository_api(
               typedesc,
               jsonata_exp,
               samples_gen,
+              fastype_on_top_level_input: async (idx) => {
+                // console.debug('bar.get_completed()',bar.get_completed())
+                await bar.set_completed(step1_total_remember.value + idx);
+              },
+              fastype_on_inputs: async (inputs) => {
+                await bar.set_total(inputs.length * 2);
+                await bar.set_text(`(2/2)typing ${typename}`);
+              },
             });
 
             const api_file_path = path.join(
@@ -183,8 +192,18 @@ export async function generate_repository_api(
   await _main();
   }
   `;
-
-            await Deno.writeTextFile(api_file_path, api_file_content);
+            const sourcefile = ts.createSourceFile(
+              path.basename(api_file_path),
+              api_file_content,
+              ts.ScriptTarget.Latest
+            );
+            const printer = ts.createPrinter({
+              newLine: ts.NewLineKind.LineFeed,
+            });
+            await Deno.writeTextFile(
+              api_file_path,
+              printer.printFile(sourcefile)
+            );
 
             // console.debug(
             //   `Generated: ${api_file_path}\n> You can run it's example : \`${deno_run_script}\` `
@@ -205,43 +224,73 @@ export async function generate_repository_api_type<T>(param: {
   typedesc: string;
   jsonata_exp?: null | ReturnType<typeof jsonata>;
   samples_gen: AsyncGenerator<T[]>;
+  use_lib?: "quicktype" | "fastype";
+  fastype_on_top_level_input?: OnTopLevelInput;
+  fastype_on_inputs?: (inputs: unknown[]) => Promise<void>;
 }) {
-  const { typename, typedesc, samples_gen } = param;
-  const jsonInput = jsonInputForTargetLanguage("typescript");
-  console.log(`正在生成 ${typedesc} 的代码。`);
-  for await (const samples_res of samples_gen) {
-    await jsonInput.addSource({
-      name: typename,
-      samples: samples_res.map((it) => JSON.stringify(it)),
-      description: typedesc + `\n\n${_TIP}`,
+  const {
+    typename,
+    typedesc,
+    samples_gen,
+    use_lib,
+    fastype_on_top_level_input,
+    fastype_on_inputs,
+  } = param;
+  console.info(`正在生成 ${typedesc} 的代码。`);
+  let res_file_content: string;
+  if (use_lib === "quicktype") {
+    const jsonInput = jsonInputForTargetLanguage("typescript");
+    for await (const samples_res of samples_gen) {
+      await jsonInput.addSource({
+        name: typename,
+        samples: samples_res.map((it) => JSON.stringify(it)),
+        description: typedesc + `\n\n${_TIP}`,
+      });
+    }
+    const inputData = new InputData();
+    inputData.addInput(jsonInput);
+    const res_quicktype = await quicktype({
+      inputData,
+      lang: new MyTypeScriptTargetLanguage(),
+      checkProvenance: true,
+      debugPrintTimes: true,
+      fixedTopLevels: true,
+      rendererOptions: {
+        declareUnions: true,
+        preferUnions: true,
+        preferConstValues: true,
+        runtimeTypecheck: true,
+        runtimeTypecheckIgnoreUnknownProperties: true,
+      },
+      combineClasses: true,
+      // inferMaps: false,
+      // inferEnums: true,
+      // inferUuids: false,
+      // inferDateTimes: false,
+      // inferIntegerStrings: false,
+      // inferBooleanStrings: false,
+      // ignoreJsonRefs: true,
+    });
+    res_file_content = res_quicktype.lines.join("\n");
+  } else {
+    const inputs = [];
+    for await (const samples_res of samples_gen) {
+      for (const sample_res of samples_res) {
+        inputs.push(sample_res);
+      }
+    }
+    if (fastype_on_inputs) {
+      await fastype_on_inputs(inputs);
+    }
+    res_file_content = await fastype({
+      inputs,
+      typename,
+      on_top_level_input: fastype_on_top_level_input,
     });
   }
-  const inputData = new InputData();
-  inputData.addInput(jsonInput);
-  const res_quicktype = await quicktype({
-    inputData,
-    lang: new MyTypeScriptTargetLanguage(),
-    checkProvenance: true,
-    debugPrintTimes: true,
-    fixedTopLevels: true,
-    rendererOptions: {
-      declareUnions: true,
-      preferUnions: true,
-      preferConstValues: true,
-      runtimeTypecheck: true,
-      runtimeTypecheckIgnoreUnknownProperties: true,
-    },
-    combineClasses: true,
-    // inferMaps: false,
-    // inferEnums: true,
-    // inferUuids: false,
-    // inferDateTimes: false,
-    // inferIntegerStrings: false,
-    // inferBooleanStrings: false,
-    // ignoreJsonRefs: true,
-  });
   const res_file_path = path.join(data_cleaner_ci_generated, typename + ".ts");
-  await Deno.writeTextFile(res_file_path, res_quicktype.lines.join("\n"));
+
+  await Deno.writeTextFile(res_file_path, res_file_content);
   console.log(`Genarated: ${res_file_path}`);
 }
 

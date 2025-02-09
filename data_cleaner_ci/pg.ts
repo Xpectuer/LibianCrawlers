@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import { ColumnType, JSONColumnType } from "kysely";
 import jsonata from "jsonata";
-import { Jsons, Strs, write_file } from "./util.ts";
+import { Jsons, Streams, Strs, write_file } from "./util.ts";
 import { data_cleaner_ci_generated } from "./consts.ts";
 import path from "node:path";
 import { Nums } from "./util.ts";
@@ -114,71 +114,86 @@ export async function* read_postgres_table(
     throw new Error("Count(*) return NAN");
   }
   let completed = 0;
-  if (cache_dir_exist && cache_by_id.enable) {
-    let queue: Array<{
-      // deno-lint-ignore no-explicit-any
-      [column: string]: any;
-    }> = [];
-    for await (const cache_file of Deno.readDir(cache_dir)) {
-      const g_id = get_g_id(cache_file);
-      if (g_id === "pass") {
-        continue;
+  const existed_writer = Streams.backpressure<Jsons.JSONObject[]>({
+    gen: (async function* () {
+      if (cache_dir_exist && cache_by_id.enable) {
+        const buffer: Array<Jsons.JSONObject> = [];
+        for await (const cache_file of Deno.readDir(cache_dir)) {
+          const g_id = get_g_id(cache_file);
+          if (g_id === "pass") {
+            continue;
+          }
+          const cache_file_path = path.join(cache_dir, cache_file.name);
+          const bytes = await Deno.readFile(cache_file_path);
+          const value = Jsons.load(Strs.parse_utf8(bytes));
+          if (value && typeof value === "object" && !Array.isArray(value)) {
+            buffer.push(value);
+          } else {
+            throw new Error(
+              `obj from load not a object , cache_file.name is ${cache_file.name}`
+            );
+          }
+          if (buffer.length >= batch_size_final) {
+            yield buffer.splice(0, batch_size_final);
+          }
+          completed += 1;
+          if (on_bar) {
+            await on_bar({ completed, total });
+          }
+        }
+        yield buffer.splice(0, buffer.length);
       }
-      const cache_file_path = path.join(cache_dir, cache_file.name);
-      const obj = await Jsons.load_file(cache_file_path);
-      if (obj && typeof obj === "object") {
-        queue.push(obj);
-      } else {
-        throw new Error(
-          `obj from load not a object , cache_file.name is ${cache_file.name}`
-        );
-      }
-      if (on_bar) {
-        await on_bar({ completed, total });
-      }
-      completed += 1;
-      if (queue.length >= batch_size_final) {
-        yield queue;
-        queue = [];
-      }
-    }
-    yield queue;
-  }
-  const create_select_sql = () =>
-    sql`SELECT * FROM ${sql(schema)}.${sql(tablename)} WHERE g_id NOT IN ${sql(
-      cached_ids.length > 0 ? cached_ids : [-114514]
-    )}`;
-  // console.debug(
-  //   "Select SQL statement :",
-  //   (await create_select_sql()).statement
-  // );
-  const cursor = create_select_sql().cursor(batch_size_final); //
-  for await (const rows of cursor) {
-    completed += rows.length;
-    if (on_bar) {
-      await on_bar({ completed, total });
-    }
-    yield rows;
-    if (cache_by_id.enable) {
-      for (const row of rows) {
-        const g_id = row["g_id"];
-        if (Nums.is_int(g_id)) {
-          await write_file({
-            file_path: path.join(cache_dir, `${g_id}.json`),
-            creator: {
-              mode: "text",
-              // deno-lint-ignore require-await
-              content: async () => Jsons.dump(row, { indent: 2 }),
-            },
-            log_tag: "no",
-          });
-        } else {
-          throw new Error(
-            `g_id is not number , rows[0] is ${JSON.stringify(rows[0])}`
-          );
+
+      const create_select_sql = () =>
+        sql`SELECT * FROM ${sql(schema)}.${sql(
+          tablename
+        )} WHERE g_id NOT IN ${sql(
+          cached_ids.length > 0 ? cached_ids : [-114514]
+        )}`;
+      // console.debug(
+      //   "Select SQL statement :",
+      //   (await create_select_sql()).statement
+      // );
+      const cursor = create_select_sql().cursor(batch_size_final); //
+      for await (const rows of cursor) {
+        completed += rows.length;
+        if (on_bar) {
+          await on_bar({ completed, total });
+        }
+        yield rows;
+        if (cache_by_id.enable) {
+          for (const row of rows) {
+            const g_id = row["g_id"];
+            if (Nums.is_int(g_id)) {
+              await write_file({
+                file_path: path.join(cache_dir, `${g_id}.json`),
+                creator: {
+                  mode: "text",
+                  // deno-lint-ignore require-await
+                  content: async () => Jsons.dump(row, { indent: 2 }),
+                },
+                log_tag: "no",
+              });
+            } else {
+              throw new Error(
+                `g_id is not number , rows[0] is ${JSON.stringify(rows[0])}`
+              );
+            }
+          }
         }
       }
-    }
+    })(),
+    queue_size: 1,
+    writer_delay_ms: () => 4000,
+    before_event(ev) {
+      // if (ev === "reader_inqueue") console.debug("on read cache json >>>", ev);
+      // if (ev.indexOf("queue") >= 0) console.debug("on read cache json >>>", ev);
+      // console.debug("on read cache json >>>", ev);
+      // on_bar()
+    },
+  });
+  for await (const existed of existed_writer()) {
+    yield existed;
   }
 }
 

@@ -51,7 +51,7 @@ deno run init_config.ts
 3. 在设置好数据仓库后，执行以下命令以生成数仓的 API代码:
 
 ```shell
-deno run --allow-env=PG*,READABLE_STREAM,CI --allow-read=./data_cleaner_ci_generated --allow-write=./data_cleaner_ci_generated code_gen.ts
+deno run --allow-env=PG*,READABLE_STREAM,CI,TSC_*,NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV --allow-read=./data_cleaner_ci_generated --allow-write=./data_cleaner_ci_generated code_gen.ts
 ```
 
 4. 完成上述三个步骤后，初始化工作就已经完成。然而，如果您需要适配并运行 `general_data_process` 目录下的公用脚本，您需要手动处理 TypeScript 类型导入。
