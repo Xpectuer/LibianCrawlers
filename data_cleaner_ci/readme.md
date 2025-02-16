@@ -2,6 +2,12 @@
 
 ## 启动工程
 
+首先，打开 `LibianCrawlers/data_cleaner_ci/` 并将其作为运行命令的根目录。而不是在 `LibianCrawlers/` 下运行以下的命令。
+
+```shell
+cd data_cleaner_ci
+```
+
 ### 1. 安装 deno 和依赖。
 
 先安装 deno:
@@ -18,6 +24,12 @@ deno --version
 
 ```shell
 deno install
+```
+
+如果你想知道有哪些定义好的任务，可以运行此命令以查看:
+
+```shell
+deno task
 ```
 
 ### 2. 启动代码生成
@@ -72,10 +84,10 @@ deno test
 
 由于每个开发人员的数据库连接配置不同，因此请将自己的设置写在 `data_cleaner_ci_generated/config.json` 中，并且将其排除在版本管理外。
 
-然后检查一下类型系统有没有报错，如果报错的话可能是因为数仓的数据类型发生了变化、也可能是初始化后缺配置，需要手动调整。
+然后检查一下类型系统和测试用例有没有报错，如果报错的话可能是因为数仓的数据类型发生了变化、也可能是初始化后缺配置，需要手动调整。
 
 ```shell
-deno check --all general_data_process/libian_crawler/clean_and_merge.ts
+deno task prerun:check
 ```
 
 没问题的话就运行。
