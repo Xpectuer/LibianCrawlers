@@ -56,7 +56,7 @@ const _TIP = `此文件由 code_gen.ts 生成。
 请通过修改 ${data_cleaner_ci_generated}/config.json 来修改此文件，
 而不是直接修改此文件。` as const;
 
-function j(o: string | number | boolean) {
+function j(o: Jsons.JSONValue) {
   return Jsons.dump(o);
 }
 
@@ -109,11 +109,11 @@ export async function generate_repository_api(
                 cache_by_id,
               }),
               cache_by_id,
+              with_jsonata_template: table.with_jsonata_template,
             });
             await generate_repository_api_type({
               typename,
               typedesc,
-              jsonata_exp,
               samples_gen,
               fastype_on_top_level_input: async (idx) => {
                 // console.debug('bar.get_completed()',bar.get_completed())
@@ -140,7 +140,12 @@ export async function generate_repository_api(
   import { read_postgres_table, read_postgres_table_type_wrap } from "../pg.ts"
   import { ${typename} } from "./${typename}.ts"
   
-  export function read_${typename}():AsyncGenerator<
+  export function read_${typename}(options?: {
+  on_bar?: (bar_render_param: {
+    completed: number;
+    total: number;
+  }) => Promise<void>;
+  }):AsyncGenerator<
   ${typename}[],
   void
   >{
@@ -165,6 +170,7 @@ export async function generate_repository_api(
   tablename: ${j(table.tablename)},
   batch_size: ${j(table.batch_size.api)},
   cache_by_id,
+  on_bar: options?.on_bar,
   });
   
   const jsonata_exp = ${
@@ -173,10 +179,13 @@ export async function generate_repository_api(
       : `null`
   }
   
+  const with_jsonata_template = ${j(table.with_jsonata_template)}
+
   return read_postgres_table_type_wrap<${typename}>({
   rows_gen,
   jsonata_exp,
   cache_by_id,
+  with_jsonata_template,
   })
   }
   
@@ -222,7 +231,6 @@ export async function generate_repository_api(
 export async function generate_repository_api_type<T>(param: {
   typename: string;
   typedesc: string;
-  jsonata_exp?: null | ReturnType<typeof jsonata>;
   samples_gen: AsyncGenerator<T[]>;
   use_lib?: "quicktype" | "fastype";
   fastype_on_top_level_input?: OnTopLevelInput;
@@ -238,7 +246,7 @@ export async function generate_repository_api_type<T>(param: {
   } = param;
   console.info(`正在生成 ${typedesc} 的代码。`);
   let res_file_content: string;
-  if (use_lib === "quicktype") {
+  if (!use_lib || use_lib === "quicktype") {
     const jsonInput = jsonInputForTargetLanguage("typescript");
     for await (const samples_res of samples_gen) {
       await jsonInput.addSource({

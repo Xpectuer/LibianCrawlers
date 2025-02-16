@@ -40,7 +40,8 @@ Deno.test(async function generate_type_test() {
     typename: "Test1",
     // deno-lint-ignore require-await
     on_top_level_input: async () => {
-      console.debug("on_top_level_input", inputs[i++]);
+      console.debug("on_top_level_input", { item: inputs[i], idx: i });
+      i++;
     },
     logd: true,
   });

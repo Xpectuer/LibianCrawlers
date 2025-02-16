@@ -18,13 +18,16 @@ function template_config() {
         },
         dataset_tables: [
           {
-            dataset_typename: "MyHelloWorld",
-            schema: "<INPUT>",
-            tablename: "<INPUT>",
+            dataset_typename: "PGLibianCrawlerGarbage",
+            schema: "libian_crawler",
+            tablename: "garbage",
+            group_by_jsonata: "g_type & '__' & g_content.crawler_tag",
             batch_size: {
               api: 20,
               code_gen: 1000,
             },
+            cache_by_id: true,
+            with_inverted_index: true,
           },
         ],
       },
@@ -34,7 +37,6 @@ function template_config() {
 
 export async function init_config() {
   const home_dir = os.homedir();
-  const cwd = Deno.cwd();
   const config_file_path = path.join(
     home_dir,
     ".libian",
@@ -56,7 +58,7 @@ export async function init_config() {
     },
   });
   await write_file({
-    file_path: path.join(cwd, data_cleaner_ci_generated, "config.json"),
+    file_path: path.join(data_cleaner_ci_generated, "config.json"),
     creator: {
       mode: "symlink",
       old: config_file_path,
@@ -78,7 +80,7 @@ export async function init_config() {
     mode: 0o700,
   });
   console.log("Mkdir user code dir at :", user_code_dir);
-  const user_code_dir_link = path.join(cwd, "user_code");
+  const user_code_dir_link = path.join("user_code");
   await write_file({
     file_path: user_code_dir_link,
     creator: {

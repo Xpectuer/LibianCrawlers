@@ -332,12 +332,7 @@ export async function fastype(param: {
       tuple_to_array !== undefined
         ? tuple_to_array
         : (node) => {
-            const count_types = Streams.deduplicate(node.tuples).length;
-            const count_length = node.tuples.length;
-            if (
-              count_length > 25 &&
-              count_types * count_types <= count_length
-            ) {
+            if (node.tuples.length > 25) {
               return "cast to array";
             }
             return "dont cast";

@@ -1,4 +1,3 @@
-import { platform } from "node:os";
 import {
   LibianCrawlerGarbage,
   read_LibianCrawlerGarbage,
@@ -345,7 +344,8 @@ export async function* read_garbage_for_libian_crawler(_param?: {
             count_star: DataClean.cast_and_must_be_natural_number(favorites),
             video_total_count_danmaku:
               DataClean.cast_and_must_be_natural_number(danmaku),
-            video_total_duration_sec: DataClean.nan_infinity_to_null(duration_sec),
+            video_total_duration_sec:
+              DataClean.nan_infinity_to_null(duration_sec),
             tags: [
               {
                 text: search_result.typename,
@@ -416,90 +416,86 @@ export async function* read_garbage_for_libian_crawler(_param?: {
             const html_root =
               xhs_note.g_content.common_info.page_content.html_info?.root;
 
+            const { xhs: jsonata_xhs } = xhs_note.template_parse_html_tree;
+
             if (html_root) {
-              let title: string | null = null;
-              let author_first_nickname: string = "";
-              let author_first_avater_url: DataClean.HttpUrl | null = null;
+              const title: string | null = Strs.is_not_blank(jsonata_xhs.title)
+                ? jsonata_xhs.title
+                : null;
+              const author_first_nickname: string =
+                jsonata_xhs.author_username ?? "";
+              const author_first_avater_url: DataClean.HttpUrl | null =
+                DataClean.url_use_https_emptyable(
+                  jsonata_xhs.author_avater ?? null
+                );
               let author_first_home_link_url: DataClean.HttpUrl | null = null;
               let author_first_platform_user_id: string | number | null = null;
+
+              const _author_home_link = Arrays.first_or_null(
+                jsonata_xhs.author_link ?? []
+              );
+              if (_author_home_link) {
+                const user_profiles = /\/user\/profile\/([a-zA-Z0-9]+)/.exec(
+                  _author_home_link
+                );
+                if (user_profiles) {
+                  author_first_home_link_url =
+                    Strs.join_everyone_with_remove_prefix_suffix_recursion(
+                      "/",
+                      "https://www.xiaohongshu.com"
+                    )
+                      .and_join(_author_home_link)
+                      .ok();
+                  author_first_platform_user_id = user_profiles[1];
+                }
+              }
+
               let tags: MediaContentTag[] | null = null;
               let desc: string = "";
-              let count_like: DataClean.NaturalNumber | null = null;
+
+              const _get_count = (value: string | undefined | null) => {
+                return chain(() => value)
+                  .map((v) =>
+                    is_nullish(v)
+                      ? null
+                      : DataClean.cast_and_must_be_natural_number(
+                          DataClean.parse_number(v, (it) =>
+                            it === "赞"
+                              ? 0
+                              : (() => {
+                                  throw new Error(`NaN of ${it}`);
+                                })()
+                          )
+                        )
+                  )
+                  .get_value();
+              };
+
+              const count_like: DataClean.NaturalNumber | null = _get_count(
+                jsonata_xhs.like
+              );
+              let count_share: DataClean.NaturalNumber | null = null;
+              const count_star: DataClean.NaturalNumber | null = _get_count(
+                jsonata_xhs.collect
+              );
+              const count_comment: DataClean.NaturalNumber | null = _get_count(
+                jsonata_xhs.comment
+              );
               let from_search_context: MediaSearchContext[] = [];
               let create_time: Date | null = null;
               let update_time: Date | null = null;
               let ip_location: string | null = null;
+
+              // const { edited } = DataClean.parse_gray_font_at_note_end({
+              //   crawl_time: g_create_time,
+              //   text: node2.str,
+              // });
+
               let cover_url: DataClean.HttpUrl | null = null;
-              let count_share: DataClean.NaturalNumber | null = null;
-              let count_star: DataClean.NaturalNumber | null = null;
-              let count_comment: DataClean.NaturalNumber | null = null;
               for (const node of Trees.travel_node_dfs({
                 root: html_root,
                 children_key: "children",
               })) {
-                if (
-                  DataCleanJsHtmlTree.has_class_no_typeguard(
-                    node,
-                    "author-container"
-                  )
-                ) {
-                  if (node.children) {
-                    for (const node2 of node.children.flatMap((it) => [
-                      ...Trees.travel_node_dfs({
-                        root: it,
-                        children_key: "children",
-                      }),
-                    ])) {
-                      if (
-                        DataCleanJsHtmlTree.has_class(node2, "username") &&
-                        Strs.is_not_blank(node2.str)
-                      ) {
-                        author_first_nickname = node2.str;
-                      }
-                      if (
-                        DataCleanJsHtmlTree.has_class_no_typeguard(
-                          node2,
-                          "avater-item"
-                        ) &&
-                        node2.name === "img" &&
-                        "src" in node2.attrs &&
-                        Strs.is_not_blank(node2.attrs.src)
-                      ) {
-                        author_first_avater_url =
-                          DataClean.url_use_https_noempty(node2.attrs.src);
-                      }
-
-                      if (
-                        node2.name === "a" &&
-                        node2.attrs &&
-                        "href" in node2.attrs &&
-                        Strs.is_not_blank(node2.attrs.href)
-                      ) {
-                        const user_profiles =
-                          /\/user\/profile\/([a-zA-Z0-9]+)/.exec(
-                            node2.attrs.href
-                          );
-                        if (user_profiles) {
-                          author_first_home_link_url =
-                            DataClean.url_use_https_noempty(
-                              "https://www.xiaohongshu.com" + node2.attrs.href
-                            );
-                          author_first_platform_user_id = user_profiles[1];
-                        }
-                      }
-                    }
-                  }
-                }
-                if (
-                  node.attrs &&
-                  "id" in node.attrs &&
-                  node.attrs.id === "detail-title" &&
-                  typeof node.str === "string" &&
-                  Strs.is_not_blank(node.str)
-                ) {
-                  // console.debug("title node", node);
-                  title = node.str;
-                }
                 if (
                   node.attrs &&
                   "id" in node.attrs &&
@@ -549,107 +545,8 @@ export async function* read_garbage_for_libian_crawler(_param?: {
                     }
                   }
                 }
-                if (
-                  DataCleanJsHtmlTree.has_class_no_typeguard(
-                    node,
-                    "bottom-container"
-                  )
-                ) {
-                  if (node.children) {
-                    for (const node2 of node.children.flatMap((it) => [
-                      ...Trees.travel_node_dfs({
-                        root: it,
-                        children_key: "children",
-                      }),
-                    ])) {
-                      if (
-                        DataCleanJsHtmlTree.has_class(node2, "date") &&
-                        Strs.is_not_blank(node2.str)
-                      ) {
-                        // const { edited } = DataClean.parse_gray_font_at_note_end({
-                        //   crawl_time: g_create_time,
-                        //   text: node2.str,
-                        // });
-                      }
-                    }
-                  }
-                }
-
-                if (
-                  DataCleanJsHtmlTree.has_class_no_typeguard(
-                    node,
-                    "interactions"
-                  )
-                  // ||
-                  // DataCleanJsHtmlTree.has_class_no_typeguard(
-                  //   node,
-                  //   "interaction-container"
-                  // )
-                ) {
-                  if (node.children) {
-                    for (const node2 of node.children.flatMap((it) => [
-                      ...Trees.travel_node_dfs({
-                        root: it,
-                        children_key: "children",
-                      }),
-                    ])) {
-                      const find_count_in_children = () =>
-                        chain(
-                          () =>
-                            node2
-                              .children!.flatMap((it) => [
-                                ...Trees.travel_node_dfs({
-                                  root: it,
-                                  children_key: "children",
-                                }),
-                              ])
-                              .find((it) =>
-                                DataCleanJsHtmlTree.has_class(it, "count")
-                              )?.str
-                        )
-                          .map((it) =>
-                            it
-                              ? DataClean.cast_and_must_be_natural_number(
-                                  DataClean.parse_number(it, (it) =>
-                                    it === "赞"
-                                      ? 0
-                                      : (() => {
-                                          throw new Error(`NaN of ${it}`);
-                                        })()
-                                  )
-                                )
-                              : null
-                          )
-                          .get_value();
-
-                      if (
-                        DataCleanJsHtmlTree.has_class(node2, "like-wrapper")
-                      ) {
-                        count_like = find_count_in_children();
-                      }
-                      if (
-                        DataCleanJsHtmlTree.has_class_no_typeguard(
-                          node2,
-                          "collect-wrapper"
-                        )
-                      ) {
-                        count_star = find_count_in_children();
-                      }
-                      if (
-                        DataCleanJsHtmlTree.has_class_no_typeguard(
-                          node2,
-                          "chat-wrapper"
-                        )
-                      ) {
-                        count_comment = find_count_in_children();
-                      }
-                    }
-                  }
-                }
               }
-              if (Strs.endswith(desc, " ")) {
-                desc = Strs.remove_suffix(desc, " ");
-              }
+              desc = Strs.remove_prefix_suffix_recursion(desc, " ");
 
               const res: MediaContent = {
                 last_crawl_time: Times.parse_text_to_instant(g_create_time),
@@ -1193,58 +1090,73 @@ export async function insert_or_update(
 }
 
 async function _main() {
-  const merger = merge_media_content_for_libian_crawler();
-  const reader = read_garbage_for_libian_crawler();
-  for await (const garbages of read_LibianCrawlerGarbage()) {
-    for (const garbage of garbages) {
-      const media = await reader.next(garbage);
-      if (typeof media.value === "object" && "title" in media.value) {
-        await merger.next(media.value);
+  await ProcessBar.create_scope({ title: "LibianCrawler" }, async (bars) => {
+    const merger = merge_media_content_for_libian_crawler();
+    const reader = read_garbage_for_libian_crawler();
+
+    const render_param: Parameters<typeof bars.render>[0] = [
+      { completed: 0, total: 1, text: "Reading garbage" },
+      {
+        completed: 0,
+        total: 1,
+        text: "Wait to insert or update to remote database",
+      },
+    ];
+
+    for await (const garbages of read_LibianCrawlerGarbage({
+      on_bar: async (it) => {
+        render_param[0].completed = it.completed;
+        render_param[0].total = it.total;
+        await bars.render(render_param);
+      },
+    })) {
+      for (const garbage of garbages) {
+        const media = await reader.next(garbage);
+        if (typeof media.value === "object" && "title" in media.value) {
+          await merger.next(media.value);
+        }
       }
     }
-  }
-  console.log("Finish reader");
-  const merger_res = await merger.next("stop");
-  console.debug("merger_res is ", merger_res);
-  if (!merger_res.value) {
-    throw new Error("should return");
-  }
-  const [all_key, cache] = merger_res.value;
-  await ProcessBar.create_scope(
-    { title: "LibianCrawler insert or update to remote database" },
-    async (bars) => {
-      await create_and_init_libian_srawler_database_scope(async (db) => {
-        for (const {
-          start,
-          end,
-          sliced,
-          total,
-        } of Streams.split_array_use_batch_size(100, [...all_key])) {
-          const values = await Promise.all(
-            Mappings.object_entries(cache.get_batch(new Set(sliced))).map((e) =>
-              Promise.resolve(e[1])
-            )
-          );
-          const on_bar_text = async (text: string) => {
-            await bars.render([
-              { completed: end, total, text: `Batch(${start}~${end}) ${text}` },
-            ]);
-          };
-          await insert_or_update(
-            db,
-            {
-              mode: "MediaContentMerged",
-              values,
-            },
-            {
-              on_bar_text,
-            }
-          );
-          await on_bar_text("OK");
-        }
-      });
+
+    render_param[0].text = "Finish read garbage";
+    const merger_res = await merger.next("stop");
+    if (!merger_res.value) {
+      throw new Error("should return");
     }
-  );
+    const [all_key, cache] = merger_res.value;
+    await create_and_init_libian_srawler_database_scope(async (db) => {
+      for (const {
+        start,
+        end,
+        sliced,
+        total,
+      } of Streams.split_array_use_batch_size(100, [...all_key])) {
+        const values = await Promise.all(
+          Mappings.object_entries(cache.get_batch(new Set(sliced))).map((e) =>
+            Promise.resolve(e[1])
+          )
+        );
+        const on_bar_text = async (text: string) => {
+          render_param[1].completed = end;
+          render_param[1].total = total;
+          render_param[1].text = `Batch(${start}~${end}) ${text}`;
+
+          await bars.render(render_param);
+        };
+        await insert_or_update(
+          db,
+          {
+            mode: "MediaContentMerged",
+            values,
+          },
+          {
+            on_bar_text,
+          }
+        );
+        await on_bar_text("OK");
+      }
+    });
+  });
 }
 
 // ```

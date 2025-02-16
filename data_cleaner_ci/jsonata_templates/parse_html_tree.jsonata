@@ -1,0 +1,27 @@
+(
+    $tags := **[bs4_type="<class 'bs4.element.Tag'>"];
+    {
+        "xhs": (
+            $author_username := $tags["author-container" in attrs.class].**["username" in attrs.class].str;
+            $author_avater := $tags["author-container" in attrs.class].**["avatar-item" in attrs.class][name='img'].attrs.src;
+            $author_link := $tags["author-container" in attrs.class].**[name='a'].attrs.href;
+            $title := $tags[attrs.id='detail-title'].str;
+            $bottom_gray_text := $tags["bottom-container" in attrs.class].**["date" in attrs.class].str;
+            $like := $tags["engage-bar" in attrs.class].**["like-wrapper" in attrs.class].**["count" in attrs.class].str;
+            $collect := $tags["engage-bar" in attrs.class].**["collect-wrapper" in attrs.class].**["count" in attrs.class].str;
+            $comment := $tags["engage-bar" in attrs.class].**["chat-wrapper" in attrs.class].**["count" in attrs.class].str;
+            
+            $m := {
+                "author_username": $distinct($author_username),
+                "author_avater": $distinct($author_avater),
+                "author_link": $distinct($author_link),
+                "title": $distinct($title),
+                "bottom_gray_text": $distinct($bottom_gray_text),
+                "like": $distinct($like),
+                "collect": $distinct($collect),
+                "comment": $distinct($comment)
+            };
+            $m
+        )
+    }
+)

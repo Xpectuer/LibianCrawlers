@@ -53,6 +53,7 @@ export async function write_file(param: {
     | {
         mode: "text";
         content: () => Promise<string>;
+        overwrite?: boolean;
       }
     | {
         mode: "symlink";
@@ -67,69 +68,77 @@ export async function write_file(param: {
 }) {
   const { file_path, creator, log_tag } = param;
   const { alia_name } = log_tag === "no" ? {} : log_tag;
-  let file_info: Deno.FileInfo;
-  try {
-    file_info = await Deno.lstat(file_path);
+  // let overwrite: boolean;
+  if ("overwrite" in creator && creator.overwrite === true) {
     if (log_tag !== "no") {
-      console.log(`exists ${alia_name} at ${file_path}`);
+      console.log(`skip checking existed for ${alia_name} ( at ${file_path} )`);
     }
-  } catch (err) {
-    if (!(err instanceof Deno.errors.NotFound)) {
-      throw err;
-    }
-    if (log_tag !== "no") {
-      console.log(`not exists ${alia_name} and creating it on ${file_path}`);
-    }
-    await Deno.mkdir(path.dirname(file_path), {
-      recursive: true,
-      mode: 0o700,
-    });
-    if (creator.mode === "text") {
-      const fsfile = await Deno.create(file_path);
-      try {
-        await fsfile.write(new TextEncoder().encode(await creator.content()));
-        if (log_tag !== "no") {
-          console.log(`success write text for ${alia_name} at ${file_path}`);
-        }
-      } finally {
-        fsfile.close();
+    // overwrite = true;
+  } else {
+    try {
+      const file_info = await Deno.lstat(file_path);
+      if (log_tag !== "no") {
+        console.log(`exists ${alia_name} ( at ${file_path} )`);
       }
-    } else if (creator.mode === "symlink") {
-      try {
-        const old_info = await Deno.lstat(creator.old);
-        if (log_tag !== "no") {
-          console.log(
-            `exists old target at ${creator.old} , create symlink at ${file_path} , old info is`,
-            old_info
-          );
-        }
-      } catch (err) {
-        if (!(err instanceof Deno.errors.NotFound)) {
-          throw err;
-        }
-        if (creator.allow_old_not_found) {
-          if (log_tag !== "no") {
-            console.warn("not found old target at", creator.old);
-          }
-        } else {
-          if (log_tag !== "no") {
-            console.error("not found old target at", creator.old);
-          }
-          throw err;
-        }
+      return file_info;
+    } catch (err) {
+      if (!(err instanceof Deno.errors.NotFound)) {
+        throw err;
       }
-      await Deno.symlink(creator.old, file_path);
+      if (log_tag !== "no") {
+        console.log(`not exists ${alia_name} and creating it on ${file_path}`);
+      }
+    }
+    // overwrite = false;
+  }
+  await Deno.mkdir(path.dirname(file_path), {
+    recursive: true,
+    mode: 0o700,
+  });
+  if (creator.mode === "text") {
+    const fsfile = await Deno.create(file_path);
+    try {
+      await fsfile.write(new TextEncoder().encode(await creator.content()));
+      if (log_tag !== "no") {
+        console.log(`success write text for ${alia_name} ( at ${file_path} )`);
+      }
+    } finally {
+      fsfile.close();
+    }
+  } else if (creator.mode === "symlink") {
+    try {
+      const old_info = await Deno.lstat(creator.old);
       if (log_tag !== "no") {
         console.log(
-          `success symlink for ${alia_name} from ${creator.old} to ${file_path}`
+          `exists old target at ${creator.old} , create symlink at ${file_path} , old info is`,
+          old_info
         );
       }
-    } else {
-      throw Error("Invalid param `creator.mode` , creator is", creator);
+    } catch (err) {
+      if (!(err instanceof Deno.errors.NotFound)) {
+        throw err;
+      }
+      if (creator.allow_old_not_found) {
+        if (log_tag !== "no") {
+          console.warn("not found old target at", creator.old);
+        }
+      } else {
+        if (log_tag !== "no") {
+          console.error("not found old target at", creator.old);
+        }
+        throw err;
+      }
     }
-    file_info = await Deno.lstat(file_path);
+    await Deno.symlink(creator.old, file_path);
+    if (log_tag !== "no") {
+      console.log(
+        `success symlink for ${alia_name} from ${creator.old} to ${file_path}`
+      );
+    }
+  } else {
+    throw Error("Invalid param `creator.mode` , creator is", creator);
   }
-  return file_info;
+  return await Deno.lstat(file_path);
 }
 
 // deno-lint-ignore no-namespace
@@ -275,6 +284,28 @@ export namespace Typings {
     | { name: "a" }
     | { name?: "b" }
   >;
+
+  export type RemovePrefixRecursion<
+    T extends string,
+    C extends string
+  > = T extends `${C}${infer S}` ? RemovePrefixRecursion<S, C> : T;
+  export type RemoveSuffixRecursion<
+    T extends string,
+    C extends string
+  > = T extends `${infer P}${C}` ? RemoveSuffixRecursion<P, C> : T;
+
+  type _Test_RemovePrefixRecursion = RemovePrefixRecursion<"aaaaa114514", "aa">;
+  type _Test_RemoveSuffixRecursion = RemoveSuffixRecursion<"114514aaaaa", "aa">;
+
+  export type RemovePrefixSuffixRecursion<
+    T extends string,
+    C extends string
+  > = RemoveSuffixRecursion<RemovePrefixRecursion<T, C>, C>;
+
+  type _Test_RemovePrefixSuffixRecursion = RemovePrefixSuffixRecursion<
+    "aaaaa114514aaaaa",
+    "aa"
+  >;
 }
 
 // deno-lint-ignore no-namespace
@@ -315,13 +346,46 @@ export namespace Strs {
   export function remove_prefix<
     P extends string,
     T extends `${P}${R}`,
-    R extends string = T extends `${P}${infer S}` ? S : never
+    R extends string = string extends T
+      ? string
+      : T extends `${P}${infer S}`
+      ? S
+      : never
   >(text: T, start: P): R {
     if (startswith(text, start)) {
       return text.slice(start.length) as R;
     } else {
       throw new Error(`Text ${text} not startswith ${start}`);
     }
+  }
+
+  export function remove_prefix_recursion<C extends string, T extends string>(
+    text: T,
+    char: C
+  ): Typings.RemovePrefixRecursion<T, C> {
+    let t: string = text;
+    while (startswith(t, char)) {
+      t = remove_prefix(t, char);
+    }
+    return t as any;
+  }
+
+  export function remove_suffix_recursion<C extends string, T extends string>(
+    text: T,
+    char: C
+  ): Typings.RemoveSuffixRecursion<T, C> {
+    let t: string = text;
+    while (endswith(t, char)) {
+      t = remove_suffix(t, char);
+    }
+    return t as any;
+  }
+
+  export function remove_prefix_suffix_recursion<
+    C extends string,
+    T extends string
+  >(text: T, char: C): Typings.RemovePrefixSuffixRecursion<T, C> {
+    return remove_suffix_recursion(remove_prefix_recursion(text, char), char);
   }
 
   export function check_length_property<S extends string>(
@@ -416,6 +480,39 @@ export namespace Strs {
 
   export function parse_utf8(bytes: Uint8Array) {
     return new TextDecoder("utf-8").decode(bytes);
+  }
+
+  export function join<A extends string, B extends string>(
+    a: A,
+    b: B
+  ): `${A}${B}` {
+    return `${a}${b}`;
+  }
+
+  export function join_everyone_with_remove_prefix_suffix_recursion<
+    C extends string,
+    T extends string
+  >(split_char: C, first: T) {
+    const trimed_first = Strs.remove_prefix_suffix_recursion(first, split_char);
+    const create_option = () => {
+      return {
+        ok() {
+          return trimed_first;
+        },
+        and_join<V extends string>(item: V) {
+          const trimed_item = Strs.remove_prefix_suffix_recursion(
+            item,
+            split_char
+          );
+          const next = join(join(trimed_first, split_char), trimed_item);
+          return join_everyone_with_remove_prefix_suffix_recursion(
+            split_char,
+            next
+          );
+        },
+      };
+    };
+    return create_option();
   }
 }
 

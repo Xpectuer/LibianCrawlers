@@ -197,26 +197,50 @@ export async function* read_postgres_table(
   }
 }
 
+export type JsonataTemplate = string;
+
 export async function* read_postgres_table_type_wrap<T>(param: {
   jsonata_exp?: null | ReturnType<typeof jsonata>;
   rows_gen: AsyncGenerator<postgres.Row[], void>;
   cache_by_id: { typename: string; enable: boolean };
+  with_jsonata_template: JsonataTemplate[] | null | undefined;
 }) {
-  const { jsonata_exp, rows_gen } = param;
+  const { jsonata_exp, rows_gen, with_jsonata_template } = param;
   for await (const rows of rows_gen) {
     yield await Promise.all(
       rows.map(async (it) => {
-        const obj = it;
-        if (jsonata_exp !== null && jsonata_exp !== undefined) {
-          return {
-            obj,
-            [`group__${await jsonata_exp.evaluate(it)}`]: obj,
-          } as T;
-        } else {
-          return {
-            obj,
-          } as T;
-        }
+        const _after_jsonata_template = await (async () => {
+          if (!with_jsonata_template) {
+            return it;
+          }
+          const res = { ...it };
+          for (const template_name of with_jsonata_template) {
+            const jsonata_template_exp = jsonata(
+              await Deno.readTextFile(
+                path.join("jsonata_templates", `${template_name}.jsonata`)
+              )
+            );
+            res[`template_${template_name}`] =
+              await jsonata_template_exp.evaluate(it);
+          }
+          return res;
+        })();
+
+        const _after_jsonate_group = await (async () => {
+          if (jsonata_exp !== null && jsonata_exp !== undefined) {
+            return {
+              obj: _after_jsonata_template,
+              [`group__${await jsonata_exp.evaluate(it)}` as const]:
+                _after_jsonata_template,
+            };
+          } else {
+            return {
+              obj: _after_jsonata_template,
+            };
+          }
+        })();
+
+        return _after_jsonate_group as T;
       })
     );
   }
