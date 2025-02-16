@@ -81,30 +81,9 @@ deno check --all general_data_process/libian_crawler/clean_and_merge.ts
 没问题的话就运行。
 
 ```shell
-deno run --allow-env=PG* --allow-read=data_cleaner_ci_generated/.cache_by_id,./jsonata_templates  general_data_process/libian_crawler/clean_and_merge.ts
+deno task run:clean:libian_crawler
 ```
 
 `clean_and_merge.ts` 脚本会先运行数据库迁移（在 `general_data_process/libian_crawler/migrations/` 目录下），
 然后读取在 `user_code/LibianCrawlerGarbage.ts` 中指定的迭代器，然后合并 ID 相同的多条数据（可能时间不同、也可能爬了很多次），
 最后将合并后的结果增量更新到 Postgres 中。
-
-<!-- ## 需求
-
-自动化的数据清洗是个究极难题。它难就难在：
-
-1. 各种数仓里的答辩数据什么都有。
-
-   1. 答辩数据的一些答辩键值又与业务紧密耦合，比如 token、url …… 所以依然需要人来识别。
-   2. 返回值啥都有，报错的、风控的、nullable 的……
-   3. 类型系统不稳定，第三方 API 返回啥的都有。爬虫工程师和数据工程师之间有一道厚厚的类型之墙。
-   4. 解决方法: 使用 `typescript` 和 `quicktype` 来生成健壮的类型代码，并辅之以 `jsonata` 来做些便于区分 union type 的分组。
-
-2. 代码结构与业务隐私组合的麻烦，不能把业务代码硬编码到仓库中。
-
-   1. 有时有一些自己的秘密数据，想复用代码不方便。
-   2. 但爬虫都写入仓库了，总得把对应的清洗代码放进去。
-   3. 解决方法: 使用 `init_config.ts` 脚本来生成用户个人代码区域。
-
-3. 把初次对齐列的数据去重合并。例如根据去重 ID 合并。
-
-4. 对清洗好的数据做后续的业务，例如继续爬取详情、调用 AI 总结、OCR、转文字…… -->
