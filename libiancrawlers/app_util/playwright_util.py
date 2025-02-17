@@ -66,10 +66,12 @@ async def get_browser(*,
         browser_context = await browser.new_context()
     else:
         gecko_profile_dir = await read_config_get_path('crawler', 'gecko', 'profile-dir-base')
+        user_data_dir = os.path.join(gecko_profile_dir,
+                                     filename_slugify(mode.browser_data_dir_id, allow_unicode=True))
+        logger.debug('create browser , user data dir at {}', user_data_dir)
         browser_context: BrowserContext = await AsyncCamoufox(
             persistent_context=True,
-            user_data_dir=os.path.join(gecko_profile_dir,
-                                       filename_slugify(mode.browser_data_dir_id, allow_unicode=True)),
+            user_data_dir=user_data_dir,
             **launch_options,
         ).__aenter__()
         browser: None = browser_context.browser

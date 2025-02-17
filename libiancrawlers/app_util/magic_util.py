@@ -165,10 +165,10 @@ def _bs4_tag_to_dict(t: Tag, *, children: bool, ignore_conf: Bs4ToDictIgnoreConf
     skip_length_check = False
     if s is None:
         pass
-    # elif ignore_conf.get('style_str') and n == 'style':
-    #     s = 'Ignore style'
-    # elif ignore_conf.get('script_str') and n == 'script':
-    #     s = 'Ignore script'
+    elif ignore_conf.get('style_str') and n == 'style':
+        s = 'Ignore style'
+    elif ignore_conf.get('script_str') and n == 'script':
+        s = 'Ignore script'
     elif n in ['pre', 'textarea']:
         j, j5 = parse_json(s.strip())
         if j is not None or j5 is not None:
@@ -176,10 +176,10 @@ def _bs4_tag_to_dict(t: Tag, *, children: bool, ignore_conf: Bs4ToDictIgnoreConf
     else:
         s = s.strip()
 
-    # if not skip_length_check:
-    #     str_max_length = ignore_conf.get('str_max_length')
-    #     if s is not None and str_max_length is not None and 0 <= str_max_length < len(s):
-    #         s = f'Ignore length greater than {str_max_length}'
+    if not skip_length_check:
+        str_max_length = ignore_conf.get('str_max_length')
+        if s is not None and str_max_length is not None and 0 <= str_max_length < len(s):
+            s = f'Ignore length greater than {str_max_length}'
 
     cld = None if not children else [
         _bs4_page_element_to_dict(c,
@@ -246,9 +246,16 @@ ParseHtmlInfoResult = TypedDict('ParseHtmlInfoResult', {
 })
 
 
-def parse_html_info(html_doc: Optional[str]) -> Optional[ParseHtmlInfoResult]:
+def parse_html_info(html_doc: Optional[str], *, html_root_ignore_conf: Optional[Bs4ToDictIgnoreConfig] = None) \
+        -> Optional[ParseHtmlInfoResult]:
     if html_doc is None:
         return None
+    if html_root_ignore_conf is None:
+        html_root_ignore_conf = {
+            'style_str': False,
+            'script_str': False,
+            'str_max_length': -1,
+        }
     soup = BeautifulSoup(html_doc, 'html.parser')
     _title = soup.__getattr__('title')
     r: ParseHtmlInfoResult = {
@@ -261,11 +268,7 @@ def parse_html_info(html_doc: Optional[str]) -> Optional[ParseHtmlInfoResult]:
                                                               }),
         'root': _bs4_tag_to_dict(soup,
                                  children=True,
-                                 ignore_conf={
-                                     'style_str': True,
-                                     'script_str': True,
-                                     'str_max_length': 1024,
-                                 }),
+                                 ignore_conf=html_root_ignore_conf),
     }
 
     return r
@@ -305,7 +308,8 @@ def find_tag(t: Optional[ITag], names: List[str], prop: Optional[str]):
     return None
 
 
-def get_magic_info(buf: Union[str, bytes]) -> MagicInfo:
+def get_magic_info(buf: Union[str, bytes], *,
+                   html_root_ignore_conf: Optional[Bs4ToDictIgnoreConfig] = None) -> MagicInfo:
     mime = magic.from_buffer(buffer=buf, mime=True)
     desc = magic.from_buffer(buffer=buf, mime=False)
 
@@ -329,7 +333,7 @@ def get_magic_info(buf: Union[str, bytes]) -> MagicInfo:
 
     try:
         if text.strip().startswith('<'):
-            html_info = parse_html_info(text)
+            html_info = parse_html_info(text, html_root_ignore_conf=html_root_ignore_conf)
         else:
             html_info = None
     except BaseException as err:

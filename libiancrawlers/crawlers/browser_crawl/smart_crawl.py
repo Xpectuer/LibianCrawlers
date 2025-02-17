@@ -8,8 +8,8 @@ from typing import Literal, Optional
 
 import aiofiles.os
 import aiofiles.ospath
-import playwright.async_api
 from loguru import logger
+from playwright.async_api import Page
 
 from libiancrawlers.app_util.networks import update_proxies
 from libiancrawlers.app_util.networks.iputil import get_my_public_ip_info
@@ -22,20 +22,39 @@ from libiancrawlers.util.fs import mkdirs, aios_listdir
 
 _valid_smart_extract_mode = ['insert_to_db', 'save_file', 'save_file_and_insert_to_db']
 
+Locale = Literal['zh-CN']
 
-async def smart_extract(*,
-                        url: str,
-                        mode: Literal['insert_to_db', 'save_file', 'save_file_and_insert_to_db'] = 'save_file',
-                        output_dir: Optional[str] = None,
-                        tag_group: str = 'dev',
-                        tag_version: Optional[str] = None,
-                        locale: Literal['zh-CN'],
-                        browser_data_dir_id='smart-extract-default',
-                        wait_until_close_browser=False,
-                        _should_init_app=True,
-                        html_extract_detect_by_cjk: Optional[bool] = None,
-                        save_file_json_indent=2,
-                        ):
+
+async def smart_crawl_v1_api(*,
+                             url: str,
+                             tag_group: str,
+                             tag_version: str,
+                             locale: Locale,
+                             browser_data_dir_id_suffix: str):
+    return smart_crawl_v1(
+        url=url,
+        mode='insert_to_db',
+        tag_group=tag_group,
+        tag_version=tag_version,
+        locale=locale,
+        browser_data_dir_id=f'smart-crawl-v1-api__${browser_data_dir_id_suffix}',
+        wait_until_close_browser=False,
+        _should_init_app=False,
+    )
+
+
+async def smart_crawl_v1(*,
+                         url: str,
+                         mode: Literal['insert_to_db', 'save_file', 'save_file_and_insert_to_db'] = 'save_file',
+                         output_dir: Optional[str] = None,
+                         tag_group: str = 'cli-group',
+                         tag_version: Optional[str] = None,
+                         locale: Locale,
+                         browser_data_dir_id='smart-crawl-v1-default-browser-data-dir-id',
+                         wait_until_close_browser=False,
+                         _should_init_app=True,
+                         save_file_json_indent=2,
+                         ):
     _param_json = json.dumps(locals(), ensure_ascii=False, indent=save_file_json_indent)
 
     from libiancrawlers.app_util.types import Initiator
@@ -47,15 +66,14 @@ async def smart_extract(*,
     if mode not in _valid_smart_extract_mode:
         raise ValueError(f'Invalid mode {mode} , valid value should in {_valid_smart_extract_mode}')
 
+    is_save_file = mode == 'save_file' or mode == 'save_file_and_insert_to_db'
     is_insert_to_db = mode == 'insert_to_db' or mode == 'save_file_and_insert_to_db'
+
     if _should_init_app:
         init_app(Initiator(postgres=is_insert_to_db, playwright=True))
 
     if output_dir is None:
-        output_dir = os.path.join('.data', 'webpage-smart-extract')
-
-    if html_extract_detect_by_cjk is None:
-        html_extract_detect_by_cjk = locale in ['zh-CN']
+        output_dir = os.path.join('.data', 'smart-crawl-v1')
 
     b_page = None
     browser_context = None
@@ -84,75 +102,29 @@ async def smart_extract(*,
         logger.debug('start page goto')
         _resp_goto = await b_page.goto(url=url)
 
-        def random_mouse_move():
-            return {
-                'fn': 'mouse_move',
-                'args': [random.randint(300, 1600), random.randint(300, 900)],
-                'kwargs': {
-                    'steps': 5
-                },
-                'on_timeout': 'continue',
-            }
-
         for waited in [
-            {
-                'fn': 'bring_to_front',
-            }, {
-                'fn': 'wait_for_load_state',
-                'args': ['networkidle'],
-                'kwargs': {
-                    'timeout': 1,
-                },
-                'on_timeout': 'continue',
-            }, {
-                'fn': 'wait_for_load_state',
-                'args': ['domcontentloaded'],
-                'kwargs': {
-                    'timeout': 30,
-                },
-            }, {
-                'fn': 'wait_for_load_state',
-                'args': ['load'],
-                'kwargs': {
-                    'timeout': 30,
-                }
-            },
-            *([
-                random_mouse_move()
-            ].__mul__(3)),
+            *_default_waited_webpage_loaded()
         ]:
             try:
                 logger.debug('start wait , param is {}', waited)
                 if waited.get('fn') is not None:
-                    async def mouse_move(*args, **kwargs):
-                        await asyncio.wait_for(b_page.mouse.move(*args, **kwargs), timeout=3)
-
-                    fn_map = {
-                        'sleep': sleep,
-                        'wait_for_load_state': b_page.wait_for_load_state,
-                        'bring_to_front': b_page.bring_to_front,
-                        'wait_for_function': b_page.wait_for_function,
-                        'mouse_move': mouse_move
-                    }
                     _waited_args = waited.get('args')
                     _waited_kwargs = waited.get('kwargs')
                     if _waited_args is None:
                         _waited_args = []
                     if _waited_kwargs is None:
                         _waited_kwargs = dict()
+                    fn_map = _create_waited_func_map(b_page=b_page)
                     await fn_map[waited['fn']](*_waited_args, **_waited_kwargs)
             except BaseException as err_timeout:
-                for err_type_timeout in [playwright.async_api.TimeoutError,
-                                         asyncio.TimeoutError,
-                                         TimeoutError]:
-                    if isinstance(err_timeout, err_type_timeout):
-                        if waited.get('on_timeout') == 'continue':
-                            break
-                        raise TimeoutError(f'timeout on step : {waited}') from err_timeout
+                from libiancrawlers.util.exceptions import is_timeout_error
+                if is_timeout_error(err_timeout):
+                    if waited.get('on_timeout') == 'continue':
+                        logger.debug('wait timeout but continue , err_timeout is {}', err_timeout)
+                        continue
+                    raise TimeoutError(f'timeout on step : {waited}') from err_timeout
                 else:
                     raise
-                logger.debug('wait timeout but continue , err_timeout is {}', err_timeout)
-                continue
 
         logger.debug('finished all waiter')
         if is_insert_to_db:
@@ -166,27 +138,26 @@ async def smart_extract(*,
         else:
             page_info_smart_wait_insert_to_db = None
 
-        base_dir = None
-        is_save_file = mode == 'save_file' or mode == 'save_file_and_insert_to_db'
+        logger.debug('start parse resp_goto')
+        resp_goto = await response_to_dict(_resp_goto)
+
+        logger.debug('start parse body_resp_goto')
+        body_resp_goto = get_magic_info(await _resp_goto.body())
+
+        logger.debug('start parse page_content')
+        page_content = get_magic_info(await b_page.content())
+
+        common_info = dict(
+            resp_goto=resp_goto,
+            body_resp_goto=body_resp_goto,
+            page_content=page_content,
+        )
+
         logger.debug('is_save_file is {}', is_save_file)
         if is_save_file:
-            def get_ymd_hms_str():
-                n = datetime.datetime.now()
-                return f'at{str(n.year).rjust(5, "_")}{str(n.month).rjust(2, "0")}{str(n.day).rjust(2, "0")}{str(n.hour).rjust(2, "0")}{str(n.minute).rjust(2, "0")}{str(n.second).rjust(2, "0")}'
+            base_dir = await _get_base_dir_when_save_file(tag_version=tag_version, output_dir=output_dir,
+                                                          tag_group=tag_group)
 
-            if tag_version is None:
-                while True:
-                    tag_version_2 = get_ymd_hms_str()
-                    base_dir = os.path.join(output_dir, tag_group, tag_version_2)
-                    logger.debug('try base_dir at {}', base_dir)
-                    if await aiofiles.ospath.isdir(base_dir) and len(await aios_listdir(base_dir)) > 0:
-                        logger.debug('base_dir is not empty , try next tag version , current is {}', tag_version_2)
-                        await sleep(1)
-                        continue
-                    break
-            else:
-                tag_version_2 = tag_version
-                base_dir = os.path.join(output_dir, tag_group, tag_version_2)
             logger.debug('base dir is {}', base_dir)
             await mkdirs(base_dir)
             _param_json_file_path = os.path.join(base_dir, 'param.json')
@@ -203,21 +174,7 @@ async def smart_extract(*,
             )
         else:
             page_info_smart_wait_save_file = None
-
-        logger.debug('start parse resp_goto')
-        resp_goto = await response_to_dict(_resp_goto)
-
-        logger.debug('start parse body_resp_goto')
-        body_resp_goto = get_magic_info(await _resp_goto.body())
-
-        logger.debug('start parse page_content')
-        page_content = get_magic_info(await b_page.content())
-
-        common_info = dict(
-            resp_goto=resp_goto,
-            body_resp_goto=body_resp_goto,
-            page_content=page_content,
-        )
+            base_dir = None
 
         if is_save_file:
             logger.debug('start save file')
@@ -235,18 +192,13 @@ async def smart_extract(*,
 
         if is_insert_to_db:
             logger.debug('start insert to db')
-            if tag_version is None:
-                now = datetime.datetime.now()
-                tag_version_2 = f'at{str(now.year).rjust(5, "_")}{str(now.month).rjust(2, "0")}'
-            else:
-                tag_version_2 = tag_version
 
             await insert_to_garbage_table(
-                g_type=f'webpage_smart_extract',
+                g_type=f'smart-crawl-v1',
                 g_content=dict(
                     cmd_param_json=json.loads(_param_json),
                     cmd_param_url=url_parse_to_dict(url),
-                    crawler_tag=f'{tag_group}:{tag_version_2}',
+                    crawler_tag=f'{tag_group}:{_get_tag_version_when_insert_to_db(tag_version)}',
                     common_info=common_info,
                     page_info_smart_wait=page_info_smart_wait_insert_to_db,
                 )
@@ -258,11 +210,101 @@ async def smart_extract(*,
             while b_page is not None and not b_page.is_closed():
                 await sleep(0.3)
         logger.debug('OK')
+        if _should_init_app:
+            from libiancrawlers.app_util.app_init import exit_app
+            await exit_app()
+
+
+def _get_ymd_hms_str():
+    n = datetime.datetime.now()
+    return f'at{str(n.year).rjust(5, "_")}{str(n.month).rjust(2, "0")}{str(n.day).rjust(2, "0")}{str(n.hour).rjust(2, "0")}{str(n.minute).rjust(2, "0")}{str(n.second).rjust(2, "0")}'
+
+
+def _random_mouse_move():
+    return {
+        'fn': 'mouse_move',
+        'args': [random.randint(300, 1600), random.randint(300, 900)],
+        'kwargs': {
+            'steps': 5
+        },
+        'on_timeout': 'continue',
+    }
+
+
+def _default_waited_webpage_loaded():
+    return [
+        {
+            'fn': 'bring_to_front',
+        }, {
+            'fn': 'wait_for_load_state',
+            'args': ['networkidle'],
+            'kwargs': {
+                'timeout': 1,
+            },
+            'on_timeout': 'continue',
+        }, {
+            'fn': 'wait_for_load_state',
+            'args': ['domcontentloaded'],
+            'kwargs': {
+                'timeout': 30,
+            },
+        }, {
+            'fn': 'wait_for_load_state',
+            'args': ['load'],
+            'kwargs': {
+                'timeout': 30,
+            }
+        },
+        *([
+              _random_mouse_move()
+          ].__mul__(3)),
+    ]
+
+
+def _create_waited_func_map(*, b_page: Page):
+    async def mouse_move(*args, **kwargs):
+        await asyncio.wait_for(b_page.mouse.move(*args, **kwargs), timeout=3)
+
+    fn_map = {
+        'sleep': sleep,
+        'wait_for_load_state': b_page.wait_for_load_state,
+        'bring_to_front': b_page.bring_to_front,
+        'wait_for_function': b_page.wait_for_function,
+        'mouse_move': mouse_move
+    }
+
+    return fn_map
+
+
+async def _get_base_dir_when_save_file(*, tag_version: Optional[str], output_dir: str, tag_group: str):
+    if tag_version is None:
+        while True:
+            tag_version_2 = _get_ymd_hms_str()
+            base_dir = os.path.join(output_dir, tag_group, tag_version_2)
+            logger.debug('try base_dir at {}', base_dir)
+            if await aiofiles.ospath.isdir(base_dir) and len(await aios_listdir(base_dir)) > 0:
+                logger.debug('base_dir is not empty , try next tag version , current is {}', tag_version_2)
+                await sleep(1)
+                continue
+            break
+    else:
+        tag_version_2 = tag_version
+        base_dir = os.path.join(output_dir, tag_group, tag_version_2)
+    return base_dir
+
+
+def _get_tag_version_when_insert_to_db(tag_version: Optional[str]):
+    if tag_version is None:
+        now = datetime.datetime.now()
+        tag_version_2 = f'at{str(now.year).rjust(5, "_")}{str(now.month).rjust(2, "0")}'
+    else:
+        tag_version_2 = tag_version
+    return tag_version_2
 
 
 def cli():
     from fire import Fire
-    Fire(smart_extract)
+    Fire(smart_crawl_v1)
 
 
 if __name__ == '__main__':

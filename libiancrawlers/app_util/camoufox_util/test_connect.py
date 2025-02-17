@@ -4,7 +4,7 @@ import asyncio
 import async_to_sync
 from loguru import logger
 
-from libiancrawlers.common.networks import update_proxies
+from libiancrawlers.app_util.networks import update_proxies
 
 
 def to_browser_scan():

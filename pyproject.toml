@@ -61,15 +61,15 @@ camoufox = { extras = ["geoip"], version = "^0.3.10" }
 camoufox = { extras = ["geoip"], version = "^0.3.10" }
 
 [tool.poetry.scripts]
-xiaohongshu-search = "libiancrawlers.xiaohongshu.search:cli"
-bilibili-search = "libiancrawlers.bilibili.search:cli"
-taobao-search = "libiancrawlers.taobao.search:cli"
-zhihu-search = "libiancrawlers.zhihu.search:cli"
-launch-camoufox-server = "libiancrawlers.camoufox_server.launch_camoufox_server:cli"
-camoufox-to-browser-scan = "libiancrawlers.camoufox_server.test_connect:to_browser_scan"
-camoufox-to-ip138 = "libiancrawlers.camoufox_server.test_connect:to_ip138"
-launch-dns-proxy = "libiancrawlers.common.networks.dnsproxy:cli"
-webpage-smart-extract = "libiancrawlers.webpage.smart_extract:cli"
+#xiaohongshu-search = "libiancrawlers.xiaohongshu.search:cli"
+#bilibili-search = "libiancrawlers.bilibili.search:cli"
+#taobao-search = "libiancrawlers.taobao.search:cli"
+#zhihu-search = "libiancrawlers.zhihu.search:cli"
+#launch-camoufox-server = "libiancrawlers.camoufox_server.launch_camoufox_server:cli"
+camoufox-to-browser-scan = "libiancrawlers.app_util.camoufox_util.test_connect:to_browser_scan"
+#camoufox-to-ip138 = "libiancrawlers.camoufox_server.test_connect:to_ip138"
+#launch-dns-proxy = "libiancrawlers.common.networks.dnsproxy:cli"
+smart-crawl = "libiancrawlers.crawlers.browser_crawl.smart_crawl:cli"
 
 [[tool.poetry.source]]
 name = "tsinghua"

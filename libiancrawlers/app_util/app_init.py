@@ -34,15 +34,13 @@ def init_app(conf: Initiator):
 
 # noinspection PyBroadException
 async def exit_app():
-    from libiancrawlers.common.postgres import close_global_pg_pool
-
     if _APP_INIT_CONF is None:
         raise ValueError('require call init_app before exit !')
 
     async def close_pg():
         if not _APP_INIT_CONF.postgres:
             return
-        # noinspection PyBroadException
+        from libiancrawlers.app_util.postgres import close_global_pg_pool
         try:
             await close_global_pg_pool()
         except BaseException:
@@ -53,7 +51,7 @@ async def exit_app():
             return
         # noinspection PyBroadException
         try:
-            from libiancrawlers.common import shutdown_playwright
+            from libiancrawlers.app_util.playwright_util import shutdown_playwright
             await shutdown_playwright()
         except BaseException:
             logger.exception('Failed on close playwright')

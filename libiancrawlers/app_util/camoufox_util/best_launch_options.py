@@ -4,9 +4,9 @@ from typing import Optional, Union, Tuple
 from camoufox.locale import get_geolocation
 from loguru import logger
 
-from libiancrawlers.common.networks.geoutil import get_geo
-from libiancrawlers.common.networks.iputil import MyPublicIpInfo
-from libiancrawlers.common.networks.proxies import read_current_schema_proxies
+from libiancrawlers.app_util.networks.geoutil import get_geo
+from libiancrawlers.app_util.networks.iputil import MyPublicIpInfo
+from libiancrawlers.app_util.networks.proxies import read_current_schema_proxies
 from libiancrawlers.util.dicts import find_first_value_not_null
 
 

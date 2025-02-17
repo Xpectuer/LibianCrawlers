@@ -28,10 +28,8 @@ poetry update --with test,camoufox-server,crawler-xiaohongshu,crawler-bilibili,c
 
 ### Example
 
-Start xiaohongshu search :
-
 ```shell
-poetry run xiaohongshu-search -k Python
+poetry run smart-crawl --locale zh-CN --url https://www.baidu.com/s?wd=python
 ```
 
 ### Install camoufox
