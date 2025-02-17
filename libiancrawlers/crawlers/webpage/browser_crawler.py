@@ -11,12 +11,12 @@ import aiofiles.ospath
 import playwright.async_api
 from loguru import logger
 
-from libiancrawlers.common.networks import update_proxies
-from libiancrawlers.common.networks.iputil import get_my_public_ip_info
-from libiancrawlers.common.playwright_util import get_browser, response_to_dict, \
+from libiancrawlers.app_util.networks import update_proxies
+from libiancrawlers.app_util.networks.iputil import get_my_public_ip_info
+from libiancrawlers.app_util.playwright_util import get_browser, response_to_dict, \
     page_info_to_dict, BlobOutput, url_parse_to_dict
-from libiancrawlers.common.postgres import require_init_table, insert_to_garbage_table
-from libiancrawlers.common.types import LaunchBrowserParam, LibianCrawlerBugException
+from libiancrawlers.app_util.postgres import require_init_table, insert_to_garbage_table
+from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException
 from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.fs import mkdirs, aios_listdir
 
@@ -38,11 +38,11 @@ async def smart_extract(*,
                         ):
     _param_json = json.dumps(locals(), ensure_ascii=False, indent=save_file_json_indent)
 
-    from libiancrawlers.common.types import Initiator
-    from libiancrawlers.common.app_init import init_app
-    from libiancrawlers.common.magic_util import get_magic_info
-    from libiancrawlers.camoufox_server.best_launch_options import get_best_launch_options
-    from libiancrawlers.camoufox_server.best_launch_options import read_proxy_server
+    from libiancrawlers.app_util.types import Initiator
+    from libiancrawlers.app_util.app_init import init_app
+    from libiancrawlers.app_util.magic_util import get_magic_info
+    from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options
+    from libiancrawlers.app_util.camoufox_util.best_launch_options import read_proxy_server
 
     if mode not in _valid_smart_extract_mode:
         raise ValueError(f'Invalid mode {mode} , valid value should in {_valid_smart_extract_mode}')

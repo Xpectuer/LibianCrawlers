@@ -6,7 +6,7 @@ from typing import TypedDict, Optional
 
 from loguru import logger
 
-from libiancrawlers.common.networks.req import request
+from libiancrawlers.app_util.networks.req import request
 
 MyPublicIpInfo = TypedDict('MyPublicIpInfo', {
     'public_ip_v4': Optional[ipaddress.IPv4Address],

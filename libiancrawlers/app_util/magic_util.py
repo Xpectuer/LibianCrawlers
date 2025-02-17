@@ -165,10 +165,10 @@ def _bs4_tag_to_dict(t: Tag, *, children: bool, ignore_conf: Bs4ToDictIgnoreConf
     skip_length_check = False
     if s is None:
         pass
-    elif ignore_conf.get('style_str') and n == 'style':
-        s = 'Ignore style'
-    elif ignore_conf.get('script_str') and n == 'script':
-        s = 'Ignore script'
+    # elif ignore_conf.get('style_str') and n == 'style':
+    #     s = 'Ignore style'
+    # elif ignore_conf.get('script_str') and n == 'script':
+    #     s = 'Ignore script'
     elif n in ['pre', 'textarea']:
         j, j5 = parse_json(s.strip())
         if j is not None or j5 is not None:
@@ -176,10 +176,10 @@ def _bs4_tag_to_dict(t: Tag, *, children: bool, ignore_conf: Bs4ToDictIgnoreConf
     else:
         s = s.strip()
 
-    if not skip_length_check:
-        str_max_length = ignore_conf.get('str_max_length')
-        if s is not None and str_max_length is not None and 0 <= str_max_length < len(s):
-            s = f'Ignore length greater then {str_max_length}'
+    # if not skip_length_check:
+    #     str_max_length = ignore_conf.get('str_max_length')
+    #     if s is not None and str_max_length is not None and 0 <= str_max_length < len(s):
+    #         s = f'Ignore length greater than {str_max_length}'
 
     cld = None if not children else [
         _bs4_page_element_to_dict(c,
@@ -242,7 +242,6 @@ def _bs4_page_element_to_dict(p: PageElement, *, children: bool, ignore_conf: Bs
 
 ParseHtmlInfoResult = TypedDict('ParseHtmlInfoResult', {
     "title": Optional[ITag],
-    "all_links": List[IPageElement],
     "root": Optional[ITag],
 })
 
@@ -260,15 +259,6 @@ def parse_html_info(html_doc: Optional[str]) -> Optional[ParseHtmlInfoResult]:
                                                                   'script_str': False,
                                                                   'str_max_length': -1,
                                                               }),
-        'all_links': [
-            _bs4_page_element_to_dict(a,
-                                      children=True,
-                                      ignore_conf={
-                                          'style_str': False,
-                                          'script_str': False,
-                                          'str_max_length': -1,
-                                      }) for a in soup.find_all('a')
-        ],
         'root': _bs4_tag_to_dict(soup,
                                  children=True,
                                  ignore_conf={

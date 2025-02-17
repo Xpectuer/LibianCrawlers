@@ -31,8 +31,7 @@ async def launch_camoufox_server(
 
 def cli():
     from fire import Fire
-    from libiancrawlers.common.app_init import init_app
-    from libiancrawlers.common import Initiator
+    from libiancrawlers.common.app_init import init_app, Initiator
     init_app(Initiator(
         playwright=False,
         postgres=False,

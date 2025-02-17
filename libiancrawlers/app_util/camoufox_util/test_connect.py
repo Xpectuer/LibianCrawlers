@@ -16,11 +16,11 @@ def to_ip138():
 
 
 async def goto_website(url: str):
-    from libiancrawlers.camoufox_server.best_launch_options import get_best_launch_options, read_proxy_server
-    from libiancrawlers.common.app_init import init_app, Initiator, exit_app
-    from libiancrawlers.common.playwright_util import get_browser
-    from libiancrawlers.common.types import LaunchBrowserParam
-    from libiancrawlers.common.networks.iputil import get_my_public_ip_info
+    from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options, read_proxy_server
+    from libiancrawlers.app_util.app_init import init_app, Initiator, exit_app
+    from libiancrawlers.app_util.playwright_util import get_browser
+    from libiancrawlers.app_util.types import LaunchBrowserParam
+    from libiancrawlers.app_util.networks.iputil import get_my_public_ip_info
 
     init_app(Initiator(playwright=True, postgres=False))
     browser_context = None

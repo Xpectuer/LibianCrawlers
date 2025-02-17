@@ -4,7 +4,7 @@ import os.path
 from aioify import aioify
 from loguru import logger
 
-from libiancrawlers.common.config import read_config
+from libiancrawlers.app_util.config import read_config
 from libiancrawlers.util.plat import is_windows
 from libiancrawlers.util.shell import shell_run_and_show, CmdMulti
 

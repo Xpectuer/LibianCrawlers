@@ -44,7 +44,7 @@ def lazy_variable(factory: Callable[[], T]):
     from loguru import logger
     lock = Lock()
 
-    from libiancrawlers.common.timefmt import logd_time
+    from libiancrawlers.util.timefmt import logd_time
 
     @logd_time
     def get_variable():

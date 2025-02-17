@@ -6,9 +6,9 @@ from typing import Optional
 from asyncpg import Pool
 from loguru import logger
 import asyncpg
-from libiancrawlers.common.app_init import get_app_init_conf
-from libiancrawlers.common.config import read_config
-from libiancrawlers.common.types import JSON, LibianCrawlerInitConfDisabled
+from libiancrawlers.app_util.app_init import get_app_init_conf
+from libiancrawlers.app_util.config import read_config
+from libiancrawlers.app_util.types import JSON, LibianCrawlerInitConfDisabled
 
 _CHECKED_GARBAGE_TABLE_EXIST = False
 

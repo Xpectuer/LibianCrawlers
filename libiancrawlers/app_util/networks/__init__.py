@@ -5,8 +5,8 @@ from typing import Union, List, Tuple, Optional, Callable, Coroutine, Any
 
 from loguru import logger
 
-from libiancrawlers.common.networks.proxies import update_proxies
-from libiancrawlers.common.timefmt import logd_time
+from libiancrawlers.app_util.networks.proxies import update_proxies
+from libiancrawlers.util.timefmt import logd_time
 from libiancrawlers.util.coroutines import blocking_func
 
 

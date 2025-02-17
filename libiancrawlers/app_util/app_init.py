@@ -4,7 +4,7 @@ from typing import Optional
 
 from loguru import logger
 
-from libiancrawlers.common.types import Initiator
+from libiancrawlers.app_util.types import Initiator
 
 _APP_INIT_CONF: Optional[Initiator] = None
 
