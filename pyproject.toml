@@ -69,7 +69,7 @@ camoufox = { extras = ["geoip"], version = "^0.3.10" }
 camoufox-to-browser-scan = "libiancrawlers.app_util.camoufox_util.test_connect:to_browser_scan"
 #camoufox-to-ip138 = "libiancrawlers.camoufox_server.test_connect:to_ip138"
 #launch-dns-proxy = "libiancrawlers.common.networks.dnsproxy:cli"
-smart-crawl = "libiancrawlers.crawlers.browser_crawl.smart_crawl:cli"
+smart-crawl = "libiancrawlers.crawlers.smart_crawl.smart_crawl:cli"
 
 [[tool.poetry.source]]
 name = "tsinghua"

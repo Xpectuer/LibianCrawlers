@@ -1,0 +1,49 @@
+[
+  {
+    'fn': 'logi',
+    'args': [
+      'Start taobao search'
+    ]
+  },
+  {
+    'fn': 'sleep',
+    'args': [
+      1
+    ]
+  },
+  {
+    'fn': 'page_type',
+    'args': [
+      '#q',
+      'Python'
+    ],
+    'kwargs': {
+      delay: 300
+    }
+  },
+  {
+    'fn': 'sleep',
+    'args': [
+      3
+    ]
+  },
+  {
+    'fn': 'page_click',
+    'args': [
+      '.btn-search',
+    ],
+  },
+  {
+    'fn': 'sleep',
+    'args': [
+      3
+    ]
+  },
+  {
+    'fn': 'logi',
+    'args': [
+      'Wait user login : {}',
+      'taobao'
+    ]
+  }
+]

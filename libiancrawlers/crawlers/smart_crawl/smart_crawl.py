@@ -1,22 +1,19 @@
 # -*- coding: UTF-8 -*-
-import asyncio
 import datetime
 import json
 import os.path
-import random
 from typing import Literal, Optional
 
 import aiofiles.os
 import aiofiles.ospath
 from loguru import logger
-from playwright.async_api import Page
 
 from libiancrawlers.app_util.networks import update_proxies
 from libiancrawlers.app_util.networks.iputil import get_my_public_ip_info
 from libiancrawlers.app_util.playwright_util import get_browser, response_to_dict, \
     page_info_to_dict, BlobOutput, url_parse_to_dict
 from libiancrawlers.app_util.postgres import require_init_table, insert_to_garbage_table
-from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException
+from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException, JSON
 from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.fs import mkdirs, aios_listdir
 
@@ -25,22 +22,22 @@ _valid_smart_extract_mode = ['insert_to_db', 'save_file', 'save_file_and_insert_
 Locale = Literal['zh-CN']
 
 
-async def smart_crawl_v1_api(*,
-                             url: str,
-                             tag_group: str,
-                             tag_version: str,
-                             locale: Locale,
-                             browser_data_dir_id_suffix: str):
-    return smart_crawl_v1(
-        url=url,
-        mode='insert_to_db',
-        tag_group=tag_group,
-        tag_version=tag_version,
-        locale=locale,
-        browser_data_dir_id=f'smart-crawl-v1-api__${browser_data_dir_id_suffix}',
-        wait_until_close_browser=False,
-        _should_init_app=False,
-    )
+# async def smart_crawl_v1_api(*,
+#                              url: str,
+#                              tag_group: str,
+#                              tag_version: str,
+#                              locale: Locale,
+#                              browser_data_dir_id_suffix: str):
+#     return smart_crawl_v1(
+#         url=url,
+#         mode='insert_to_db',
+#         tag_group=tag_group,
+#         tag_version=tag_version,
+#         locale=locale,
+#         browser_data_dir_id=f'smart-crawl-v1-api__${browser_data_dir_id_suffix}',
+#         wait_until_close_browser=False,
+#         _should_init_app=False,
+#     )
 
 
 async def smart_crawl_v1(*,
@@ -54,14 +51,14 @@ async def smart_crawl_v1(*,
                          wait_until_close_browser=False,
                          _should_init_app=True,
                          save_file_json_indent=2,
+                         wait_steps: JSON = None,
                          ):
     _param_json = json.dumps(locals(), ensure_ascii=False, indent=save_file_json_indent)
 
     from libiancrawlers.app_util.types import Initiator
     from libiancrawlers.app_util.app_init import init_app
     from libiancrawlers.app_util.magic_util import get_magic_info
-    from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options
-    from libiancrawlers.app_util.camoufox_util.best_launch_options import read_proxy_server
+    from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options, read_proxy_server
 
     if mode not in _valid_smart_extract_mode:
         raise ValueError(f'Invalid mode {mode} , valid value should in {_valid_smart_extract_mode}')
@@ -102,27 +99,38 @@ async def smart_crawl_v1(*,
         logger.debug('start page goto')
         _resp_goto = await b_page.goto(url=url)
 
-        for waited in [
-            *_default_waited_webpage_loaded()
+        if isinstance(wait_steps, str):
+            from libiancrawlers.app_util.cmdarg_util import parse_json_or_read_file_json_like
+            wait_steps = await parse_json_or_read_file_json_like(wait_steps)
+        if wait_steps is None:
+            wait_steps = []
+        from libiancrawlers.crawlers.smart_crawl.wait_steps import _default_wait_steps, _create_wait_steps_func_map
+        for wait_step in [
+            *_default_wait_steps(),
+            *wait_steps
         ]:
             try:
-                logger.debug('start wait , param is {}', waited)
-                if waited.get('fn') is not None:
-                    _waited_args = waited.get('args')
-                    _waited_kwargs = waited.get('kwargs')
+                logger.debug('start wait , param is {}', wait_step)
+                if wait_step.get('fn') is not None:
+                    _waited_args = wait_step.get('args')
+                    _waited_kwargs = wait_step.get('kwargs')
                     if _waited_args is None:
                         _waited_args = []
                     if _waited_kwargs is None:
                         _waited_kwargs = dict()
-                    fn_map = _create_waited_func_map(b_page=b_page)
-                    await fn_map[waited['fn']](*_waited_args, **_waited_kwargs)
+                    fn_map = _create_wait_steps_func_map(b_page=b_page)
+                    await fn_map[wait_step['fn']](*_waited_args, **_waited_kwargs)
+                else:
+                    logger.error(
+                        'Invalid wait_step , not exist fn , please see libiancrawlers/crawlers/smart_crawl/wait_steps.py . Value of wait_step is {}',
+                        wait_step)
             except BaseException as err_timeout:
                 from libiancrawlers.util.exceptions import is_timeout_error
                 if is_timeout_error(err_timeout):
-                    if waited.get('on_timeout') == 'continue':
+                    if wait_step.get('on_timeout') == 'continue':
                         logger.debug('wait timeout but continue , err_timeout is {}', err_timeout)
                         continue
-                    raise TimeoutError(f'timeout on step : {waited}') from err_timeout
+                    raise TimeoutError(f'timeout on step : {wait_step}') from err_timeout
                 else:
                     raise
 
@@ -141,8 +149,11 @@ async def smart_crawl_v1(*,
         logger.debug('start parse resp_goto')
         resp_goto = await response_to_dict(_resp_goto)
 
-        logger.debug('start parse body_resp_goto')
-        body_resp_goto = get_magic_info(await _resp_goto.body())
+        if 300 <= _resp_goto.status <= 399:
+            body_resp_goto = None
+        else:
+            logger.debug('start parse body_resp_goto')
+            body_resp_goto = get_magic_info(await _resp_goto.body())
 
         logger.debug('start parse page_content')
         page_content = get_magic_info(await b_page.content())
@@ -218,62 +229,6 @@ async def smart_crawl_v1(*,
 def _get_ymd_hms_str():
     n = datetime.datetime.now()
     return f'at{str(n.year).rjust(5, "_")}{str(n.month).rjust(2, "0")}{str(n.day).rjust(2, "0")}{str(n.hour).rjust(2, "0")}{str(n.minute).rjust(2, "0")}{str(n.second).rjust(2, "0")}'
-
-
-def _random_mouse_move():
-    return {
-        'fn': 'mouse_move',
-        'args': [random.randint(300, 1600), random.randint(300, 900)],
-        'kwargs': {
-            'steps': 5
-        },
-        'on_timeout': 'continue',
-    }
-
-
-def _default_waited_webpage_loaded():
-    return [
-        {
-            'fn': 'bring_to_front',
-        }, {
-            'fn': 'wait_for_load_state',
-            'args': ['networkidle'],
-            'kwargs': {
-                'timeout': 1,
-            },
-            'on_timeout': 'continue',
-        }, {
-            'fn': 'wait_for_load_state',
-            'args': ['domcontentloaded'],
-            'kwargs': {
-                'timeout': 30,
-            },
-        }, {
-            'fn': 'wait_for_load_state',
-            'args': ['load'],
-            'kwargs': {
-                'timeout': 30,
-            }
-        },
-        *([
-              _random_mouse_move()
-          ].__mul__(3)),
-    ]
-
-
-def _create_waited_func_map(*, b_page: Page):
-    async def mouse_move(*args, **kwargs):
-        await asyncio.wait_for(b_page.mouse.move(*args, **kwargs), timeout=3)
-
-    fn_map = {
-        'sleep': sleep,
-        'wait_for_load_state': b_page.wait_for_load_state,
-        'bring_to_front': b_page.bring_to_front,
-        'wait_for_function': b_page.wait_for_function,
-        'mouse_move': mouse_move
-    }
-
-    return fn_map
 
 
 async def _get_base_dir_when_save_file(*, tag_version: Optional[str], output_dir: str, tag_group: str):
