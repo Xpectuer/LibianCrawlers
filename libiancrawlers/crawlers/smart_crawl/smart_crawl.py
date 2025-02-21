@@ -103,11 +103,32 @@ async def smart_crawl_v1(*,
                 locale=locale,
             )
         )
+
+        if is_insert_to_db:
+            fixed_param_insert_to_db = dict(
+                cmd_param_json=json.loads(_param_json),
+                cmd_param_url=url_parse_to_dict(url),
+                crawler_tag=f'{tag_group}:{_get_tag_version_when_insert_to_db(tag_version)}',
+            )
+        else:
+            fixed_param_insert_to_db = dict()
+
+        async def _insert_to_garbage_table(**kwargs):
+            logger.debug('start insert to db')
+            await insert_to_garbage_table(
+                g_type=f'smart-crawl-v1',
+                g_content=dict(
+                    **fixed_param_insert_to_db,
+                    **kwargs,
+                )
+            )
+            logger.debug('finish insert to db')
+
         logger.debug('start new page')
         b_page = await browser_context.new_page()
 
         logger.debug('start page goto')
-        _resp_goto_obj = await b_page.goto(url=url)
+        _resp_goto_obj = await b_page.goto(url=url, wait_until='domcontentloaded')
 
         async def parse_resp_goto():
             logger.debug('start parse resp_goto')
@@ -118,7 +139,13 @@ async def smart_crawl_v1(*,
             else:
                 logger.debug('start parse body_resp_goto')
                 body_resp_goto = get_magic_info(await _resp_goto_obj.body())
-            return _resp_goto_dict, body_resp_goto
+            return dict(
+                resp_goto_dict=_resp_goto_dict,
+                body_resp_goto=body_resp_goto,
+            )
+
+        if is_insert_to_db:
+            await _insert_to_garbage_table(**(await parse_resp_goto()))
 
         if isinstance(wait_steps, str):
             from libiancrawlers.app_util.cmdarg_util import parse_json_or_read_file_json_like
@@ -126,8 +153,6 @@ async def smart_crawl_v1(*,
         if wait_steps is None:
             wait_steps = []
         from libiancrawlers.crawlers.smart_crawl.wait_steps import _create_wait_steps_func_map
-
-        dump_page_info_list_insert_to_db = []
 
         if is_save_file:
             base_dir, tag_version = await _get_base_dir_when_save_file(tag_version=tag_version, output_dir=output_dir,
@@ -149,9 +174,10 @@ async def smart_crawl_v1(*,
                 logger.debug('start build page_info for insert_to_db')
                 page_info_smart_wait_insert_to_db = await page_info_to_dict(
                     page,
-                    on_screenshot=BlobOutput(mode='base64',
-                                             base_dir=None,
-                                             filename=None)
+                    on_screenshot=BlobOutput(
+                        mode='base64',
+                        base_dir=None,
+                        filename=None)
                 )
             else:
                 page_info_smart_wait_insert_to_db = None
@@ -162,9 +188,10 @@ async def smart_crawl_v1(*,
                 logger.debug('start build page_info_smart_wait_save_file')
                 page_info_smart_wait_save_file = await page_info_to_dict(
                     page,
-                    on_screenshot=BlobOutput(mode='file',
-                                             base_dir=base_dir,
-                                             filename='page_smart_wait_screenshot.png')
+                    on_screenshot=BlobOutput(
+                        mode='file',
+                        base_dir=base_dir,
+                        filename=f'screenshot__{filename_slugify(dump_tag, allow_unicode=True)}.png')
                 )
             else:
                 page_info_smart_wait_save_file = None
@@ -203,9 +230,8 @@ async def smart_crawl_v1(*,
                 logger.debug('finish save file')
 
             if is_insert_to_db:
-                logger.debug('append dump page info to list')
-                dump_page_info_list_insert_to_db.append(
-                    get_dumped_obj(
+                await _insert_to_garbage_table(
+                    dump_page_info=get_dumped_obj(
                         page_info_smart_wait=page_info_smart_wait_insert_to_db,
                     )
                 )
@@ -242,6 +268,7 @@ async def smart_crawl_v1(*,
                             b_page=b_page,
                             browser_context=browser_context,
                             _dump_page=_dump_page,
+                            _process_steps=_process_steps,
                         )
                         await fn_map[wait_step['fn']](*_waited_args, **_waited_kwargs)
                         on_success_steps = wait_step.get('on_success_steps')
@@ -275,21 +302,6 @@ async def smart_crawl_v1(*,
 
         await _dump_page(dump_tag='__at_last__', page=b_page)
 
-        if is_insert_to_db:
-            logger.debug('start insert to db')
-            _resp_goto_2, _body_resp_goto_2 = await parse_resp_goto()
-            await insert_to_garbage_table(
-                g_type=f'smart-crawl-v1',
-                g_content=dict(
-                    cmd_param_json=json.loads(_param_json),
-                    cmd_param_url=url_parse_to_dict(url),
-                    crawler_tag=f'{tag_group}:{_get_tag_version_when_insert_to_db(tag_version)}',
-                    resp_goto=_resp_goto_2,
-                    body_resp_goto=_body_resp_goto_2,
-                    dump_page_info_list=dump_page_info_list_insert_to_db,
-                )
-            )
-            logger.debug('finish insert to db')
     except BaseException as err:
         _is_success_end = False
         logger.exception('Raise error')

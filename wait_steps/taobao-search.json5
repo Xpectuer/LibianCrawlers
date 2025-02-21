@@ -110,6 +110,27 @@
     ],
   },
   {
-    fn: 'page_scroll_down',
+    fn: 'dump_page_for_each',
+    kwargs: {
+      dump_tag_prefix: 'search_pages',
+      before_dump_steps: [
+        {
+          fn: 'page_scroll_down',
+        }
+      ],
+      after_dump_steps: [
+        {
+          fn: 'page_click',
+          args: [
+            '.next-btn-helper',
+          ],
+          kwargs: {
+            has_text: '下一页',
+            timeout: 20000,
+          }
+        }
+      ],
+      after_dump_break_by_timeout: true
+    }
   },
 ]
