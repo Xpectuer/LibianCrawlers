@@ -143,12 +143,12 @@ def _create_wait_steps_func_map(*, b_page: Page, _dump_page: Callable[[str, Page
                 await sleep(random_interval())
 
     async def page_click(selector: str, **kwargs):
-        if kwargs.get('button') is None:
-            kwargs['button'] = 'middle'
-        if kwargs.get('delay') is None:
-            kwargs['delay'] = random.randint(170, 340)
+        # if kwargs.get('button') is None:
+        #     kwargs['button'] = 'middle'
+        # if kwargs.get('delay') is None:
+        #     kwargs['delay'] = random.randint(70, 140)
         logger.debug('page click : selector={} , kwargs={}', selector, kwargs)
-        await page_ref['value'].click(selector, **kwargs)
+        await page_ref['value'].locator(selector=selector).click(**kwargs)
 
     from libiancrawlers.app_util.gui_util import gui_confirm
 
@@ -214,10 +214,7 @@ def _default_wait_steps():
             },
             'on_timeout_steps': 'continue',
         },
-        *([
-            _random_mouse_move_json(),
-            _random_mouse_move_json(),
-        ]),
+        _random_mouse_move_json(),
     ]
 
 

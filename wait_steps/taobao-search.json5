@@ -68,7 +68,6 @@
       '.btn-search',
     ],
   },
-  'debug',
   {
     fn: 'page_wait_for_selector_in_any_frame',
     args: [

@@ -39,13 +39,13 @@ See: https://pypi.org/project/python-magic/0.4.27/
 
 It tells you install binary library on Windows / OSX / Debian / Ubuntu
 
-> Debian/Ubuntu
+> **Debian/Ubuntu**
 >
 > ```shell
 > sudo apt-get install libmagic1
 > ```
 
-> Windows
+> **Windows**
 >
 > You'll need DLLs for libmagic. @julian-r maintains a pypi package with the DLLs, you can fetch it with:
 >
@@ -57,7 +57,7 @@ It tells you install binary library on Windows / OSX / Debian / Ubuntu
 >
 > > It seems like can't work fine with poetry , so you need run pip.
 
-> OSX
+> **OSX**
 >
 > When using Homebrew:
 >

@@ -53,6 +53,7 @@ async def smart_crawl_v1(*,
                          _should_init_app=True,
                          save_file_json_indent=2,
                          wait_steps: JSON = None,
+                         debug: bool = False,
                          ):
     _param_json = json.dumps(locals(), ensure_ascii=False, indent=save_file_json_indent)
 
@@ -73,6 +74,11 @@ async def smart_crawl_v1(*,
 
     if output_dir is None:
         output_dir = os.path.join('.data', 'smart-crawl-v1')
+
+    async def launch_debug(*, message: str):
+        logger.debug('Pause for debug')
+        from libiancrawlers.app_util.gui_util import gui_confirm
+        await gui_confirm(title='Pause for debug , close to continue', message=message)
 
     b_page = None
     browser_context = None
@@ -215,10 +221,12 @@ async def smart_crawl_v1(*,
                 if wait_step == 'stop_signal':
                     raise SmartCrawlStopSignal()
                 if wait_step == 'debug':
-                    logger.debug('Wait debug step')
-                    from libiancrawlers.app_util.gui_util import gui_confirm
-                    await gui_confirm(title='Debug step', message='close to continue run')
-                    continue
+                    if debug:
+                        await launch_debug(message='debug step')
+                        continue
+                    else:
+                        logger.debug('Skip debug command')
+                        continue
                 try:
                     logger.debug('start wait , param is {}', wait_step)
                     if wait_step.get('fn') is not None:
@@ -277,13 +285,19 @@ async def smart_crawl_v1(*,
                 )
             )
             logger.debug('finish insert to db')
-
+    except BaseException as err:
+        logger.exception('Raise error')
+        # noinspection PyProtectedMember
+        from playwright._impl._errors import TargetClosedError
+        if debug and not isinstance(err, TargetClosedError):
+            await launch_debug(message=f'debug on error , please see console logger . {err}')
+        raise err
     finally:
         if wait_until_close_browser:
             logger.debug('start wait close browser manually')
             while b_page is not None and not b_page.is_closed():
                 await sleep(0.3)
-        logger.debug('OK')
+        logger.debug('END')
         if _should_init_app:
             from libiancrawlers.app_util.app_init import exit_app
             await exit_app()
