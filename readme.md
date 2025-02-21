@@ -6,33 +6,35 @@ This project use `poetry` as package manager.
 
 ### How to use poetry
 
-First, create venv and install poetry
+First, You need [install poetry](https://python-poetry.org/docs/#installation).
 
 ```shell
-# replace python3.9 to your py39 executable path
-python3.9 -m venv venv
+poetry -V
 
-venv/Scripts/activate
-
-pip3.9 -V
-
-pip install poetry
+poetry self update
 ```
-
-Second, install all dependencies.
+Second, install all dependencies. 
 
 ```shell
 # you can install without some groups
-poetry update --with test,camoufox-server,crawler-xiaohongshu,crawler-bilibili,crawler-zhihu
+poetry install --all-groups
 ```
 
-### Example
+Then activate venv:
 
 ```shell
-poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/taobao-search.json5?q=羽绒服
+.venv/Scripts/activate
 ```
 
-### Install camoufox
+> or windows
+
+```powershell
+.venv\Scripts\activate
+```
+
+
+
+#### Install camoufox
 
 if the dependencies group contains `camoufox` , you need
 run [script in here](https://github.com/daijro/camoufox/tree/main/pythonlib#installation) .
@@ -53,7 +55,32 @@ python3 -m camoufox fetch
 
 在下载 `camoufox-132.0.2-beta.16-win.x86_64.zip` 时发现他用的 requests，而且不走系统代理。
 
-所以修改 `venv\Lib\site-packages\camoufox\pkgman.py`，在 `webdl` 函数中指定了 `requests.get` 的代理地址。
+所以修改 `venv\Lib\site-packages\camoufox\pkgman.py`, 将其中的 `import requests` 修改为:
+
+```python
+import requests
+
+inner_request_get = requests.get
+
+
+def _request_get(*args, **kwargs):
+    print(f'hook get : args={args} , kwargs={kwargs}')
+    if kwargs.get('proxies') is None:
+        kwargs['proxies'] = dict(
+            http='http://localhost:7890',
+            https='http://localhost:7890',
+        )
+    return inner_request_get(*args, **kwargs)
+
+
+requests.get = _request_get
+```
+
+### Example
+
+```shell
+poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/taobao-search.json5?q=羽绒服
+```
 
 ### Run test
 

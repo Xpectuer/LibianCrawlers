@@ -2,7 +2,7 @@
 import asyncio
 from datetime import datetime
 import random
-from typing import Optional, Literal, Any, TypedDict
+from typing import Optional, Literal, Any, TypedDict, Callable, Awaitable
 
 from aioify import aioify
 from loguru import logger
@@ -19,10 +19,10 @@ class SmartCrawlStopSignal(SmartCrawlSignal):
     pass
 
 
-PageRef = TypedDict['PageRef', {'value': Page, }]
+PageRef = TypedDict('PageRef', {'value': Page, })
 
 
-def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
+def _create_wait_steps_func_map(*, b_page: Page, _dump_page: Callable[[str, Page], Awaitable]):
     page_ref: PageRef = {'value': b_page}
 
     async def page_mouse_move(*args, **kwargs):
@@ -142,7 +142,18 @@ def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
                 prev_height = curr_height
                 await sleep(random_interval())
 
+    async def page_click(selector: str, **kwargs):
+        if kwargs.get('button') is None:
+            kwargs['button'] = 'middle'
+        if kwargs.get('delay') is None:
+            kwargs['delay'] = random.randint(170, 340)
+        logger.debug('page click : selector={} , kwargs={}', selector, kwargs)
+        await page_ref['value'].click(selector, **kwargs)
+
     from libiancrawlers.app_util.gui_util import gui_confirm
+
+    async def dump_page(dump_tag: str):
+        return await _dump_page(dump_tag, page_ref['value'])
 
     fn_map = {
         'sleep': sleep,
@@ -157,7 +168,7 @@ def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
         'page_wait_for_function': page_ref['value'].wait_for_function,
         'page_mouse_move': page_mouse_move,
         'page_type': page_ref['value'].type,
-        'page_click': page_ref['value'].click,
+        'page_click': page_click,
         'page_wait_for_selector': page_ref['value'].wait_for_selector,
         'page_wait_for_selector_in_any_frame': page_wait_for_selector_in_any_frame,
         'page_scroll_down': page_scroll_down,

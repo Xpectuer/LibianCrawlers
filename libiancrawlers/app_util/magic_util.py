@@ -1,16 +1,13 @@
 # -*- coding: UTF-8 -*-
 import json
-import re
 from typing import Union, Callable, Any, Optional, TypedDict, List, Dict, TypeVar
 
-import aiofiles
 import charset_normalizer
 import json5
 from bs4 import BeautifulSoup, PageElement, Tag, NavigableString
 from loguru import logger
 from magic import magic
 
-from libiancrawlers.app_util.types import JSON
 from libiancrawlers.util.jsons import is_json_basic_type
 
 T = TypeVar('T')

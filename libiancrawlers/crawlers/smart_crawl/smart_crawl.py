@@ -133,12 +133,14 @@ async def smart_crawl_v1(*,
 
         _all_steps_run = []
 
-        async def dump_page(dump_tag: str):
-            logger.info('call dump page , tag is ', dump_tag)
+        from playwright.async_api import Page
+
+        async def _dump_page(dump_tag: str, page: Page):
+            logger.info('call dump page , tag is {} , page title is {}', dump_tag, await page.title())
             if is_insert_to_db:
                 logger.debug('start build page_info for insert_to_db')
                 page_info_smart_wait_insert_to_db = await page_info_to_dict(
-                    b_page,
+                    page,
                     on_screenshot=BlobOutput(mode='base64',
                                              base_dir=None,
                                              filename=None)
@@ -147,11 +149,11 @@ async def smart_crawl_v1(*,
                 page_info_smart_wait_insert_to_db = None
 
             logger.debug('start build frame tree')
-            frame_tree = await frame_tree_to_dict(b_page.main_frame)
+            frame_tree = await frame_tree_to_dict(page.main_frame)
             if is_save_file:
                 logger.debug('start build page_info_smart_wait_save_file')
                 page_info_smart_wait_save_file = await page_info_to_dict(
-                    b_page,
+                    page,
                     on_screenshot=BlobOutput(mode='file',
                                              base_dir=base_dir,
                                              filename='page_smart_wait_screenshot.png')
@@ -212,6 +214,11 @@ async def smart_crawl_v1(*,
                     break
                 if wait_step == 'stop_signal':
                     raise SmartCrawlStopSignal()
+                if wait_step == 'debug':
+                    logger.debug('Wait debug step')
+                    from libiancrawlers.app_util.gui_util import gui_confirm
+                    await gui_confirm(title='Debug step', message='close to continue run')
+                    continue
                 try:
                     logger.debug('start wait , param is {}', wait_step)
                     if wait_step.get('fn') is not None:
@@ -221,7 +228,7 @@ async def smart_crawl_v1(*,
                             _waited_args = []
                         if _waited_kwargs is None:
                             _waited_kwargs = dict()
-                        fn_map = _create_wait_steps_func_map(b_page=b_page, dump_page=dump_page)
+                        fn_map = _create_wait_steps_func_map(b_page=b_page, _dump_page=_dump_page)
                         await fn_map[wait_step['fn']](*_waited_args, **_waited_kwargs)
                         on_success_steps = wait_step.get('on_success_steps')
                         if on_success_steps is not None:
@@ -253,7 +260,7 @@ async def smart_crawl_v1(*,
             logger.warning('except stop signal , i am stopping... ')
             return 'stop'
 
-        await dump_page(dump_tag='__at_last__')
+        await _dump_page(dump_tag='__at_last__', page=b_page)
 
         if is_insert_to_db:
             logger.debug('start insert to db')
