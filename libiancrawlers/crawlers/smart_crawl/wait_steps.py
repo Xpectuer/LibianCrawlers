@@ -2,7 +2,7 @@
 import asyncio
 from datetime import datetime
 import random
-from typing import Optional, Literal, Any
+from typing import Optional, Literal, Any, TypedDict
 
 from aioify import aioify
 from loguru import logger
@@ -19,9 +19,14 @@ class SmartCrawlStopSignal(SmartCrawlSignal):
     pass
 
 
+PageRef = TypedDict['PageRef', {'value': Page, }]
+
+
 def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
+    page_ref: PageRef = {'value': b_page}
+
     async def page_mouse_move(*args, **kwargs):
-        await asyncio.wait_for(b_page.mouse.move(*args, **kwargs), timeout=3)
+        await asyncio.wait_for(page_ref['value'].mouse.move(*args, **kwargs), timeout=3)
 
     @aioify
     def logd(*args, **kwargs):
@@ -46,7 +51,7 @@ def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
         while out_loop:
             if start_at + timeout < datetime.utcnow().timestamp() * 1000.0:
                 break
-            for frame in b_page.frames:
+            for frame in page_ref['value'].frames:
                 loop_timeout = 100.0 if timeout is None else max(100.0, timeout / 20.0)
                 try:
                     res = await func(frame=frame, loop_timeout=loop_timeout)
@@ -75,9 +80,7 @@ def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
         return await page_any_frame(func=fn, timeout=timeout, err_msg=f'not found selector {selector} in any frame',
                                     suc_msg_template=f'success found selector {selector} in frame {{}} , result is {{}}')
 
-    async def page_scroll_down(*, delta_y=100.0, interval=1.0, page=None):
-        if page is None:
-            page = b_page
+    async def page_scroll_down(*, delta_y=100.0, interval=1.0):
 
         def random_interval():
             return interval * (random.randint(3, 16) / 10.0)
@@ -92,8 +95,8 @@ def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
         retry_scroll_down = 0
         retry_scroll_up = 0
         while True:
-            await page.mouse.wheel(delta_x=0, delta_y=random_delta_y())
-            curr_height = await page.evaluate('(window.innerHeight + window.scrollY)')
+            await page_ref['value'].mouse.wheel(delta_x=0, delta_y=random_delta_y())
+            curr_height = await page_ref['value'].evaluate('(window.innerHeight + window.scrollY)')
             if not prev_height:
                 prev_height = curr_height
                 await sleep(random_interval())
@@ -109,12 +112,12 @@ def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
                     await sleep(0.4)
                     prev_height_bottom['value'] = prev_height
                     for i in range(0, 5):
-                        await page.mouse.wheel(delta_x=0, delta_y=-random_delta_y())
+                        await page_ref['value'].mouse.wheel(delta_x=0, delta_y=-random_delta_y())
                         await sleep(random_interval())
                     logger.debug('after test scroll up if on bottom')
                     await sleep(0.4)
                     try:
-                        await page.wait_for_load_state('networkidle', timeout=3)
+                        await page_ref['value'].wait_for_load_state('networkidle', timeout=3)
                     except:
                         pass
 
@@ -139,10 +142,6 @@ def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
                 prev_height = curr_height
                 await sleep(random_interval())
 
-        # i = 1000
-        # while True:
-        #     await b_page.mouse.wheel(delta_x=0, delta_y=100)
-
     from libiancrawlers.app_util.gui_util import gui_confirm
 
     fn_map = {
@@ -153,17 +152,15 @@ def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
         'loge': loge,
         'dump_page': dump_page,
         'gui_confirm': gui_confirm,
-        'page_wait_for_load_state': b_page.wait_for_load_state,
-        'page_bring_to_front': b_page.bring_to_front,
-        'page_wait_for_function': b_page.wait_for_function,
+        'page_wait_for_load_state': page_ref['value'].wait_for_load_state,
+        'page_bring_to_front': page_ref['value'].bring_to_front,
+        'page_wait_for_function': page_ref['value'].wait_for_function,
         'page_mouse_move': page_mouse_move,
-        'page_type': b_page.type,
-        'page_click': b_page.click,
-        'page_wait_for_selector': b_page.wait_for_selector,
+        'page_type': page_ref['value'].type,
+        'page_click': page_ref['value'].click,
+        'page_wait_for_selector': page_ref['value'].wait_for_selector,
         'page_wait_for_selector_in_any_frame': page_wait_for_selector_in_any_frame,
         'page_scroll_down': page_scroll_down,
-
-        # 'page_scroll_down': scroll_down,
     }
 
     return fn_map
