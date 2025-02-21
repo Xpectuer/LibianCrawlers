@@ -29,13 +29,11 @@ def _create_wait_steps_func_map(*,
     page_ref: PageRef = {'value': b_page}
 
     async def switch_page(to: Union[int, Literal['default']]):
-        from libiancrawlers.util.exceptions import is_timeout_error
         await sleep(1)
         if to == 'default':
             res = b_page
         elif isinstance(to, int):
             res = browser_context.pages[to]
-
         else:
             raise ValueError(f'Invalid param {to}')
         from_title = await page_ref['value'].title()
@@ -45,21 +43,7 @@ def _create_wait_steps_func_map(*,
                      from_title,
                      to_title_prev,
                      )
-        await res.bring_to_front()
-        try:
-            await res.wait_for_load_state('domcontentloaded', timeout=5000)
-        except BaseException as err:
-            if is_timeout_error(err):
-                logger.debug('ignore timeout err on switch page domcontentloaded')
-            else:
-                raise
-        try:
-            await res.wait_for_load_state('networkidle', timeout=5000)
-        except BaseException as err:
-            if is_timeout_error(err):
-                logger.debug('ignore timeout err on switch page networkidle')
-            else:
-                raise
+        await page_wait_loaded(page=res)
         to_title_cur = await res.title()
         logger.debug('Finish switch page {} : from {} , to title ( {} >>> {} )',
                      to,
@@ -68,9 +52,71 @@ def _create_wait_steps_func_map(*,
                      to_title_cur,
                      )
         page_ref['value'] = res
+        await sleep(1)
+        logger.debug("page_ref['value'] = {}", page_ref['value'])
+
+    async def page_wait_loaded(*, page: Page = None):
+        if page is None:
+            page = page_ref['value']
+        from libiancrawlers.util.exceptions import is_timeout_error
+        await page.bring_to_front()
+        try:
+            logger.debug('start wait domcontentloaded')
+            await page.wait_for_load_state('domcontentloaded', timeout=5000)
+        except BaseException as err:
+            if is_timeout_error(err):
+                logger.debug('ignore timeout err on switch page domcontentloaded')
+            else:
+                raise
+        try:
+            logger.debug('start wait networkidle')
+            await page.wait_for_load_state('networkidle', timeout=10000)
+        except BaseException as err:
+            if is_timeout_error(err):
+                logger.debug('ignore timeout err on switch page networkidle')
+            else:
+                raise
+        await page.bring_to_front()
+
+    async def page_random_mouse_move():
+        box = await page_ref['value'].locator('body').bounding_box(timeout=3000)
+        viewport_size = page_ref['value'].viewport_size
+        if box is None:
+            raise ValueError("Can't get body bounding box")
+        logger.debug('on mouse random move , box is {} , viewport_size is {}', box, viewport_size)
+        try:
+            await page_mouse_move(
+                *[
+                    random.randint(
+                        min(max(30, int(box['x'])), viewport_size['width'] - 30),
+                        min(max(30, int(box['x'] + box['width'])), viewport_size['width'] - 30)
+                    ),
+                    random.randint(
+                        min(max(30, int(box['y'])), viewport_size['height'] - 30),
+                        min(max(30, int(box['y'] + box['height'])), viewport_size['height'] - 30)
+                    )
+                ],
+            )
+        except BaseException as err:
+            from libiancrawlers.util.exceptions import is_timeout_error
+            if is_timeout_error(err):
+                logger.debug('ignore timeout error on random mouse move')
+            else:
+                raise
 
     async def page_mouse_move(*args, **kwargs):
-        await asyncio.wait_for(page_ref['value'].mouse.move(*args, **kwargs), timeout=3)
+        logger.debug('mouse move {} {}', args, kwargs)
+        if kwargs.get('timeout') is None:
+            timeout = 2.0
+        else:
+            timeout = kwargs.pop('timeout')
+
+        if kwargs.get('steps') is None:
+            steps = 2
+        else:
+            steps = kwargs.pop('steps')
+
+        await asyncio.wait_for(page_ref['value'].mouse.move(*args, steps=steps, **kwargs), timeout=timeout)
 
     @aioify
     def logd(*args, **kwargs):
@@ -124,7 +170,8 @@ def _create_wait_steps_func_map(*,
         return await page_any_frame(func=fn, timeout=timeout, err_msg=f'not found selector {selector} in any frame',
                                     suc_msg_template=f'success found selector {selector} in frame {{}} , result is {{}}')
 
-    async def page_scroll_down(*, delta_y=200.0, interval=1.0, max_height: Optional[float] = 150000):
+    async def page_scroll_down(*, delta_y=200.0, interval=1.0, max_height: Optional[float] = 40000):
+        logger.debug('start page scroll down , current page title is {}', await page_ref['value'].title())
 
         def random_interval():
             return interval * (random.randint(3, 16) / 10.0)
@@ -158,7 +205,7 @@ def _create_wait_steps_func_map(*,
                 retry_scroll_down = 0
 
                 async def scroll_up():
-                    await sleep(0.4)
+                    await page_random_mouse_move()
                     prev_height_bottom['value'] = prev_height
                     for i in range(0, 4):
                         await page_ref['value'].mouse.wheel(delta_x=0, delta_y=-random_delta_y())
@@ -178,22 +225,54 @@ def _create_wait_steps_func_map(*,
                     retry_scroll_up = 0
                 else:
                     # 没有发现新加载的内容
-                    if retry_scroll_up >= 2:
+                    retry_scroll_up += 1
+                    if retry_scroll_up >= 3:
                         logger.debug('retry_scroll_up {} break', retry_scroll_up)
                         break
                     else:
+                        logger.debug('retry_scroll_up {}', retry_scroll_up)
                         await scroll_up()
-                        retry_scroll_up += 1
-
-                logger.debug('retry_scroll_up {}', retry_scroll_up)
                 continue
 
             prev_height = curr_height
             await sleep(random_interval())
 
-    async def page_click(selector: str, **kwargs):
+    async def page_click(selector: str,
+                         *,
+                         auto_check_and_switch_new_page: bool = True,
+                         **kwargs):
+        pages_size_old = browser_context.pages.__len__()
         logger.debug('page click : selector={} , kwargs={}', selector, kwargs)
-        await page_ref['value'].locator(selector=selector).click(**kwargs)
+        if kwargs.get('timeout') is None:
+            timeout = 2000
+        else:
+            timeout = kwargs.pop('timeout')
+
+        from playwright.async_api import Frame
+
+        async def locator_and_click(*, frame: Frame, loop_timeout: float):
+            return await frame.locator(selector=selector).click(timeout=loop_timeout, **kwargs)
+
+        await page_any_frame(
+            func=locator_and_click,
+            timeout=timeout,
+            err_msg=f'Not found selector or failed to click {selector}',
+            suc_msg_template=f'Found selector and clicked {selector}'
+        )
+
+        # await page_ref['value'].locator(selector=selector).click(timeout=timeout, **kwargs)
+
+        logger.debug('after page click')
+        if auto_check_and_switch_new_page:
+            wait_any_page_create_at = datetime.now().timestamp()
+            while datetime.now().timestamp() - wait_any_page_create_at < 3:
+                if pages_size_old != browser_context.pages.__len__():
+                    logger.debug('Some page created , page list is {}', browser_context.pages)
+                    await switch_page(-1)
+                    break
+                else:
+                    logger.debug('not found new page created after click')
+                    await sleep(0.5)
 
     from libiancrawlers.app_util.gui_util import gui_confirm
 
@@ -209,7 +288,8 @@ def _create_wait_steps_func_map(*,
         'dump_page': dump_page,
         'gui_confirm': gui_confirm,
         'switch_page': switch_page,
-        'page_wait_for_load_state': page_ref['value'].wait_for_load_state,
+        'page_random_mouse_move': page_random_mouse_move,
+        'page_wait_loaded': page_wait_loaded,
         'page_bring_to_front': page_ref['value'].bring_to_front,
         'page_wait_for_function': page_ref['value'].wait_for_function,
         'page_mouse_move': page_mouse_move,
@@ -221,47 +301,6 @@ def _create_wait_steps_func_map(*,
     }
 
     return fn_map
-
-
-def _random_mouse_move_json():
-    return {
-        'fn': 'page_mouse_move',
-        'args': [random.randint(100, 1600), random.randint(100, 1600)],
-        'kwargs': {
-            'steps': 2
-        },
-        'on_timeout_steps': 'continue',
-    }
-
-
-def _default_wait_steps():
-    return [
-        {
-            'fn': 'page_bring_to_front',
-        }, {
-            'fn': 'page_wait_for_load_state',
-            'args': ['networkidle'],
-            'kwargs': {
-                'timeout': 5000,
-            },
-            'on_timeout_steps': 'continue',
-        }, {
-            'fn': 'page_wait_for_load_state',
-            'args': ['domcontentloaded'],
-            'kwargs': {
-                'timeout': 5000,
-            },
-            'on_timeout_steps': 'continue',
-        }, {
-            'fn': 'page_wait_for_load_state',
-            'args': ['load'],
-            'kwargs': {
-                'timeout': 5000,
-            },
-            'on_timeout_steps': 'continue',
-        },
-        _random_mouse_move_json(),
-    ]
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 import shlex
 import subprocess
+import os
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -260,6 +261,18 @@ def whereis_sync(exe_name: str) -> List[str]:
 #         return False
 #     import filetype
 #     return filetype.is_video(media_file_path) or filetype.is_audio(media_file_path)
+
+
+def explore_windows(path: str):
+    filebrowser_path = os.path.join(os.getenv('WINDIR'), 'explorer.exe')
+
+    # explorer would choke on forward slashes
+    path = os.path.normpath(path)
+
+    if os.path.isdir(path):
+        subprocess.run([filebrowser_path, path])
+    elif os.path.isfile(path):
+        subprocess.run([filebrowser_path, '/select,', path])
 
 
 if __name__ == '__main__':

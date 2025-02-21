@@ -1,5 +1,14 @@
 [
   {
+    fn: 'page_random_mouse_move'
+  },
+  {
+    fn: 'page_wait_loaded',
+  },
+  {
+    fn: 'page_random_mouse_move'
+  },
+  {
     fn: 'logi',
     args: [
       'Start taobao search'
@@ -10,6 +19,23 @@
     args: [
       1
     ]
+  },
+  {
+    fn: 'page_click',
+    args: [
+      '.closeIcon',
+    ],
+    kwargs: {
+      timeout: 2000,
+    },
+    on_timeout_steps: 'continue'
+  },
+  {
+    fn: 'page_click',
+    args: [
+      '.cpCloseIcon',
+    ],
+    on_timeout_steps: 'continue'
   },
   {
     fn: 'page_type',
@@ -45,34 +71,11 @@
   {
     fn: 'page_click',
     args: [
-      '.closeIcon',
-    ],
-    kwargs: {
-      timeout: 2,
-    },
-    on_timeout_steps: 'continue'
-  },
-  {
-    fn: 'page_click',
-    args: [
-      '.cpCloseIcon',
-    ],
-    kwargs: {
-      timeout: 2,
-    },
-    on_timeout_steps: 'continue'
-  },
-  {
-    fn: 'page_click',
-    args: [
       '.btn-search',
     ],
-  },
-  {
-    fn: 'switch_page',
-    args: [
-      -1,
-    ],
+    kwargs: {
+      timeout: 20000,
+    }
   },
   {
     fn: 'page_wait_for_selector_in_any_frame',

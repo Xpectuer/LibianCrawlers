@@ -125,7 +125,7 @@ async def smart_crawl_v1(*,
             wait_steps = await parse_json_or_read_file_json_like(wait_steps)
         if wait_steps is None:
             wait_steps = []
-        from libiancrawlers.crawlers.smart_crawl.wait_steps import _default_wait_steps, _create_wait_steps_func_map
+        from libiancrawlers.crawlers.smart_crawl.wait_steps import _create_wait_steps_func_map
 
         dump_page_info_list_insert_to_db = []
 
@@ -267,7 +267,6 @@ async def smart_crawl_v1(*,
 
         try:
             await _process_steps([
-                *_default_wait_steps(),
                 *wait_steps
             ])
         except SmartCrawlStopSignal:
@@ -310,7 +309,12 @@ async def smart_crawl_v1(*,
                 raise Exception('base dir should not null')
             async with aiofiles.open(os.path.join(base_dir, '.is_success'), mode='w') as _is_success_file:
                 await _is_success_file.write('true')
-            logger.info('Result at : \n\n    {}\n', os.path.abspath(base_dir))
+            abs_base_dir = os.path.abspath(base_dir)
+            logger.info('Result at : \n\n    {}\n', abs_base_dir)
+            from libiancrawlers.util.plat import is_windows
+            if debug and is_windows():
+                from libiancrawlers.util.shell import explore_windows
+                explore_windows(abs_base_dir)
         if _should_init_app:
             from libiancrawlers.app_util.app_init import exit_app
             await exit_app()
