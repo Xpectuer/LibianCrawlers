@@ -55,6 +55,8 @@ async def smart_crawl_v1(*,
                          wait_steps: JSON = None,
                          debug: bool = False,
                          ):
+    _is_success_end = True
+    base_dir = None
     _param_json = json.dumps(locals(), ensure_ascii=False, indent=save_file_json_indent)
 
     from libiancrawlers.app_util.types import Initiator
@@ -213,7 +215,7 @@ async def smart_crawl_v1(*,
             if not (isinstance(steps, tuple) or isinstance(steps, list) or isinstance(steps, set)):
                 steps = [steps]
             for wait_step in steps:
-                _all_steps_run.append(wait_step)
+                _all_steps_run.append(json.loads(json.dumps(wait_step, ensure_ascii=False)))
                 if wait_step == 'continue':
                     continue
                 if wait_step == 'break':
@@ -228,7 +230,7 @@ async def smart_crawl_v1(*,
                         logger.debug('Skip debug command')
                         continue
                 try:
-                    logger.debug('start wait , param is {}', wait_step)
+                    logger.debug('🎼 on step : {}', wait_step)
                     if wait_step.get('fn') is not None:
                         _waited_args = wait_step.get('args')
                         _waited_kwargs = wait_step.get('kwargs')
@@ -236,7 +238,11 @@ async def smart_crawl_v1(*,
                             _waited_args = []
                         if _waited_kwargs is None:
                             _waited_kwargs = dict()
-                        fn_map = _create_wait_steps_func_map(b_page=b_page, _dump_page=_dump_page)
+                        fn_map = _create_wait_steps_func_map(
+                            b_page=b_page,
+                            browser_context=browser_context,
+                            _dump_page=_dump_page,
+                        )
                         await fn_map[wait_step['fn']](*_waited_args, **_waited_kwargs)
                         on_success_steps = wait_step.get('on_success_steps')
                         if on_success_steps is not None:
@@ -286,6 +292,7 @@ async def smart_crawl_v1(*,
             )
             logger.debug('finish insert to db')
     except BaseException as err:
+        _is_success_end = False
         logger.exception('Raise error')
         # noinspection PyProtectedMember
         from playwright._impl._errors import TargetClosedError
@@ -298,6 +305,12 @@ async def smart_crawl_v1(*,
             while b_page is not None and not b_page.is_closed():
                 await sleep(0.3)
         logger.debug('END')
+        if is_save_file and _is_success_end:
+            if base_dir is None:
+                raise Exception('base dir should not null')
+            async with aiofiles.open(os.path.join(base_dir, '.is_success'), mode='w') as _is_success_file:
+                await _is_success_file.write('true')
+            logger.info('Result at : \n\n    {}\n', os.path.abspath(base_dir))
         if _should_init_app:
             from libiancrawlers.app_util.app_init import exit_app
             await exit_app()

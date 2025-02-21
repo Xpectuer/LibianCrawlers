@@ -2,11 +2,11 @@
 import asyncio
 from datetime import datetime
 import random
-from typing import Optional, Literal, Any, TypedDict, Callable, Awaitable
+from typing import Optional, Literal, Any, TypedDict, Callable, Awaitable, Union
 
 from aioify import aioify
 from loguru import logger
-from playwright.async_api import Page
+from playwright.async_api import Page, BrowserContext
 
 from libiancrawlers.util.coroutines import sleep, blocking_func
 
@@ -22,8 +22,52 @@ class SmartCrawlStopSignal(SmartCrawlSignal):
 PageRef = TypedDict('PageRef', {'value': Page, })
 
 
-def _create_wait_steps_func_map(*, b_page: Page, _dump_page: Callable[[str, Page], Awaitable]):
+def _create_wait_steps_func_map(*,
+                                b_page: Page,
+                                browser_context: BrowserContext,
+                                _dump_page: Callable[[str, Page], Awaitable]):
     page_ref: PageRef = {'value': b_page}
+
+    async def switch_page(to: Union[int, Literal['default']]):
+        from libiancrawlers.util.exceptions import is_timeout_error
+        await sleep(1)
+        if to == 'default':
+            res = b_page
+        elif isinstance(to, int):
+            res = browser_context.pages[to]
+
+        else:
+            raise ValueError(f'Invalid param {to}')
+        from_title = await page_ref['value'].title()
+        to_title_prev = await res.title()
+        logger.debug('Start switch page {} : from {} , to title on create {}',
+                     to,
+                     from_title,
+                     to_title_prev,
+                     )
+        await res.bring_to_front()
+        try:
+            await res.wait_for_load_state('domcontentloaded', timeout=5000)
+        except BaseException as err:
+            if is_timeout_error(err):
+                logger.debug('ignore timeout err on switch page domcontentloaded')
+            else:
+                raise
+        try:
+            await res.wait_for_load_state('networkidle', timeout=5000)
+        except BaseException as err:
+            if is_timeout_error(err):
+                logger.debug('ignore timeout err on switch page networkidle')
+            else:
+                raise
+        to_title_cur = await res.title()
+        logger.debug('Finish switch page {} : from {} , to title ( {} >>> {} )',
+                     to,
+                     from_title,
+                     to_title_prev,
+                     to_title_cur,
+                     )
+        page_ref['value'] = res
 
     async def page_mouse_move(*args, **kwargs):
         await asyncio.wait_for(page_ref['value'].mouse.move(*args, **kwargs), timeout=3)
@@ -80,7 +124,7 @@ def _create_wait_steps_func_map(*, b_page: Page, _dump_page: Callable[[str, Page
         return await page_any_frame(func=fn, timeout=timeout, err_msg=f'not found selector {selector} in any frame',
                                     suc_msg_template=f'success found selector {selector} in frame {{}} , result is {{}}')
 
-    async def page_scroll_down(*, delta_y=100.0, interval=1.0):
+    async def page_scroll_down(*, delta_y=200.0, interval=1.0, max_height: Optional[float] = 150000):
 
         def random_interval():
             return interval * (random.randint(3, 16) / 10.0)
@@ -100,10 +144,15 @@ def _create_wait_steps_func_map(*, b_page: Page, _dump_page: Callable[[str, Page
             if not prev_height:
                 prev_height = curr_height
                 await sleep(random_interval())
-            elif prev_height == curr_height:
-                if retry_scroll_down < 5:
+                continue
+            if max_height is not None and prev_height > max_height:
+                logger.debug('break scroll down because prev_height({}) > max_height({})', prev_height, max_height)
+                break
+            if prev_height == curr_height:
+                if retry_scroll_down < 3:
                     retry_scroll_down += 1
                     logger.debug('retry_scroll_down {}', retry_scroll_down)
+                    await sleep(random_interval())
                     continue
 
                 retry_scroll_down = 0
@@ -111,11 +160,11 @@ def _create_wait_steps_func_map(*, b_page: Page, _dump_page: Callable[[str, Page
                 async def scroll_up():
                     await sleep(0.4)
                     prev_height_bottom['value'] = prev_height
-                    for i in range(0, 5):
+                    for i in range(0, 4):
                         await page_ref['value'].mouse.wheel(delta_x=0, delta_y=-random_delta_y())
                         await sleep(random_interval())
                     logger.debug('after test scroll up if on bottom')
-                    await sleep(0.4)
+                    await sleep(0.1)
                     try:
                         await page_ref['value'].wait_for_load_state('networkidle', timeout=3)
                     except:
@@ -129,7 +178,7 @@ def _create_wait_steps_func_map(*, b_page: Page, _dump_page: Callable[[str, Page
                     retry_scroll_up = 0
                 else:
                     # 没有发现新加载的内容
-                    if retry_scroll_up >= 3:
+                    if retry_scroll_up >= 2:
                         logger.debug('retry_scroll_up {} break', retry_scroll_up)
                         break
                     else:
@@ -138,15 +187,11 @@ def _create_wait_steps_func_map(*, b_page: Page, _dump_page: Callable[[str, Page
 
                 logger.debug('retry_scroll_up {}', retry_scroll_up)
                 continue
-            else:
-                prev_height = curr_height
-                await sleep(random_interval())
+
+            prev_height = curr_height
+            await sleep(random_interval())
 
     async def page_click(selector: str, **kwargs):
-        # if kwargs.get('button') is None:
-        #     kwargs['button'] = 'middle'
-        # if kwargs.get('delay') is None:
-        #     kwargs['delay'] = random.randint(70, 140)
         logger.debug('page click : selector={} , kwargs={}', selector, kwargs)
         await page_ref['value'].locator(selector=selector).click(**kwargs)
 
@@ -163,6 +208,7 @@ def _create_wait_steps_func_map(*, b_page: Page, _dump_page: Callable[[str, Page
         'loge': loge,
         'dump_page': dump_page,
         'gui_confirm': gui_confirm,
+        'switch_page': switch_page,
         'page_wait_for_load_state': page_ref['value'].wait_for_load_state,
         'page_bring_to_front': page_ref['value'].bring_to_front,
         'page_wait_for_function': page_ref['value'].wait_for_function,

@@ -69,6 +69,12 @@
     ],
   },
   {
+    fn: 'switch_page',
+    args: [
+      -1,
+    ],
+  },
+  {
     fn: 'page_wait_for_selector_in_any_frame',
     args: [
       '#login'
@@ -76,8 +82,21 @@
     kwargs: {
       timeout: 6000,
     },
-    on_timeout_steps: 'continue',
+    on_timeout_steps: [
+      {
+        fn: 'logd',
+        args: [
+          '已登录淘宝, 无需手动登陆'
+        ]
+      }
+    ],
     on_success_steps: [
+      {
+        fn: 'logi',
+        args: [
+          '未登录淘宝, 需要手动登陆'
+        ]
+      },
       {
         fn: 'gui_confirm',
         kwargs: {
