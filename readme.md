@@ -4,7 +4,7 @@
 
 This project use `poetry` as package manager.
 
-### How to use poetry
+### Use poetry start project
 
 First, You need [install poetry](https://python-poetry.org/docs/#installation).
 
@@ -13,7 +13,8 @@ poetry -V
 
 poetry self update
 ```
-Second, install all dependencies. 
+
+Second, install all dependencies.
 
 ```shell
 # you can install without some groups
@@ -27,31 +28,66 @@ Then activate venv:
 ```
 
 > or windows
+>
+> ```powershell
+> .venv\Scripts\activate
+> ```
 
-```powershell
-.venv\Scripts\activate
-```
+#### Install python-magic
 
+See: https://pypi.org/project/python-magic/0.4.27/
 
+It tells you install binary library on Windows / OSX / Debian / Ubuntu
+
+> Debian/Ubuntu
+>
+> ```shell
+> sudo apt-get install libmagic1
+> ```
+
+> Windows
+>
+> You'll need DLLs for libmagic. @julian-r maintains a pypi package with the DLLs, you can fetch it with:
+>
+> ```powershell
+> .venv\Scripts\activate
+> 
+> pip install python-magic-bin
+> ```
+>
+> > It seems like can't work fine with poetry , so you need run pip.
+
+> OSX
+>
+> When using Homebrew:
+>
+> ```shell
+> brew install libmagic
+> ```
+>
+> When using macports:
+>
+> ```shell
+> port install file
+> ```
 
 #### Install camoufox
 
-if the dependencies group contains `camoufox` , you need
-run [script in here](https://github.com/daijro/camoufox/tree/main/pythonlib#installation) .
+you need run [script in here](https://github.com/daijro/camoufox/tree/main/pythonlib#installation) to download camoufox.
 
-- On Windows:
+> On Windows:
+>
+> ```shell
+> camoufox fetch
+> ```
 
-```shell
-camoufox fetch
-```
+> On Linux or MacOS:
+>
+> ```shell
+> python3 -m camoufox fetch
+> ```
 
-- On Linux or MacOS:
-
-```shell
-python3 -m camoufox fetch
-```
-
-##### Chinese user
+##### Use proxies for chinese developer
 
 在下载 `camoufox-132.0.2-beta.16-win.x86_64.zip` 时发现他用的 requests，而且不走系统代理。
 
@@ -67,6 +103,7 @@ def _request_get(*args, **kwargs):
     print(f'hook get : args={args} , kwargs={kwargs}')
     if kwargs.get('proxies') is None:
         kwargs['proxies'] = dict(
+            # Modify it to your proxies
             http='http://localhost:7890',
             https='http://localhost:7890',
         )
@@ -76,7 +113,7 @@ def _request_get(*args, **kwargs):
 requests.get = _request_get
 ```
 
-### Example
+### Example: Start a taobao search crawler
 
 ```shell
 poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/taobao-search.json5?q=羽绒服

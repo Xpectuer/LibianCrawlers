@@ -6,7 +6,7 @@ import charset_normalizer
 import json5
 from bs4 import BeautifulSoup, PageElement, Tag, NavigableString
 from loguru import logger
-from magic import magic
+import magic
 
 from libiancrawlers.util.jsons import is_json_basic_type
 
@@ -36,8 +36,6 @@ def parse_json(t: str):
                      )
 
     return j, j5
-
-
 
 
 CharsetMatchDict = TypedDict('CharsetMatchDict', {
