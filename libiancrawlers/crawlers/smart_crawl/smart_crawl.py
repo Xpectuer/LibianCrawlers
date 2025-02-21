@@ -2,7 +2,7 @@
 import datetime
 import json
 import os.path
-from typing import Literal, Optional
+from typing import Literal, Optional, Any
 
 import aiofiles.os
 import aiofiles.ospath
@@ -16,7 +16,7 @@ from libiancrawlers.app_util.postgres import require_init_table, insert_to_garba
 from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException, JSON
 
 from libiancrawlers.util.coroutines import sleep
-from libiancrawlers.util.fs import mkdirs, aios_listdir
+from libiancrawlers.util.fs import mkdirs, aios_listdir, filename_slugify
 
 _valid_smart_extract_mode = ['insert_to_db', 'save_file', 'save_file_and_insert_to_db']
 
@@ -99,7 +99,18 @@ async def smart_crawl_v1(*,
         b_page = await browser_context.new_page()
 
         logger.debug('start page goto')
-        _resp_goto = await b_page.goto(url=url)
+        _resp_goto_obj = await b_page.goto(url=url)
+
+        async def parse_resp_goto():
+            logger.debug('start parse resp_goto')
+            _resp_goto_dict = await response_to_dict(_resp_goto_obj)
+
+            if 300 <= _resp_goto_obj.status <= 399:
+                body_resp_goto = None
+            else:
+                logger.debug('start parse body_resp_goto')
+                body_resp_goto = get_magic_info(await _resp_goto_obj.body())
+            return _resp_goto_dict, body_resp_goto
 
         if isinstance(wait_steps, str):
             from libiancrawlers.app_util.cmdarg_util import parse_json_or_read_file_json_like
@@ -108,10 +119,93 @@ async def smart_crawl_v1(*,
             wait_steps = []
         from libiancrawlers.crawlers.smart_crawl.wait_steps import _default_wait_steps, _create_wait_steps_func_map
 
+        dump_page_info_list_insert_to_db = []
+
+        if is_save_file:
+            base_dir, tag_version = await _get_base_dir_when_save_file(tag_version=tag_version, output_dir=output_dir,
+                                                                       tag_group=tag_group)
+            logger.debug('base dir is {}', base_dir)
+            await mkdirs(base_dir)
+            _param_json_file_path = os.path.join(base_dir, 'param.json')
+            logger.debug('start save _param_json to {}', _param_json_file_path)
+            async with aiofiles.open(_param_json_file_path, mode='wt', encoding='utf-8') as f:
+                await f.write(_param_json)
+
+        _all_steps_run = []
+
+        async def dump_page(dump_tag: str):
+            logger.info('call dump page , tag is ', dump_tag)
+            if is_insert_to_db:
+                logger.debug('start build page_info for insert_to_db')
+                page_info_smart_wait_insert_to_db = await page_info_to_dict(
+                    b_page,
+                    on_screenshot=BlobOutput(mode='base64',
+                                             base_dir=None,
+                                             filename=None)
+                )
+            else:
+                page_info_smart_wait_insert_to_db = None
+
+            logger.debug('start build frame tree')
+            frame_tree = await frame_tree_to_dict(b_page.main_frame)
+            if is_save_file:
+                logger.debug('start build page_info_smart_wait_save_file')
+                page_info_smart_wait_save_file = await page_info_to_dict(
+                    b_page,
+                    on_screenshot=BlobOutput(mode='file',
+                                             base_dir=base_dir,
+                                             filename='page_smart_wait_screenshot.png')
+                )
+            else:
+                page_info_smart_wait_save_file = None
+
+            def get_dumped_obj(*, page_info_smart_wait: Any):
+                return json.loads(json.dumps(dict(
+                    tag_version=tag_version,
+                    tag_group=tag_group,
+                    dump_tag=dump_tag,
+                    all_steps_run=_all_steps_run,
+                    frame_tree=frame_tree,
+                    page_info_smart_wait=page_info_smart_wait,
+                ), ensure_ascii=True))
+
+            if is_save_file:
+                logger.debug('start save file')
+                if base_dir is None:
+                    raise LibianCrawlerBugException('BUG, base_dir should not none')
+
+                _result_json = json.dumps(
+                    get_dumped_obj(
+                        page_info_smart_wait=page_info_smart_wait_save_file
+                    ),
+                    indent=save_file_json_indent,
+                    ensure_ascii=False
+                )
+                logger.debug('start write to file , _result_json length is {}', len(_result_json))
+                async with aiofiles.open(
+                        os.path.join(
+                            base_dir,
+                            f"{filename_slugify(f'dump_{dump_tag}', allow_unicode=True)}.json"
+                        ),
+                        mode='wt',
+                        encoding='utf-8') as _f:
+                    await _f.write(_result_json)
+                logger.debug('finish save file')
+
+            if is_insert_to_db:
+                logger.debug('append dump page info to list')
+                dump_page_info_list_insert_to_db.append(
+                    get_dumped_obj(
+                        page_info_smart_wait=page_info_smart_wait_insert_to_db,
+                    )
+                )
+            pass
+
         async def _process_steps(steps):
             if not (isinstance(steps, tuple) or isinstance(steps, list) or isinstance(steps, set)):
                 steps = [steps]
             for wait_step in steps:
+                _all_steps_run.append(wait_step)
                 if wait_step == 'continue':
                     continue
                 if wait_step == 'break':
@@ -127,7 +221,7 @@ async def smart_crawl_v1(*,
                             _waited_args = []
                         if _waited_kwargs is None:
                             _waited_kwargs = dict()
-                        fn_map = _create_wait_steps_func_map(b_page=b_page)
+                        fn_map = _create_wait_steps_func_map(b_page=b_page, dump_page=dump_page)
                         await fn_map[wait_step['fn']](*_waited_args, **_waited_kwargs)
                         on_success_steps = wait_step.get('on_success_steps')
                         if on_success_steps is not None:
@@ -159,89 +253,24 @@ async def smart_crawl_v1(*,
             logger.warning('except stop signal , i am stopping... ')
             return 'stop'
 
-        logger.debug('finished all waiter')
-        if is_insert_to_db:
-            logger.debug('start build page_info for insert_to_db')
-            page_info_smart_wait_insert_to_db = await page_info_to_dict(
-                b_page,
-                on_screenshot=BlobOutput(mode='base64',
-                                         base_dir=None,
-                                         filename=None)
-            )
-        else:
-            page_info_smart_wait_insert_to_db = None
-
-        logger.debug('start parse resp_goto')
-        resp_goto = await response_to_dict(_resp_goto)
-
-        if 300 <= _resp_goto.status <= 399:
-            body_resp_goto = None
-        else:
-            logger.debug('start parse body_resp_goto')
-            body_resp_goto = get_magic_info(await _resp_goto.body())
-
-        logger.debug('start parse page_content')
-        # page_content = get_magic_info(await b_page.content())
-
-        frame_tree = await frame_tree_to_dict(b_page.main_frame)
-
-        common_info = dict(
-            resp_goto=resp_goto,
-            body_resp_goto=body_resp_goto,
-            # page_content=page_content,
-            frame_tree=frame_tree
-        )
-
-        logger.debug('is_save_file is {}', is_save_file)
-        if is_save_file:
-            base_dir = await _get_base_dir_when_save_file(tag_version=tag_version, output_dir=output_dir,
-                                                          tag_group=tag_group)
-
-            logger.debug('base dir is {}', base_dir)
-            await mkdirs(base_dir)
-            _param_json_file_path = os.path.join(base_dir, 'param.json')
-            logger.debug('start save _param_json to {}', _param_json_file_path)
-            async with aiofiles.open(_param_json_file_path, mode='wt', encoding='utf-8') as f:
-                await f.write(_param_json)
-
-            logger.debug('start build page_info_smart_wait_save_file')
-            page_info_smart_wait_save_file = await page_info_to_dict(
-                b_page,
-                on_screenshot=BlobOutput(mode='file',
-                                         base_dir=base_dir,
-                                         filename='page_smart_wait_screenshot.png')
-            )
-        else:
-            page_info_smart_wait_save_file = None
-            base_dir = None
-
-        if is_save_file:
-            logger.debug('start save file')
-            if base_dir is None:
-                raise LibianCrawlerBugException('BUG, base_dir should not none')
-
-            _result_json = json.dumps(dict(
-                common_info=common_info,
-                page_info_smart_wait=page_info_smart_wait_save_file,
-            ), indent=save_file_json_indent, ensure_ascii=False)
-            logger.debug('start write to file , _result_json length is {}', len(_result_json))
-            async with aiofiles.open(os.path.join(base_dir, 'result.json'), mode='wt', encoding='utf-8') as f:
-                await f.write(_result_json)
-            logger.debug('finish save file')
+        await dump_page(dump_tag='__at_last__')
 
         if is_insert_to_db:
             logger.debug('start insert to db')
+            _resp_goto_2, _body_resp_goto_2 = await parse_resp_goto()
             await insert_to_garbage_table(
                 g_type=f'smart-crawl-v1',
                 g_content=dict(
                     cmd_param_json=json.loads(_param_json),
                     cmd_param_url=url_parse_to_dict(url),
                     crawler_tag=f'{tag_group}:{_get_tag_version_when_insert_to_db(tag_version)}',
-                    common_info=common_info,
-                    page_info_smart_wait=page_info_smart_wait_insert_to_db,
+                    resp_goto=_resp_goto_2,
+                    body_resp_goto=_body_resp_goto_2,
+                    dump_page_info_list=dump_page_info_list_insert_to_db,
                 )
             )
             logger.debug('finish insert to db')
+
     finally:
         if wait_until_close_browser:
             logger.debug('start wait close browser manually')
@@ -259,10 +288,22 @@ def _get_ymd_hms_str():
 
 
 async def _get_base_dir_when_save_file(*, tag_version: Optional[str], output_dir: str, tag_group: str):
+    def _get_base_dir(tag_version_nonnull: str):
+        return os.path.join(
+            output_dir,
+            *list(
+                map(
+                    lambda p: filename_slugify(str(p), allow_unicode=True),
+                    [tag_group, tag_version_nonnull]
+                )
+            )
+        )
+
     if tag_version is None:
         while True:
             tag_version_2 = _get_ymd_hms_str()
-            base_dir = os.path.join(output_dir, tag_group, tag_version_2)
+            base_dir = _get_base_dir(tag_version_nonnull=tag_version_2)
+
             logger.debug('try base_dir at {}', base_dir)
             if await aiofiles.ospath.isdir(base_dir) and len(await aios_listdir(base_dir)) > 0:
                 logger.debug('base_dir is not empty , try next tag version , current is {}', tag_version_2)
@@ -271,8 +312,8 @@ async def _get_base_dir_when_save_file(*, tag_version: Optional[str], output_dir
             break
     else:
         tag_version_2 = tag_version
-        base_dir = os.path.join(output_dir, tag_group, tag_version_2)
-    return base_dir
+        base_dir = _get_base_dir(tag_version_nonnull=tag_version_2)
+    return base_dir, tag_version_2
 
 
 def _get_tag_version_when_insert_to_db(tag_version: Optional[str]):

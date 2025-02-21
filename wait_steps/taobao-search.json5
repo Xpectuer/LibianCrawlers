@@ -48,7 +48,17 @@
       '.closeIcon',
     ],
     kwargs: {
-      timeout: 3,
+      timeout: 2,
+    },
+    on_timeout_steps: 'continue'
+  },
+  {
+    fn: 'page_click',
+    args: [
+      '.cpCloseIcon',
+    ],
+    kwargs: {
+      timeout: 2,
     },
     on_timeout_steps: 'continue'
   },

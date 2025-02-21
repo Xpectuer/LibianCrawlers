@@ -2,7 +2,7 @@
 import asyncio
 from datetime import datetime
 import random
-from typing import Optional, Literal
+from typing import Optional, Literal, Any
 
 from aioify import aioify
 from loguru import logger
@@ -19,7 +19,7 @@ class SmartCrawlStopSignal(SmartCrawlSignal):
     pass
 
 
-def _create_wait_steps_func_map(*, b_page: Page):
+def _create_wait_steps_func_map(*, b_page: Page, dump_page: Any):
     async def page_mouse_move(*args, **kwargs):
         await asyncio.wait_for(b_page.mouse.move(*args, **kwargs), timeout=3)
 
@@ -89,7 +89,8 @@ def _create_wait_steps_func_map(*, b_page: Page):
         prev_height_bottom = {
             'value': -1
         }
-        retry = 0
+        retry_scroll_down = 0
+        retry_scroll_up = 0
         while True:
             await page.mouse.wheel(delta_x=0, delta_y=random_delta_y())
             curr_height = await page.evaluate('(window.innerHeight + window.scrollY)')
@@ -97,6 +98,13 @@ def _create_wait_steps_func_map(*, b_page: Page):
                 prev_height = curr_height
                 await sleep(random_interval())
             elif prev_height == curr_height:
+                if retry_scroll_down < 5:
+                    retry_scroll_down += 1
+                    logger.debug('retry_scroll_down {}', retry_scroll_down)
+                    continue
+
+                retry_scroll_down = 0
+
                 async def scroll_up():
                     await sleep(0.4)
                     prev_height_bottom['value'] = prev_height
@@ -115,17 +123,17 @@ def _create_wait_steps_func_map(*, b_page: Page):
                 if prev_height_bottom['value'] < prev_height:
                     # 发现了新加载的内容
                     await scroll_up()
-                    retry = 0
+                    retry_scroll_up = 0
                 else:
                     # 没有发现新加载的内容
-                    if retry >= 3:
-                        logger.debug('retry {} break', retry)
+                    if retry_scroll_up >= 3:
+                        logger.debug('retry_scroll_up {} break', retry_scroll_up)
                         break
                     else:
                         await scroll_up()
-                        retry += 1
+                        retry_scroll_up += 1
 
-                logger.debug('retry {}', retry)
+                logger.debug('retry_scroll_up {}', retry_scroll_up)
                 continue
             else:
                 prev_height = curr_height
@@ -143,6 +151,7 @@ def _create_wait_steps_func_map(*, b_page: Page):
         'logi': logi,
         'logw': logw,
         'loge': loge,
+        'dump_page': dump_page,
         'gui_confirm': gui_confirm,
         'page_wait_for_load_state': b_page.wait_for_load_state,
         'page_bring_to_front': b_page.bring_to_front,
