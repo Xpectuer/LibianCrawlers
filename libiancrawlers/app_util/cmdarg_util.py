@@ -1,6 +1,8 @@
 # -*- coding: UTF-8 -*-
-import aiofiles
+import string
 
+import aiofiles
+from loguru import logger
 from libiancrawlers.app_util.magic_util import parse_json
 from libiancrawlers.app_util.types import JSON
 
@@ -15,12 +17,16 @@ async def parse_json_or_read_file_json_like(t: JSON) -> JSON:
         return j5
     if t.startswith('jsonfile:'):
         try:
-            p = t[len('jsonfile:'):]
-            async with aiofiles.open(p, 'rt') as f:
+            from libiancrawlers.app_util.playwright_util import url_parse_to_dict
+            url_info = url_parse_to_dict(t)
+            logger.debug('json file url info is {}', url_info)
+            async with aiofiles.open(url_info['path'], 'rt') as f:
                 t2 = await f.read()
+            t2 = string.Template(t2).substitute(url_info['query_dict'])
+            logger.debug('read file json and format result is {}', t2)
             return await parse_json_or_read_file_json_like(t2)
         except BaseException as err:
-            raise ValueError('Invalid json file') from err
+            raise ValueError('Invalid json file , or Missing format argument') from err
     raise ValueError(f'Invalid json : {t}')
 
 

@@ -29,7 +29,7 @@ poetry update --with test,camoufox-server,crawler-xiaohongshu,crawler-bilibili,c
 ### Example
 
 ```shell
-poetry run smart-crawl --locale zh-CN --url https://www.baidu.com/s?wd=python
+poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/taobao-search.json5?q=羽绒服
 ```
 
 ### Install camoufox

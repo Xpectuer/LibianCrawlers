@@ -11,9 +11,10 @@ from loguru import logger
 from libiancrawlers.app_util.networks import update_proxies
 from libiancrawlers.app_util.networks.iputil import get_my_public_ip_info
 from libiancrawlers.app_util.playwright_util import get_browser, response_to_dict, \
-    page_info_to_dict, BlobOutput, url_parse_to_dict
+    page_info_to_dict, BlobOutput, url_parse_to_dict, frame_tree_to_dict
 from libiancrawlers.app_util.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException, JSON
+
 from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.fs import mkdirs, aios_listdir
 
@@ -59,6 +60,7 @@ async def smart_crawl_v1(*,
     from libiancrawlers.app_util.app_init import init_app
     from libiancrawlers.app_util.magic_util import get_magic_info
     from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options, read_proxy_server
+    from libiancrawlers.crawlers.smart_crawl.wait_steps import SmartCrawlStopSignal
 
     if mode not in _valid_smart_extract_mode:
         raise ValueError(f'Invalid mode {mode} , valid value should in {_valid_smart_extract_mode}')
@@ -105,34 +107,57 @@ async def smart_crawl_v1(*,
         if wait_steps is None:
             wait_steps = []
         from libiancrawlers.crawlers.smart_crawl.wait_steps import _default_wait_steps, _create_wait_steps_func_map
-        for wait_step in [
-            *_default_wait_steps(),
-            *wait_steps
-        ]:
-            try:
-                logger.debug('start wait , param is {}', wait_step)
-                if wait_step.get('fn') is not None:
-                    _waited_args = wait_step.get('args')
-                    _waited_kwargs = wait_step.get('kwargs')
-                    if _waited_args is None:
-                        _waited_args = []
-                    if _waited_kwargs is None:
-                        _waited_kwargs = dict()
-                    fn_map = _create_wait_steps_func_map(b_page=b_page)
-                    await fn_map[wait_step['fn']](*_waited_args, **_waited_kwargs)
-                else:
-                    logger.error(
-                        'Invalid wait_step , not exist fn , please see libiancrawlers/crawlers/smart_crawl/wait_steps.py . Value of wait_step is {}',
-                        wait_step)
-            except BaseException as err_timeout:
-                from libiancrawlers.util.exceptions import is_timeout_error
-                if is_timeout_error(err_timeout):
-                    if wait_step.get('on_timeout') == 'continue':
-                        logger.debug('wait timeout but continue , err_timeout is {}', err_timeout)
-                        continue
-                    raise TimeoutError(f'timeout on step : {wait_step}') from err_timeout
-                else:
-                    raise
+
+        async def _process_steps(steps):
+            if not (isinstance(steps, tuple) or isinstance(steps, list) or isinstance(steps, set)):
+                steps = [steps]
+            for wait_step in steps:
+                if wait_step == 'continue':
+                    continue
+                if wait_step == 'break':
+                    break
+                if wait_step == 'stop_signal':
+                    raise SmartCrawlStopSignal()
+                try:
+                    logger.debug('start wait , param is {}', wait_step)
+                    if wait_step.get('fn') is not None:
+                        _waited_args = wait_step.get('args')
+                        _waited_kwargs = wait_step.get('kwargs')
+                        if _waited_args is None:
+                            _waited_args = []
+                        if _waited_kwargs is None:
+                            _waited_kwargs = dict()
+                        fn_map = _create_wait_steps_func_map(b_page=b_page)
+                        await fn_map[wait_step['fn']](*_waited_args, **_waited_kwargs)
+                        on_success_steps = wait_step.get('on_success_steps')
+                        if on_success_steps is not None:
+                            logger.debug('process on success steps')
+                            await _process_steps(on_success_steps)
+                    else:
+                        logger.error(
+                            'Invalid wait_step , not exist fn , please see libiancrawlers/crawlers/smart_crawl/wait_steps.py . Value of wait_step is {}',
+                            wait_step)
+                except BaseException as err_timeout:
+                    from libiancrawlers.util.exceptions import is_timeout_error
+                    if is_timeout_error(err_timeout):
+                        on_timeout_steps = wait_step.get('on_timeout_steps')
+                        if on_timeout_steps is not None:
+                            logger.debug('process on timeout steps')
+                            await _process_steps(on_timeout_steps)
+                            continue
+                        else:
+                            raise TimeoutError(f'timeout on step : {wait_step}') from err_timeout
+                    else:
+                        raise
+
+        try:
+            await _process_steps([
+                *_default_wait_steps(),
+                *wait_steps
+            ])
+        except SmartCrawlStopSignal:
+            logger.warning('except stop signal , i am stopping... ')
+            return 'stop'
 
         logger.debug('finished all waiter')
         if is_insert_to_db:
@@ -156,12 +181,15 @@ async def smart_crawl_v1(*,
             body_resp_goto = get_magic_info(await _resp_goto.body())
 
         logger.debug('start parse page_content')
-        page_content = get_magic_info(await b_page.content())
+        # page_content = get_magic_info(await b_page.content())
+
+        frame_tree = await frame_tree_to_dict(b_page.main_frame)
 
         common_info = dict(
             resp_goto=resp_goto,
             body_resp_goto=body_resp_goto,
-            page_content=page_content,
+            # page_content=page_content,
+            frame_tree=frame_tree
         )
 
         logger.debug('is_save_file is {}', is_save_file)
@@ -203,7 +231,6 @@ async def smart_crawl_v1(*,
 
         if is_insert_to_db:
             logger.debug('start insert to db')
-
             await insert_to_garbage_table(
                 g_type=f'smart-crawl-v1',
                 g_content=dict(

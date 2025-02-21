@@ -13,7 +13,7 @@ import playwright.async_api
 from camoufox import AsyncCamoufox
 from loguru import logger
 # noinspection PyProtectedMember
-from playwright.async_api import PlaywrightContextManager
+from playwright.async_api import PlaywrightContextManager, Frame
 from playwright.async_api import async_playwright, BrowserContext, Browser
 
 from libiancrawlers.app_util.app_init import get_app_init_conf
@@ -145,6 +145,28 @@ async def request_info_to_dict(req: Optional[playwright.async_api.Request]):
         all_headers=await req.all_headers(),
         headers_array=await req.headers_array(),
     )
+
+
+async def frame_tree_to_dict(frame: Frame):
+    if frame.child_frames is None:
+        child_frames = []
+    else:
+        child_frames = []
+        for cf in frame.child_frames:
+            child_frames.append(await frame_tree_to_dict(cf))
+    from libiancrawlers.app_util.magic_util import get_magic_info
+    is_detached = frame.is_detached()
+    return {
+        'is_detached': is_detached,
+        'python_id_of_this': id(frame),
+        'python_id_of_page': id(frame.page),
+        'python_id_of_parent_frame': id(frame.parent_frame),
+        'name': frame.name,
+        'url': url_parse_to_dict(frame.url),
+        'title': None if is_detached else await frame.title(),
+        'content': None if is_detached else get_magic_info(await frame.content()),
+        'child_frames': child_frames,
+    }
 
 
 @dataclass

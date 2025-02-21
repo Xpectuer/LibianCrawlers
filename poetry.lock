@@ -911,6 +911,22 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
+name = "colored"
+version = "2.3.0"
+description = "Simple python library for color and formatting to terminal"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "colored-2.3.0-py3-none-any.whl", hash = "sha256:2f7f455dc2ed490531b0b8e0ecf8f8513bb28a150d9f12f0e48b023641a55185"},
+    {file = "colored-2.3.0.tar.gz", hash = "sha256:4daf9b3ed687a01d59005e1bd03f354475226b933abb9a01836d6dde926d4c6f"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
 name = "confection"
 version = "0.1.5"
 description = "The sweetest config system for Python"
@@ -1221,6 +1237,29 @@ requests = ">=2.24.0,<3.0.0"
 
 [package.extras]
 test = ["pytest-httpserver (>=1.0.10)"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
+name = "gooey"
+version = "1.0.8.1"
+description = "Turn (almost) any command line program into a full GUI application with one line"
+optional = false
+python-versions = "*"
+files = [
+    {file = "Gooey-1.0.8.1-py2.py3-none-any.whl", hash = "sha256:222793cf4a5dd2f9d5c3174ad7369c3df541d91a49e54d51bbee95745ed75ae2"},
+    {file = "Gooey-1.0.8.1.tar.gz", hash = "sha256:08d6bf534f4d50d50dafba5cfc68dcf31a6e9eeef13a94cbe3ea17c4e45c4671"},
+]
+
+[package.dependencies]
+colored = ">=1.3.93"
+Pillow = ">=4.3.0"
+psutil = ">=5.4.2"
+pygtrie = ">=2.3.3"
+wxpython = ">=4.1.0"
 
 [package.source]
 type = "legacy"
@@ -2182,6 +2221,34 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
+name = "psutil"
+version = "7.0.0"
+description = "Cross-platform lib for process and system monitoring in Python.  NOTE: the syntax of this script MUST be kept compatible with Python 2.7."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "psutil-7.0.0-cp36-abi3-macosx_10_9_x86_64.whl", hash = "sha256:101d71dc322e3cffd7cea0650b09b3d08b8e7c4109dd6809fe452dfd00e58b25"},
+    {file = "psutil-7.0.0-cp36-abi3-macosx_11_0_arm64.whl", hash = "sha256:39db632f6bb862eeccf56660871433e111b6ea58f2caea825571951d4b6aa3da"},
+    {file = "psutil-7.0.0-cp36-abi3-manylinux_2_12_i686.manylinux2010_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:1fcee592b4c6f146991ca55919ea3d1f8926497a713ed7faaf8225e174581e91"},
+    {file = "psutil-7.0.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4b1388a4f6875d7e2aff5c4ca1cc16c545ed41dd8bb596cefea80111db353a34"},
+    {file = "psutil-7.0.0-cp36-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a5f098451abc2828f7dc6b58d44b532b22f2088f4999a937557b603ce72b1993"},
+    {file = "psutil-7.0.0-cp36-cp36m-win32.whl", hash = "sha256:84df4eb63e16849689f76b1ffcb36db7b8de703d1bc1fe41773db487621b6c17"},
+    {file = "psutil-7.0.0-cp36-cp36m-win_amd64.whl", hash = "sha256:1e744154a6580bc968a0195fd25e80432d3afec619daf145b9e5ba16cc1d688e"},
+    {file = "psutil-7.0.0-cp37-abi3-win32.whl", hash = "sha256:ba3fcef7523064a6c9da440fc4d6bd07da93ac726b5733c29027d7dc95b39d99"},
+    {file = "psutil-7.0.0-cp37-abi3-win_amd64.whl", hash = "sha256:4cf3d4eb1aa9b348dec30105c55cd9b7d4629285735a102beb4441e38db90553"},
+    {file = "psutil-7.0.0.tar.gz", hash = "sha256:7be9c3eba38beccb6495ea33afd982a44074b78f28c434a1f51cc07fd315c456"},
+]
+
+[package.extras]
+dev = ["abi3audit", "black (==24.10.0)", "check-manifest", "coverage", "packaging", "pylint", "pyperf", "pypinfo", "pytest", "pytest-cov", "pytest-xdist", "requests", "rstcheck", "ruff", "setuptools", "sphinx", "sphinx-rtd-theme", "toml-sort", "twine", "virtualenv", "vulture", "wheel"]
+test = ["pytest", "pytest-xdist", "setuptools"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
 name = "pyasn1"
 version = "0.6.1"
 description = "Pure-Python implementation of ASN.1 types and DER/BER/CER codecs (X.208)"
@@ -2454,6 +2521,22 @@ files = [
 
 [package.extras]
 windows-terminal = ["colorama (>=0.4.6)"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
+name = "pygtrie"
+version = "2.5.0"
+description = "A pure Python trie data structure implementation."
+optional = false
+python-versions = "*"
+files = [
+    {file = "pygtrie-2.5.0-py3-none-any.whl", hash = "sha256:8795cda8105493d5ae159a5bef313ff13156c5d4d72feddefacaad59f8c8ce16"},
+    {file = "pygtrie-2.5.0.tar.gz", hash = "sha256:203514ad826eb403dab1d2e2ddd034e0d1534bbe4dbe0213bb0593f66beba4e2"},
+]
 
 [package.source]
 type = "legacy"
@@ -3167,6 +3250,43 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
+name = "wxpython"
+version = "4.2.2"
+description = "Cross platform GUI toolkit for Python, \"Phoenix\" version"
+optional = false
+python-versions = "*"
+files = [
+    {file = "wxPython-4.2.2-cp310-cp310-macosx_12_0_x86_64.whl", hash = "sha256:a83bc118417b715ee8fd7143faaf51adaa041ccae22cc6de99bc7f7bb7fc44ef"},
+    {file = "wxPython-4.2.2-cp310-cp310-win32.whl", hash = "sha256:68923029a7e236374002af25c14aa311922b80f8d63e1f088e6176e12640fa3e"},
+    {file = "wxPython-4.2.2-cp310-cp310-win_amd64.whl", hash = "sha256:a1f506144173010ae3354980d1a1da6ffcaeed87f2b1be9eef43f60fc8faeaa4"},
+    {file = "wxPython-4.2.2-cp311-cp311-macosx_10_10_universal2.whl", hash = "sha256:0fe3cb940f5da4f0ec61c3cf37e63c0f577f09a7b9a5d3d7cfc59399eb18cb3b"},
+    {file = "wxPython-4.2.2-cp311-cp311-win32.whl", hash = "sha256:f63863d52272f8c841b22e7128a339b6d93f3e4d8307d98ea346fa1ec6fbc13b"},
+    {file = "wxPython-4.2.2-cp311-cp311-win_amd64.whl", hash = "sha256:008c55c60abb3dd66229e1849f10f6a7d5b9af9cc62de40fb9dec144686b5c4d"},
+    {file = "wxPython-4.2.2-cp312-cp312-macosx_10_10_universal2.whl", hash = "sha256:5d536110a674cb44ff6112d910b26fe6b062d670a6c3840a41036abfe83acc6b"},
+    {file = "wxPython-4.2.2-cp312-cp312-win32.whl", hash = "sha256:5298662b83792fa8e66e60fdc298dbc317fcf61c68facc506182c2914faef0db"},
+    {file = "wxPython-4.2.2-cp312-cp312-win_amd64.whl", hash = "sha256:ea0cc206d40d6749f98f60eae2105382685e26bbf6c5a62a853543a0f3fd0ad7"},
+    {file = "wxPython-4.2.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:e3a6f0eebb8176135991851adbb1648da7f3beb0378752117c3b7ee05e8e55c6"},
+    {file = "wxPython-4.2.2-cp313-cp313-win32.whl", hash = "sha256:c9310864b088d0f68d212360f261c8fec46a543c952da21805177519622b8524"},
+    {file = "wxPython-4.2.2-cp313-cp313-win_amd64.whl", hash = "sha256:d8548ce4165e214601083d0d5767dba854a5e14f4e0ed4dbe56e2daf193a4575"},
+    {file = "wxPython-4.2.2-cp38-cp38-macosx_12_0_x86_64.whl", hash = "sha256:e5ba9b29f64b466d2926c4a5c5a1b624f635c20b1c23ba27064ac9216d858b90"},
+    {file = "wxPython-4.2.2-cp38-cp38-win32.whl", hash = "sha256:a391eacd10d0ba16333a186819307641803b0dc7a066d5fe4bd1c13f1cd2f44e"},
+    {file = "wxPython-4.2.2-cp38-cp38-win_amd64.whl", hash = "sha256:b68a4cc0e5b648a0856ffd399ce04e6b750d9dbfba325c4a1f6201dc8e9e4886"},
+    {file = "wxPython-4.2.2-cp39-cp39-macosx_12_0_x86_64.whl", hash = "sha256:a8c58154e05bb63e7b45dfd0ee379d354dc3372199a858260575e2817908434f"},
+    {file = "wxPython-4.2.2-cp39-cp39-win32.whl", hash = "sha256:f7b879f29d91ef847c5e88bfb7c34a732a35f016896b1b7f87bc3e3d2d0a5a96"},
+    {file = "wxPython-4.2.2-cp39-cp39-win_amd64.whl", hash = "sha256:c8d6509f5579732329df70070966a5d8152890e0213f9305801048f5e7408158"},
+    {file = "wxPython-4.2.2.tar.gz", hash = "sha256:5dbcb0650f67fdc2c5965795a255ffaa3d7b09fb149aa8da2d0d9aa44e38e2ba"},
+]
+
+[package.dependencies]
+numpy = {version = "*", markers = "python_version >= \"3.0\" and python_version < \"3.12\""}
+six = "*"
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
 name = "xhs"
 version = "0.2.13"
 description = "xiaohongshu crawl sdk."
@@ -3323,4 +3443,4 @@ reference = "tsinghua"
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.9"
-content-hash = "2687d314d4d5c002e6f205dc7faafeb908dd397c8882d3040ae238c3cee40d79"
+content-hash = "c5d755729948b298cf2f6038f69b698d9dcd3cac61bc922d41335e271564cd4b"

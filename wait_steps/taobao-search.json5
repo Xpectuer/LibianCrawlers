@@ -1,49 +1,83 @@
 [
   {
-    'fn': 'logi',
-    'args': [
+    fn: 'logi',
+    args: [
       'Start taobao search'
     ]
   },
   {
-    'fn': 'sleep',
-    'args': [
+    fn: 'sleep',
+    args: [
       1
     ]
   },
   {
-    'fn': 'page_type',
-    'args': [
+    fn: 'page_type',
+    args: [
       '#q',
-      'Python'
+      '${q}'
     ],
-    'kwargs': {
+    kwargs: {
       delay: 300
     }
   },
   {
-    'fn': 'sleep',
-    'args': [
-      3
+    fn: 'sleep',
+    args: [
+      1
     ]
   },
   {
-    'fn': 'page_click',
-    'args': [
+    fn: 'page_wait_for_selector',
+    args: [
+      '.btn-search'
+    ],
+    kwargs: {
+      timeout: 30000,
+    },
+  },
+  {
+    fn: 'sleep',
+    args: [
+      1
+    ]
+  },
+  {
+    fn: 'page_click',
+    args: [
+      '.closeIcon',
+    ],
+    kwargs: {
+      timeout: 3,
+    },
+    on_timeout_steps: 'continue'
+  },
+  {
+    fn: 'page_click',
+    args: [
       '.btn-search',
     ],
   },
   {
-    'fn': 'sleep',
-    'args': [
-      3
-    ]
+    fn: 'page_wait_for_selector_in_any_frame',
+    args: [
+      '#login'
+    ],
+    kwargs: {
+      timeout: 6000,
+    },
+    on_timeout_steps: 'continue',
+    on_success_steps: [
+      {
+        fn: 'gui_confirm',
+        kwargs: {
+          title: 'need manually login taobao.com',
+          message: 'LibianCrawler 需要手动完成登陆淘宝，请在浏览器窗口完成登陆后，点击此窗口的确认按钮',
+        }
+      }
+    ],
   },
   {
-    'fn': 'logi',
-    'args': [
-      'Wait user login : {}',
-      'taobao'
-    ]
-  }
+    fn: 'page_scroll_down',
+  },
 ]
