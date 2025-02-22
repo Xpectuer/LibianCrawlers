@@ -17,11 +17,17 @@ poetry self update
 Second, install all dependencies.
 
 ```shell
+poetry lock
+
 # you can install without some groups
 poetry install --all-groups
 ```
 
-Then activate venv:
+Then activate venv (create by poetry):
+
+```shell
+poetry env list
+```
 
 ```shell
 .venv/Scripts/activate

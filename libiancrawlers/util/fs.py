@@ -16,7 +16,7 @@ aios_symlink = aioify(obj=os.symlink)
 aios_listdir = aioify(obj=os.listdir)
 
 
-async def mkdirs(dir_name: str, *, mode=700, exist_ok=True):
+async def mkdirs(dir_name: str, *, mode=0o700, exist_ok=True):
     if await aiofiles.ospath.exists(dir_name):
         if not await aiofiles.ospath.isdir(dir_name):
             logger.warning('mkdirs points to existed file : {}', dir_name)
