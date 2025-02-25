@@ -4,13 +4,13 @@
 
 ## 功能概览
 
-[项目功能模块化设计与路线图](#项目功能模块化设计与路线图)
-
 **浏览器模拟**: 基于 Playwright + Camoufox 实现对各类网站的自动化访问。
 
 **数据爬取**: 抓取 HTML 树结构、请求/响应信息、hook 环境等浏览器环境下的详细数据。
 
 **数据处理**: 使用 TypeScript 和 Jsonata 构建流水线，实现数据清洗和校验。
+
+亦可以查看 [项目功能模块化设计与路线图](#项目功能模块化设计与路线图) 了解详细功能和进度。
 
 ## 安装
 
@@ -159,21 +159,24 @@ poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps
 
 ### 项目功能模块化设计与路线图
 
-以下是详细的
+以下是详细的项目功能及进度。
 
 #### 核心功能模块
 
 * 爬虫部分
     * 使用 playwright + camoufox 实现浏览器自动化操作
-        * 通过各项指纹检查
+        * 通过指纹检查
             * [x] browser scan
-        * [x] 自动使用系统代理
-        * [ ] 优化 geoip , proxy-ip , locale , font 之间的集成
+        * [自动使用系统代理](./libiancrawlers/app_util/networks/proxies.py)
+            * 在 Windows 上
+                * [x] 读取注册表 `Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings`
+        * [ ] 优化 geoip , proxy-ip , locale , font 相互集成。
     * 使用 deno + jsonata 清洗数据
         * [x] 读取 postgres 中的数据并生成类型
         * 优化生成的类型
             * [ ] 更人性化的字符串模板常量
-        * [ ] 修复 quicktype 错误的将长得像日期或数字的字符串改为 Date 或 number 类型的错误。
+        * [x] 运行 `dev:jsonata` 命令监听 `data_cleaner_ci/jsonata_templates` 下的更新
+          并输出清洗结果至 `data_cleaner_ci/user_code`。
     * 清洗后的数据
         * [x] 增量修改到 postgres
         * [x] 自动运行 postgres 迁移
