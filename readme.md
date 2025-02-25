@@ -174,7 +174,7 @@ poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps
         * Dump WebPage
             * [x] 读取所有 frame 的 html tree
             * [x] 调用截图功能
-                * [ ] 修复 firefox(camoufox) 截图功能无法截取高度或宽度超过32678的错误。
+                * [ ] 修复 firefox(camoufox) `Cannot take screenshot larger than 32767` 错误。
             * 寻找解决 firefox(camoufox) 无法打印网页为 pdf 的替代方案。
         * Hook
             * [ ] hook 所有 request / response
