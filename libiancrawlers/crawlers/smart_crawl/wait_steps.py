@@ -6,7 +6,7 @@ from typing import Optional, Literal, Any, TypedDict, Callable, Awaitable, Union
 
 from aioify import aioify
 from loguru import logger
-from playwright.async_api import Page, BrowserContext
+from playwright.async_api import Page, BrowserContext, Locator
 
 from libiancrawlers.app_util.types import JSON
 from libiancrawlers.util.coroutines import sleep, blocking_func
@@ -33,6 +33,8 @@ def _create_wait_steps_func_map(*,
                                 ]
                                 ):
     from asyncio import locks
+    from libiancrawlers.app_util.gui_util import gui_confirm
+
     _page_ref_lock = locks.Lock()
     _page_ref: PageRef = {'value': b_page}
 
@@ -54,13 +56,15 @@ def _create_wait_steps_func_map(*,
             _page_ref['value'] = v
         logger.debug('set page to {}', v)
 
-    async def switch_page(to: Union[int, Literal['default']]):
+    async def switch_page(to: Union[int, Literal['default'], Page]):
         await sleep(1)
         if to == 'default':
             res = b_page
         elif isinstance(to, int):
             logger.debug('all pages : {}', browser_context.pages)
             res = browser_context.pages[to]
+        elif isinstance(to, Page):
+            res = to
         else:
             raise ValueError(f'Invalid param {to}')
         _old_page = await get_page()
@@ -86,7 +90,7 @@ def _create_wait_steps_func_map(*,
             page = (await get_page())
         from libiancrawlers.util.exceptions import is_timeout_error
         logger.debug('start bring to front at first')
-        await page.bring_to_front()
+        await page_bring_to_front(page=page)
         try:
             logger.debug('start wait domcontentloaded')
             await page.wait_for_load_state('domcontentloaded', timeout=5000)
@@ -104,7 +108,7 @@ def _create_wait_steps_func_map(*,
             else:
                 raise
         logger.debug('start bring to front at last')
-        await page.bring_to_front()
+        await page_bring_to_front(page=page)
 
     async def page_random_mouse_move():
         _page = await get_page()
@@ -117,12 +121,12 @@ def _create_wait_steps_func_map(*,
             await page_mouse_move(
                 *[
                     random.randint(
-                        min(max(30, int(box['x'])), viewport_size['width'] - 30),
-                        min(max(30, int(box['x'] + box['width'])), viewport_size['width'] - 30)
+                        min(max(100, int(box['x'])), viewport_size['width'] - 100),
+                        min(max(100, int(box['x'] + box['width'])), viewport_size['width'] - 100)
                     ),
                     random.randint(
-                        min(max(30, int(box['y'])), viewport_size['height'] - 30),
-                        min(max(30, int(box['y'] + box['height'])), viewport_size['height'] - 30)
+                        min(max(100, int(box['y'])), viewport_size['height'] - 100),
+                        min(max(100, int(box['y'] + box['height'])), viewport_size['height'] - 100)
                     )
                 ],
             )
@@ -162,6 +166,32 @@ def _create_wait_steps_func_map(*,
     @aioify
     def loge(*args, **kwargs):
         logger.error(*args, **kwargs)
+
+    async def on_locator(loc: Locator, opts: JSON) -> Locator:
+        if not (isinstance(opts, list) or isinstance(opts, set) or isinstance(opts, tuple)):
+            opts = [opts]
+        for opt in opts:
+            try:
+                if not isinstance(opt, dict):
+                    opt = {
+                        'fn': opt
+                    }
+                fn = opt.get('fn')
+                if not isinstance(fn, str):
+                    raise ValueError(f'Invalid on locator operation , it should be literal string or dict : {opt}')
+                for func in [
+                    loc.get_by_text,
+                    loc.get_by_alt_text,
+                    loc.get_by_role,
+                ]:
+                    if func.__name__ == fn:
+                        loc2 = func(*opt.get('args', []), **opt.get('kwargs', dict()))
+                        logger.debug('on locator : \n    call {}\n    from {}\n    to {}', opt, loc, loc2)
+                        loc = loc2
+
+            except BaseException as err:
+                raise ValueError(f'Invalid on locator operation : {opt}') from err
+        return loc
 
     async def page_any_frame(*, func, timeout: Optional[float], err_msg: str, suc_msg_template: str):
         _page = await get_page()
@@ -206,9 +236,10 @@ def _create_wait_steps_func_map(*,
     async def page_scroll_down(*,
                                delta_y=200.0,
                                interval=1.0,
-                               max_height: Optional[float] = 40000,
+                               max_height: Optional[float] = 20000,
                                retry_scroll_up_limit: int = 2,
                                retry_scroll_down_limit: int = 3,
+                               page_click_if_found: JSON = None,
                                ):
         _page = await get_page()
         logger.debug('start page scroll down , current page title is {}', await _page.title())
@@ -226,16 +257,29 @@ def _create_wait_steps_func_map(*,
         retry_scroll_down = 0
         retry_scroll_up = 0
         while True:
+            if page_click_if_found is not None:
+                # await page_click()
+                pass
+                # selector = page_click_if_found.get()
+                #
             await _page.mouse.wheel(delta_x=0, delta_y=random_delta_y())
             curr_height = await _page.evaluate('(window.innerHeight + window.scrollY)')
+            logger.debug('scrolling... curr_height is {}', curr_height)
             if not prev_height:
                 prev_height = curr_height
                 await sleep(random_interval())
                 continue
             if max_height is not None and prev_height > max_height:
+                logger.debug(
+                    'on prev_height > max_height, \n    prev_height = {}\n    curr_height = {}\n    max_height = {}',
+                    prev_height, curr_height, max_height)
                 logger.debug('break scroll down because prev_height({}) > max_height({})', prev_height, max_height)
                 break
             if prev_height == curr_height:
+                logger.debug(
+                    'on prev_height == curr_height, \n    prev_height = {}\n    curr_height = {}\n    max_height = {}',
+                    prev_height, curr_height, max_height)
+
                 if retry_scroll_down < retry_scroll_down_limit:
                     retry_scroll_down += 1
                     logger.debug('retry_scroll_down {}', retry_scroll_down)
@@ -279,8 +323,23 @@ def _create_wait_steps_func_map(*,
 
     async def page_click(selector: str,
                          *,
-                         auto_check_and_switch_new_page: bool = True,
+                         on_new_page: Optional[
+                             Union[
+                                 Literal[
+                                     'switch_it_and_run_steps_no_matter_which_page',
+                                     'ignore'
+                                 ],
+                                 JSON,
+                                 List[JSON],
+                             ]
+                         ] = None,
+                         wait_any_page_create_time_limit: Optional[float] = None,
                          **kwargs):
+        if on_new_page is None:
+            on_new_page = 'switch_it_and_run_steps_no_matter_which_page'
+        if wait_any_page_create_time_limit is None or wait_any_page_create_time_limit < 0:
+            wait_any_page_create_time_limit = 5000
+
         pages_size_old = browser_context.pages.__len__()
         logger.debug('on page click : selector={} , kwargs={}', selector, kwargs)
         if kwargs.get('timeout') is None:
@@ -295,42 +354,44 @@ def _create_wait_steps_func_map(*,
             has_not_text = kwargs.pop('has_not_text')
         _page = await get_page()
 
-        await (_page.locator(
+        _loc = _page.locator(
             selector=selector,
             has_text=has_text,
             has_not_text=has_not_text
-        ).click(
+        )
+
+        if kwargs.get('on_locator') is not None:
+            _loc = await on_locator(_loc, kwargs.pop('on_locator'))
+
+        await _loc.click(
             timeout=timeout,
             **kwargs
-        ))
-
-        # from playwright.async_api import Frame
-        #
-        # async def locator_and_click(*, frame: Frame, loop_timeout: float):
-        #     return await frame.locator(selector=selector).click(timeout=loop_timeout, **kwargs)
-        #
-        # await page_any_frame(
-        #     func=locator_and_click,
-        #     timeout=timeout,
-        #     err_msg=f'Not found selector or failed to click {selector}',
-        #     suc_msg_template=f'Found selector and clicked {selector}'
-        # )
-
-        # await page_ref['value'].locator(selector=selector).click(timeout=timeout, **kwargs)
+        )
 
         logger.debug('after page click')
-        if auto_check_and_switch_new_page:
+        if on_new_page != 'ignore':
             wait_any_page_create_at = datetime.now().timestamp()
-            while datetime.now().timestamp() - wait_any_page_create_at < 3:
+            while datetime.now().timestamp() - wait_any_page_create_at < wait_any_page_create_time_limit / 1000.0:
                 if pages_size_old != browser_context.pages.__len__():
                     logger.debug('Some page created , page list is {}', browser_context.pages)
-                    await switch_page(-1)
+                    if on_new_page == 'switch_it_and_run_steps_no_matter_which_page':
+                        logger.debug('switch to new page , run steps no matter which page')
+                        await switch_page(-1)
+                    else:
+                        old_page = await get_page()
+                        try:
+                            logger.debug('switch to new page , but i will back')
+                            await switch_page(-1)
+                            logger.debug('run steps on new page')
+                            await _process_steps(on_new_page)
+                        finally:
+                            logger.debug('switch back to old page {}', old_page)
+                            await switch_page(old_page)
+                        pass
                     break
                 else:
                     logger.debug('not found new page created after click')
                     await sleep(0.5)
-
-    from libiancrawlers.app_util.gui_util import gui_confirm
 
     async def dump_page(dump_tag: str):
         return await _dump_page(dump_tag, await get_page())
@@ -375,8 +436,32 @@ def _create_wait_steps_func_map(*,
             logger.debug('[dump_tag = {}] after after_dump_steps', dump_tag)
             count += 1
 
-    async def page_bring_to_front():
-        return await (await get_page()).bring_to_front()
+    async def page_bring_to_front(*, page: Optional[Page] = None,
+                                  timeout: Optional[float] = None,
+                                  retry_limit: Optional[int] = None):
+        if timeout is None:
+            timeout = 3000
+        if retry_limit is None:
+            retry_limit = 5
+        if page is None:
+            page = await get_page()
+
+        retry = 0
+        while True:
+            try:
+                logger.debug('start bring page to front')
+                future = page.bring_to_front()
+                return await asyncio.wait_for(future, timeout=timeout / 1000.0)
+            except BaseException as err:
+                from libiancrawlers.util.exceptions import is_timeout_error
+                if is_timeout_error(err):
+                    retry += 1
+                    if retry > retry_limit:
+                        logger.warning('bring to front failed')
+                        raise
+                    logger.debug('bring to front timeout , retry {} ...', retry)
+                    continue
+                raise
 
     async def page_wait_for_function(*args, **kwargs):
         return await (await get_page()).wait_for_function(*args, **kwargs)

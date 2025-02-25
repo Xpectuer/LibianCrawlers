@@ -1,12 +1,24 @@
 # LibianCrawler
 
-## Setup
+使用 playwright + camoufox 爬取浏览器环境下的数据，并使用 typescript + jsonata 进行数据清洗和校验。
 
-This project use `poetry` as package manager.
+## 功能概览
 
-### Use poetry start project
+[项目功能模块化设计与路线图](#项目功能模块化设计与路线图)
 
-First, You need [install poetry](https://python-poetry.org/docs/#installation).
+**浏览器模拟**: 基于 Playwright + Camoufox 实现对各类网站的自动化访问。
+
+**数据爬取**: 抓取 HTML 树结构、请求/响应信息、hook 环境等浏览器环境下的详细数据。
+
+**数据处理**: 使用 TypeScript 和 Jsonata 构建流水线，实现数据清洗和校验。
+
+## 安装
+
+### 爬虫部分依赖（使用 Poetry 管理）
+
+#### 初始化和安装无需额外配置的库
+
+第一步，如果你还没有安装 Poetry，可以参考 [官方文档](https://python-poetry.org/docs/#installation) 进行安装。
 
 ```shell
 poetry -V
@@ -14,7 +26,7 @@ poetry -V
 poetry self update
 ```
 
-Second, install all dependencies.
+第二步，初始化环境并安装依赖。
 
 ```shell
 poetry lock
@@ -23,27 +35,32 @@ poetry lock
 poetry install --all-groups
 ```
 
-Then activate venv (create by poetry):
+然后进入虚拟环境 (它应当会被 poetry 自动创建):
 
-```shell
-poetry env list
-```
+> 查看 poetry 是否创建了虚拟环境。
+>
+> ```shell
+> poetry env list
+> ```
 
-```shell
-.venv/Scripts/activate
-```
-
-> or windows
+> 进入虚拟环境
+>
+> ```shell
+> .venv/Scripts/activate
+> ```
+>
+> on windows
 >
 > ```powershell
 > .venv\Scripts\activate
 > ```
+>
+> (我不知道在 MacOS 上会创建在哪里)
 
-#### Install python-magic
+#### 安装 python-magic 库的二进制文件
 
-See: https://pypi.org/project/python-magic/0.4.27/
-
-It tells you install binary library on Windows / OSX / Debian / Ubuntu
+在 [python-magic 0.4.27 官方文档](https://pypi.org/project/python-magic/0.4.27/)
+中提供了 Windows / OSX / Debian / Ubuntu 下的二进制文件安装方法，如下所述:
 
 > **Debian/Ubuntu**
 >
@@ -77,16 +94,16 @@ It tells you install binary library on Windows / OSX / Debian / Ubuntu
 > port install file
 > ```
 
-#### Install camoufox
+#### 安装 Camoufox
 
-you need run [script in here](https://github.com/daijro/camoufox/tree/main/pythonlib#installation) to download camoufox.
+参考 [官方文档](https://github.com/daijro/camoufox/tree/main/pythonlib#installation) 以安装 Camoufox.
 
 > On Windows:
 >
 > ```shell
 > camoufox fetch
 > ```
-
+>
 > On Linux or MacOS:
 >
 > ```shell
@@ -119,13 +136,59 @@ def _request_get(*args, **kwargs):
 requests.get = _request_get
 ```
 
-### Example: Start a taobao search crawler
+### 数据处理部分依赖（使用 Deno 管理）
+
+See [./data_cleaner_ci/readme.md](data_cleaner_ci/readme.md)
+
+## 使用方法
+
+### 示例: Start a taobao search crawler
 
 ```shell
 poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/taobao-search.json5?q=羽绒服
 ```
 
-### Run test
+## 贡献
+
+想要贡献？从编码到测试和功能规范，所有类型的帮助都值得赞赏。
+
+如果您是开发人员并希望贡献代码，请做以下任意一件事:
+
+1. 在打开 pull request 之前先打开一个 issue 进行讨论。
+2. 通过其他方式联系其他贡献者进行讨论。
+
+### 项目功能模块化设计与路线图
+
+以下是详细的
+
+#### 核心功能模块
+
+* 爬虫部分
+    * 使用 playwright + camoufox 实现浏览器自动化操作
+        * 通过各项指纹检查
+            * [x] browser scan
+        * [x] 自动使用系统代理
+        * [ ] 优化 geoip , proxy-ip , locale , font 之间的集成
+    * 使用 deno + jsonata 清洗数据
+        * [x] 读取 postgres 中的数据并生成类型
+        * 优化生成的类型
+            * [ ] 更人性化的字符串模板常量
+        * [ ] 修复 quicktype 错误的将长得像日期或数字的字符串改为 Date 或 number 类型的错误。
+    * 清洗后的数据
+        * [x] 增量修改到 postgres
+        * [x] 自动运行 postgres 迁移
+        * [x] 用 typescript 确保 迁移对象 和 数据对象 的类型一致
+
+#### 社交媒体爬虫模块
+
+| 平台  | 域名                   | 爬取搜索菜单 | 清洗搜索菜单 | 爬取商品详情 |
+|-----|----------------------|--------|--------|--------|
+| 淘宝  | taobao.com           | ✔️     | todo   | todo   | |
+| 拼多多 | mobile.yangkeduo.com | ✔️     | todo   | todo   | |
+
+### 运行测试
+
+在你 commit 之前，不要忘了运行测试哟。
 
 ```shell
 poetry run pytest -s --log-cli-level=DEBUG

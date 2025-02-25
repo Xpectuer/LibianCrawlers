@@ -2,7 +2,10 @@
 import datetime
 import json
 import os.path
-from typing import Literal, Optional, Any
+import itertools
+import sys
+from threading import Thread
+from typing import Literal, Optional, Any, TypedDict
 
 import aiofiles.os
 import aiofiles.ospath
@@ -21,6 +24,16 @@ from libiancrawlers.util.fs import mkdirs, aios_listdir, filename_slugify
 _valid_smart_extract_mode = ['insert_to_db', 'save_file', 'save_file_and_insert_to_db']
 
 Locale = Literal['zh-CN']
+
+_new_thread_count = itertools.count()
+
+DevtoolStatus = TypedDict('DevtoolStatus', {
+    'enable': bool,
+    'stop': bool,
+    'pause': bool,
+    'thread': Optional[Thread],
+    'thread_should_stop': bool,
+})
 
 
 # async def smart_crawl_v1_api(*,
@@ -43,7 +56,7 @@ Locale = Literal['zh-CN']
 
 async def smart_crawl_v1(*,
                          url: str,
-                         mode: Literal['insert_to_db', 'save_file', 'save_file_and_insert_to_db'] = 'save_file',
+                         mode: Literal['insert_to_db', 'save_file', 'save_file_and_insert_to_db', 'all'] = 'save_file',
                          output_dir: Optional[str] = None,
                          tag_group: str = 'cli-group',
                          tag_version: Optional[str] = None,
@@ -64,7 +77,10 @@ async def smart_crawl_v1(*,
     from libiancrawlers.app_util.magic_util import get_magic_info
     from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options, read_proxy_server
     from libiancrawlers.crawlers.smart_crawl.wait_steps import SmartCrawlStopSignal
+    from asyncio import locks
 
+    if mode == 'all':
+        mode = 'save_file_and_insert_to_db'
     if mode not in _valid_smart_extract_mode:
         raise ValueError(f'Invalid mode {mode} , valid value should in {_valid_smart_extract_mode}')
 
@@ -84,6 +100,16 @@ async def smart_crawl_v1(*,
 
     b_page = None
     browser_context = None
+
+    _devtool_status: DevtoolStatus = {
+        'stop': False,
+        'pause': False,
+        'enable': False,
+        'thread': None,
+        'thread_should_stop': False,
+    }
+    _devtool_status_lock = locks.Lock()
+
     try:
         if is_insert_to_db:
             logger.debug('start init postgres')
@@ -177,7 +203,8 @@ async def smart_crawl_v1(*,
                     on_screenshot=BlobOutput(
                         mode='base64',
                         base_dir=None,
-                        filename=None)
+                        png_filename=None,
+                        pdf_filename=None)
                 )
             else:
                 page_info_smart_wait_insert_to_db = None
@@ -191,7 +218,8 @@ async def smart_crawl_v1(*,
                     on_screenshot=BlobOutput(
                         mode='file',
                         base_dir=base_dir,
-                        filename=f'screenshot__{filename_slugify(dump_tag, allow_unicode=True)}.png')
+                        png_filename=f'screenshot__{filename_slugify(dump_tag, allow_unicode=True)}.png',
+                        pdf_filename=f'screenshot__{filename_slugify(dump_tag, allow_unicode=True)}.pdf')
                 )
             else:
                 page_info_smart_wait_save_file = None
@@ -237,16 +265,55 @@ async def smart_crawl_v1(*,
                 )
             pass
 
+        async def _get_devtool_status():
+            async with _devtool_status_lock:
+                return _devtool_status
+
+        async def _check_devtool():
+            if not (await _get_devtool_status())['enable']:
+                return 'continue'
+            while (await _get_devtool_status())['pause']:
+                await sleep(1)
+            if (await _get_devtool_status())['stop']:
+                logger.info('Devtool status stopped')
+                return 'stop'
+            return 'continue'
+
+        async def _enable_devtool():
+            if (await _get_devtool_status())['enable']:
+                logger.info('Devtool already enabled')
+                return
+            logger.info('Devtool enabled . You can input command from stdin , such as : pause | resume | stop')
+
+            def read_stdin():
+                logger.debug('Start read stdin thread')
+                try:
+                    pass
+                finally:
+                    logger.debug('Stop read stdin thread')
+
+            _devtool_thread = Thread(
+                target=read_stdin,
+                daemon=True,
+                name=f'smart_crawl_read_stdin-{_new_thread_count.__next__()}',
+            )
+            _devtool_thread.start()
+            async with _devtool_status_lock:
+                _devtool_status['thread'] = _devtool_thread
+            return
+
         async def _process_steps(steps):
             if not (isinstance(steps, tuple) or isinstance(steps, list) or isinstance(steps, set)):
                 steps = [steps]
             for wait_step in steps:
+                if await _check_devtool() == 'stop':
+                    raise SmartCrawlStopSignal()
                 _all_steps_run.append(json.loads(json.dumps(wait_step, ensure_ascii=False)))
                 if wait_step == 'continue':
                     continue
                 if wait_step == 'break':
                     break
-                if wait_step == 'stop_signal':
+                if wait_step == 'stop':
                     raise SmartCrawlStopSignal()
                 if wait_step == 'debug':
                     if debug:
@@ -255,6 +322,9 @@ async def smart_crawl_v1(*,
                     else:
                         logger.debug('Skip debug command')
                         continue
+                if wait_step == 'enable_devtool':
+                    await _enable_devtool()
+                    continue
                 try:
                     logger.debug('🎼 on step : {}', wait_step)
                     if wait_step.get('fn') is not None:
@@ -311,6 +381,9 @@ async def smart_crawl_v1(*,
             await launch_debug(message=f'debug on error , please see console logger . {err}')
         raise err
     finally:
+        async with _devtool_status_lock:
+            if _devtool_status['thread'] is not None and _devtool_status['thread'].is_alive():
+                _devtool_status['thread_should_stop'] = True
         if wait_until_close_browser:
             logger.debug('start wait close browser manually')
             while b_page is not None and not b_page.is_closed():

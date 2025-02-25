@@ -27,6 +27,7 @@ wxpython = "^4.2.2"
 camoufox = { extras = ["geoip"], version = "^0.3.10" }
 aiofiles = "^24.1.0"
 python-magic = "0.4.27"
+pypiwin32 = {version = "^223", platform = "win32"}
 
 [tool.poetry.group.dev]
 optional = true

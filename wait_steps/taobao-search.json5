@@ -1,4 +1,5 @@
 [
+  'enable_devtool',
   {
     fn: 'page_random_mouse_move'
   },

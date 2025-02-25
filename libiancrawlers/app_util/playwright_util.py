@@ -4,7 +4,7 @@ import base64
 import os.path
 from dataclasses import dataclass
 from typing import Optional, Literal, Union, Dict, Callable, Awaitable, Any
-from urllib.parse import urlparse, parse_qs, parse_qsl
+from urllib.parse import urlparse, parse_qs
 
 import aiofiles.os
 import aiofiles.ospath
@@ -173,13 +173,14 @@ async def frame_tree_to_dict(frame: Frame):
 class BlobOutput:
     mode: Literal['ignore', 'file', 'base64']
     base_dir: Optional[str]
-    filename: Optional[str]
+    png_filename: Optional[str]
+    pdf_filename: Optional[str]
 
 
 async def _get_blob(*,
                     blob_output: Optional[BlobOutput],
-                    func_mode_file: Callable[[str], Awaitable[Any]],
-                    func_mode_base64: Callable[[], Awaitable[bytes]],
+                    func_mode_file: Callable[[], Awaitable[Any]],
+                    func_mode_base64: Callable[[], Awaitable[Dict]],
                     ):
     if blob_output is None:
         return None
@@ -189,14 +190,14 @@ async def _get_blob(*,
             raise ValueError('require set base_dir on blob_output.mode==file')
         if not await aiofiles.ospath.isdir(base_dir):
             raise OSError(f'require isdir : {base_dir}')
-        filename = blob_output.filename
-        if filename is None or len(blob_output.filename) == 0:
-            raise ValueError('require set filename on blob_output.mode==file')
-        output_file_path = os.path.join(base_dir, filename)
-        await func_mode_file(output_file_path)
-        return output_file_path
+        # noinspection PyArgumentList
+        return await func_mode_file(
+            output_base_dir=blob_output.base_dir,
+            png_filename=blob_output.png_filename,
+            pdf_filename=blob_output.pdf_filename,
+        )
     if blob_output.mode == 'base64':
-        return base64.b64encode(await func_mode_base64()).decode()
+        return await func_mode_base64()
 
     return None
 
@@ -204,26 +205,83 @@ async def _get_blob(*,
 async def page_info_to_dict(page: playwright.async_api.Page, *,
                             on_screenshot: Optional[BlobOutput] = None,
                             ):
-    async def screenshot_mode_file(pth: str):
-        logger.debug('start screenshot , pth is {}', pth)
-        res = await page.screenshot(
-            type='png',
-            path=pth,
-            full_page=True,
-            scale='css',
+    async def screenshot_mode_file(*,
+                                   output_base_dir: str,
+                                   png_filename: str,
+                                   pdf_filename: str):
+        png_pth = os.path.join(output_base_dir, png_filename)
+        logger.debug('start screenshot , png_pth is {}', png_pth)
+        try:
+            # noinspection PyUnusedLocal
+            png_res = await page.screenshot(
+                type='png',
+                path=png_pth,
+                full_page=True,
+                scale='css',
+            )
+            png_err_str = None
+        except BaseException as err:
+            logger.warning('Cannot screenshot : {}', err)
+            # noinspection PyUnusedLocal
+            png_res = None
+            png_err_str = str(err)
+        finally:
+            logger.debug('finish screenshot')
+        pdf_pth = os.path.join(output_base_dir, pdf_filename)
+        logger.debug('start pdf , pdf_pth is {}', pdf_pth)
+        try:
+            # noinspection PyUnusedLocal
+            pdf_res = await page.pdf(path=pdf_pth)
+            pdf_err_str = None
+        except BaseException as err:
+            logger.warning('Cannot pdf : {}', err)
+            # noinspection PyUnusedLocal
+            pdf_res = None
+            pdf_err_str = str(err)
+        finally:
+            logger.debug('finish pdf')
+        return dict(
+            png_pth=png_pth,
+            pdf_pth=pdf_pth,
+            png_err_str=png_err_str,
+            pdf_err_str=pdf_err_str,
+            # png_res=png_res if png_res is None else base64.b64encode(png_res).decode(),
+            # pdf_res=pdf_res if pdf_res is None else base64.b64encode(pdf_res).decode(),
         )
-        logger.debug('finish screenshot')
-        return res
 
     async def screenshot_mode_base64():
         logger.debug('start screenshot to base64')
-        res = await page.screenshot(
-            type='png',
-            full_page=True,
-            scale='css',
+        try:
+            png_res = await page.screenshot(
+                type='png',
+                full_page=True,
+                scale='css',
+            )
+            png_err_str = None
+        except BaseException as err:
+            logger.warning('Cannot screenshot : {}', err)
+            # noinspection PyUnusedLocal
+            png_res = None
+            png_err_str = str(err)
+        finally:
+            logger.debug('finish screenshot to base64')
+        logger.debug('start pdf')
+        try:
+            pdf_res = await page.pdf()
+            pdf_err_str = None
+        except BaseException as err:
+            logger.warning('Cannot pdf : {}', err)
+            # noinspection PyUnusedLocal
+            pdf_res = None
+            pdf_err_str = str(err)
+        finally:
+            logger.debug('finish pdf')
+        return dict(
+            png_res=png_res if png_res is None else base64.b64encode(png_res).decode(),
+            pdf_res=pdf_res if pdf_res is None else base64.b64encode(pdf_res).decode(),
+            png_err_str=png_err_str,
+            pdf_err_str=pdf_err_str,
         )
-        logger.debug('finish screenshot to base64')
-        return res
 
     return dict(
         url=url_parse_to_dict(page.url),
@@ -233,7 +291,7 @@ async def page_info_to_dict(page: playwright.async_api.Page, *,
         ),
         title=await page.title(),
         is_closed=page.is_closed(),
-        screenshot=await _get_blob(
+        files=await _get_blob(
             blob_output=on_screenshot,
             func_mode_file=screenshot_mode_file,
             func_mode_base64=screenshot_mode_base64,
