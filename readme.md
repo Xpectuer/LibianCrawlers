@@ -171,6 +171,7 @@ poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps
             * 在 Windows 上
                 * [x] 读取注册表 `Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings`
         * [ ] 优化 geoip , proxy-ip , locale , font 相互集成。
+            * [ ] 修复 MacOS 上缺少默认中文字体问题（应当仅在 locale = zh-CN 时启用并提供随机字体列表） 
         * Dump WebPage
             * [x] 读取所有 frame 的 html tree
             * [x] 调用截图功能
