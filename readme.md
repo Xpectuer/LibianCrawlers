@@ -10,7 +10,7 @@
 
 **数据处理**: 使用 TypeScript 和 Jsonata 构建流水线，实现数据清洗和校验。
 
-亦可以查看 [项目功能模块化设计与路线图](#项目功能模块化设计与路线图) 了解详细功能和进度。
+亦可以查看 [**项目功能模块化设计与路线图**](#项目功能模块化设计与路线图) 了解详细功能和进度。
 
 ## 安装
 
@@ -171,6 +171,18 @@ poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps
             * 在 Windows 上
                 * [x] 读取注册表 `Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings`
         * [ ] 优化 geoip , proxy-ip , locale , font 相互集成。
+        * Dump WebPage
+            * [x] 读取所有 frame 的 html tree
+            * [x] 调用截图功能
+                * [ ] 修复 firefox(camoufox) 截图功能无法截取高度或宽度超过32678的错误。
+            * 寻找解决 firefox(camoufox) 无法打印网页为 pdf 的替代方案。
+        * Hook
+            * [ ] hook 所有 request / response
+            * [ ] hook 所有 WebSocket
+            * [ ] hook 所有页面创建
+            * [ ] hook 所有路由变动
+            * [ ] hook 所有 `JSON.parse()`
+            * [ ] hook 所有 `fetch()` 和返回值 `.json()`
     * 使用 deno + jsonata 清洗数据
         * [x] 读取 postgres 中的数据并生成类型
         * 优化生成的类型
