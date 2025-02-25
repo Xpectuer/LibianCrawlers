@@ -184,10 +184,10 @@ poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps
 
 #### 社交媒体爬虫模块
 
-| 平台  | 域名                   | 爬取搜索菜单 | 清洗搜索菜单 | 爬取商品详情 |  
-|-----|----------------------|--------|--------|--------|
-| 淘宝  | taobao.com           | ✔️     | todo   | todo   | |  
-| 拼多多 | mobile.yangkeduo.com | ✔️     | todo   | todo   | |
+| 平台  | 域名                   | 爬取搜索菜单 | 清洗搜索菜单 | 爬取商品详情 | 清洗商品详情 |  
+|-----|----------------------|--------|--------|--------|--------|
+| 淘宝  | taobao.com           | ✔️     | todo   | todo   | todo   |   
+| 拼多多 | mobile.yangkeduo.com | ✔️     | todo   | todo   | todo   |   
 
 ##### 命令示例
 
