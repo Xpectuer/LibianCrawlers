@@ -4,6 +4,7 @@ import json
 import os.path
 import itertools
 import sys
+import traceback
 from threading import Thread
 from typing import Literal, Optional, Any, TypedDict
 
@@ -150,8 +151,13 @@ async def smart_crawl_v1(*,
             )
             logger.debug('finish insert to db')
 
-        logger.debug('start new page')
-        b_page = await browser_context.new_page()
+        __pages = browser_context.pages
+        logger.debug('start get page , pages were {}', __pages)
+        if len(__pages) > 0:
+            b_page = __pages[0]
+        else:
+            logger.debug('start new page')
+            b_page = await browser_context.new_page()
 
         logger.debug('start page goto')
         _resp_goto_obj = await b_page.goto(url=url, wait_until='domcontentloaded')
@@ -379,6 +385,9 @@ async def smart_crawl_v1(*,
         from playwright._impl._errors import TargetClosedError
         if debug and not isinstance(err, TargetClosedError):
             await launch_debug(message=f'debug on error , please see console logger . {err}')
+        if is_save_file and base_dir is not None:
+            async with aiofiles.open(os.path.join(base_dir, 'error_info.txt'), mode='w') as _error_info_file:
+                await _error_info_file.write(traceback.format_exc())
         raise err
     finally:
         async with _devtool_status_lock:
@@ -392,8 +401,8 @@ async def smart_crawl_v1(*,
         if is_save_file and _is_success_end:
             if base_dir is None:
                 raise Exception('base dir should not null')
-            async with aiofiles.open(os.path.join(base_dir, '.is_success'), mode='w') as _is_success_file:
-                await _is_success_file.write('true')
+            async with aiofiles.open(os.path.join(base_dir, '.is_success'), mode='w') as _error_info_file:
+                await _error_info_file.write('true')
             abs_base_dir = os.path.abspath(base_dir)
             logger.info('Result at : \n\n    {}\n', abs_base_dir)
             from libiancrawlers.util.plat import is_windows

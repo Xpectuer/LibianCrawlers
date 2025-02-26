@@ -199,20 +199,20 @@ poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps
 | 平台  | 域名                   | 爬取搜索菜单 | 清洗搜索菜单 | 爬取商品详情 | 清洗商品详情 |  
 |-----|----------------------|--------|--------|--------|--------|
 | 淘宝  | taobao.com           | ✔️     | todo   | todo   | todo   |   
-| 拼多多 | mobile.yangkeduo.com | ✔️     | todo   | todo   | todo   |   
+| 拼多多 | mobile.yangkeduo.com | ✔️     | todo   | ✔️     | todo   |   
 
 ##### 命令示例
 
 淘宝:
 
 ```shell
-poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/taobao-search.json5?q=羽绒服
+poetry run smart-crawl --debug --url https://www.taobao.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/taobao-search.json5?q=羽绒服
 ```
 
 拼多多(mobile.yangkeduo.com):
 
 ```shell
-poetry run smart-crawl --url https://mobile.yangkeduo.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/yangkeduo-mobile-search.json5?q=羽绒服
+poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/yangkeduo-mobile-search.json5?q=羽绒服
 ```
 
 ### 运行测试

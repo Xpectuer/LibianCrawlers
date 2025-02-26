@@ -27,7 +27,7 @@ wxpython = "^4.2.2"
 camoufox = { extras = ["geoip"], version = "^0.3.10" }
 aiofiles = "^24.1.0"
 python-magic = "0.4.27"
-pypiwin32 = {version = "^223", platform = "win32"}
+pypiwin32 = { version = "^223", platform = "win32" }
 
 [tool.poetry.group.dev]
 optional = true
@@ -66,7 +66,8 @@ pyexecjs = "^1.5.1"
 
 
 [tool.poetry.scripts]
-camoufox-to-browser-scan = "libiancrawlers.app_util.camoufox_util.test_connect:to_browser_scan"
+camoufox-to-check-leak-website = "libiancrawlers.app_util.camoufox_util.camoufox_tests:to_check_leak_website"
+camoufox-to-check-go-back-button-available = "libiancrawlers.app_util.camoufox_util.camoufox_tests:to_check_go_back_button_available"
 smart-crawl = "libiancrawlers.crawlers.smart_crawl.smart_crawl:cli"
 
 [[tool.poetry.source]]

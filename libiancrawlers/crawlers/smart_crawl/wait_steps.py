@@ -2,7 +2,8 @@
 import asyncio
 from datetime import datetime
 import random
-from typing import Optional, Literal, Any, TypedDict, Callable, Awaitable, Union, List
+import hashlib
+from typing import Optional, Literal, Any, TypedDict, Callable, Awaitable, Union, List, Tuple
 
 from aioify import aioify
 from loguru import logger
@@ -19,6 +20,8 @@ class SmartCrawlSignal(BaseException):
 class SmartCrawlStopSignal(SmartCrawlSignal):
     pass
 
+
+XY = TypedDict('XY', {'x': float, 'y': float})
 
 PageRef = TypedDict('PageRef', {'value': Page, })
 
@@ -148,8 +151,23 @@ def _create_wait_steps_func_map(*,
             steps = 2
         else:
             steps = kwargs.pop('steps')
-
         await asyncio.wait_for((await get_page()).mouse.move(*args, steps=steps, **kwargs), timeout=timeout)
+
+    async def page_go_back(*args, **kwargs):
+        page = await get_page()
+        old_url = page.url
+        logger.debug('page go back , args={} , kwargs={} , current url is\n    {}',
+                     args, kwargs, old_url)
+        if kwargs.get('timeout') is not None:
+            timeout = kwargs.pop('timeout')
+        else:
+            timeout = 4000
+        res = await page.go_back(timeout=timeout, **kwargs)
+        logger.debug('page go back finish .' +
+                     '\n    from {}' +
+                     '\n    to {}',
+                     old_url, page.url, )
+        return res
 
     @aioify
     def logd(*args, **kwargs):
@@ -198,10 +216,10 @@ def _create_wait_steps_func_map(*,
         start_at = datetime.utcnow().timestamp() * 1000.0
         last_timeout_err = None
         out_loop = True
+        logger.debug('_page.frames before loop : {}', _page.frames)
         while out_loop:
             if start_at + timeout < datetime.utcnow().timestamp() * 1000.0:
                 break
-            logger.debug('_page.frames : {}', _page.frames)
             for frame in _page.frames:
                 loop_timeout = 100.0 if timeout is None else max(100.0, timeout / 20.0)
                 try:
@@ -217,6 +235,7 @@ def _create_wait_steps_func_map(*,
                         continue
                     else:
                         raise
+        logger.debug('_page.frames after loop : {}', _page.frames)
         if last_timeout_err is None:
             raise TimeoutError(err_msg)
         else:
@@ -256,23 +275,126 @@ def _create_wait_steps_func_map(*,
         }
         retry_scroll_down = 0
         retry_scroll_up = 0
+
+        viewport_size = _page.viewport_size
+        if viewport_size is not None:
+            logger.debug('viewport size is {}', viewport_size)
+
+        curr_height_min = 999999999
+
+        _dump_count = 0
+        _elements_wait_to_click: List[Tuple[str, XY]] = []
         while True:
-            if page_click_if_found is not None:
-                # await page_click()
-                pass
-                # selector = page_click_if_found.get()
-                #
             await _page.mouse.wheel(delta_x=0, delta_y=random_delta_y())
             curr_height = await _page.evaluate('(window.innerHeight + window.scrollY)')
+            curr_height_min = min(curr_height_min, curr_height)
+
             logger.debug('scrolling... curr_height is {}', curr_height)
+
+            if page_click_if_found is not None:
+                if viewport_size is not None:
+                    _element_list_locator = _page.locator(page_click_if_found.get('locator'))
+                    _element_idx = 0
+                    _elements_count = await _element_list_locator.count()
+                    _elements = dict()
+                    while True:
+                        try:
+                            if _element_idx >= _elements_count:
+                                break
+                            _element_locator = _element_list_locator.nth(_element_idx)
+                            if not await _element_locator.is_visible():
+                                continue
+                            _box = await _element_locator.bounding_box()
+                            if _box is None:
+                                continue
+                            _element_inner_text: str = await _element_locator.inner_text()
+                            while True:
+                                _old = _element_inner_text
+                                _element_inner_text = _element_inner_text.replace(' ', '')
+                                _element_inner_text = _element_inner_text.replace('\n', '')
+                                _element_inner_text = _element_inner_text.replace('\t', '')
+                                if _old == _element_inner_text:
+                                    break
+                            _element_hash = hashlib.md5(
+                                f'{await _element_locator.inner_html()}'.encode('utf-8')).hexdigest()
+                            if len(_element_inner_text) > 30:
+                                _element_inner_text = _element_inner_text[0:30]
+                            if _element_inner_text in list(_elements.keys()):
+                                logger.debug('exist _element_inner_text')
+                                continue
+                            if _box['width'] < 5 or _box['height'] < 5:
+                                logger.warning(
+                                    'why element box too small (and visible) , i will not click : _box={} , inner_html={}',
+                                    _box, await _element_locator.inner_html())
+                                continue
+                            _xy: XY = {
+                                'x': _box['x'] + _box['width'] / 2,
+                                'y': _box['y'] + _box['height'] / 2,
+                            }
+                            logger.debug('found element  , hash is {} , inner text is {}',
+                                         _element_hash, _element_inner_text)
+                            _elements[f'{_element_inner_text}_{_element_hash}'] = _xy
+                        finally:
+                            _element_idx += 1
+
+                    if _elements.keys().__len__() > 0:
+                        logger.debug('found elements duplicated by inner text :  ' +
+                                     '\n    _elements_count is {}' +
+                                     '\n    len(_elements)  is {}' +
+                                     '\n    _elements       is {}', _elements_count, len(_elements), _elements)
+                    _elements_items = list(_elements.items())
+                    _elements_wait_to_click_wait_to_add: List[Tuple[str, XY]] = []
+                    while True:
+                        if _elements_wait_to_click.__len__() > 0:
+                            _element_info = _elements_wait_to_click.pop()
+                        elif _elements_items.__len__() > 0:
+                            _element_info = _elements_items.pop()
+                        else:
+                            break
+                        try:
+                            _element_key, _xy = _element_info
+                            if _xy['x'] > viewport_size['width'] or _xy['y'] > curr_height:
+                                logger.debug(
+                                    'skip element outer of box , _xy = {} , curr_height = {} , viewport_size = {} , _element_inner_text is {}',
+                                    _xy, curr_height, viewport_size, _element_key)
+                                _elements_wait_to_click_wait_to_add.append(_element_info)
+                                continue
+                            on_found_after_click_steps = page_click_if_found.get('on_found_after_click_steps')
+                            if on_found_after_click_steps is not None:
+                                logger.debug('start click and dump page element : _element_info={} , _xy={}',
+                                             _element_info, _xy)
+                                await page_click({
+                                    'x': _xy['x'],
+                                    'y': _xy['y'] - max(0, curr_height - curr_height_min),
+                                })
+                                await sleep(1)
+                                _dump_count += 1
+                                await dump_page(
+                                    f'scroll_click_dump_pre_{_dump_count}_{int(_xy["x"])}_{int(_xy["y"])}_{_element_key}')
+                                await _process_steps(on_found_after_click_steps)
+                                await sleep(1)
+                                await dump_page(
+                                    f'scroll_click_dump_aft_{_dump_count}_{int(_xy["x"])}_{int(_xy["y"])}_{_element_key}')
+                                await sleep(1)
+                                on_found_after_click_and_dump_steps = page_click_if_found.get(
+                                    'on_found_after_click_and_dump_steps')
+                                if on_found_after_click_and_dump_steps is not None:
+                                    await _process_steps(on_found_after_click_and_dump_steps)
+                                    await sleep(1)
+                        except BaseException as err:
+                            raise Exception(
+                                f'Failed operate , _dump_count = {_dump_count} , _element_info = {_element_info}') from err
+
+                    _elements_wait_to_click.extend(_elements_wait_to_click_wait_to_add)
+
             if not prev_height:
                 prev_height = curr_height
                 await sleep(random_interval())
                 continue
             if max_height is not None and prev_height > max_height:
                 logger.debug(
-                    'on prev_height > max_height, \n    prev_height = {}\n    curr_height = {}\n    max_height = {}',
-                    prev_height, curr_height, max_height)
+                    'on prev_height > max_height, \n    prev_height = {}\n    curr_height = {}\n    max_height = {}\n    curr_height_min = {}',
+                    prev_height, curr_height, max_height, curr_height_min)
                 logger.debug('break scroll down because prev_height({}) > max_height({})', prev_height, max_height)
                 break
             if prev_height == curr_height:
@@ -321,8 +443,9 @@ def _create_wait_steps_func_map(*,
             prev_height = curr_height
             await sleep(random_interval())
 
-    async def page_click(selector: str,
+    async def page_click(selector: Union[str, Locator, XY],
                          *,
+                         method: Literal['click', 'tap'] = None,
                          on_new_page: Optional[
                              Union[
                                  Literal[
@@ -335,15 +458,17 @@ def _create_wait_steps_func_map(*,
                          ] = None,
                          wait_any_page_create_time_limit: Optional[float] = None,
                          **kwargs):
+        if method is None:
+            method = 'click'
         if on_new_page is None:
             on_new_page = 'switch_it_and_run_steps_no_matter_which_page'
         if wait_any_page_create_time_limit is None or wait_any_page_create_time_limit < 0:
-            wait_any_page_create_time_limit = 5000
+            wait_any_page_create_time_limit = 3000
 
         pages_size_old = browser_context.pages.__len__()
-        logger.debug('on page click : selector={} , kwargs={}', selector, kwargs)
+        logger.debug('on page {} : selector={} , kwargs={}', method, selector, kwargs)
         if kwargs.get('timeout') is None:
-            timeout = 2000
+            timeout = 5000
         else:
             timeout = kwargs.pop('timeout')
         has_text = None
@@ -354,21 +479,50 @@ def _create_wait_steps_func_map(*,
             has_not_text = kwargs.pop('has_not_text')
         _page = await get_page()
 
-        _loc = _page.locator(
-            selector=selector,
-            has_text=has_text,
-            has_not_text=has_not_text
-        )
+        async def _debug_window_state(msg: str):
+            logger.debug('{} , window state is :' +
+                         '\n    window.history.length is {}' +
+                         '\n    window.history.scrollRestoration is {}' +
+                         '\n    window.location is {}' +
+                         '\n ',
+                         msg,
+                         await _page.evaluate('window.history.length'),
+                         await _page.evaluate('window.history.scrollRestoration'),
+                         await _page.evaluate('window.location'),
+                         )
 
-        if kwargs.get('on_locator') is not None:
-            _loc = await on_locator(_loc, kwargs.pop('on_locator'))
+        await _debug_window_state(f'before page {method}')
 
-        await _loc.click(
-            timeout=timeout,
-            **kwargs
-        )
+        if isinstance(selector, dict) and 'x' in selector and 'y' in selector:
+            await _page.mouse.click(selector.get('x'), selector.get('y'), **kwargs)
+        else:
+            if isinstance(selector, str):
+                _loc = _page.locator(
+                    selector=selector,
+                    has_text=has_text,
+                    has_not_text=has_not_text
+                )
+            else:
+                _loc = selector
 
-        logger.debug('after page click')
+            if kwargs.get('on_locator') is not None:
+                _loc = await on_locator(_loc, kwargs.pop('on_locator'))
+
+            if method == 'click':
+                await _loc.click(
+                    timeout=timeout,
+                    **kwargs
+                )
+            elif method == 'tap':
+                await _loc.tap(
+                    timeout=timeout,
+                    **kwargs
+                )
+            else:
+                raise ValueError(f'Invalid method {method}')
+
+        await _debug_window_state(f'after page {method}')
+
         if on_new_page != 'ignore':
             wait_any_page_create_at = datetime.now().timestamp()
             while datetime.now().timestamp() - wait_any_page_create_at < wait_any_page_create_time_limit / 1000.0:
@@ -472,8 +626,13 @@ def _create_wait_steps_func_map(*,
     async def page_wait_for_selector(*args, **kwargs):
         return await (await get_page()).wait_for_selector(*args, **kwargs)
 
+    async def api_sleep(total: float):
+        if total < 10:
+            logger.warning('Do you known sleep() unit is millisecond ? (you bypass {})', total)
+        await sleep(total / 1000.0)
+
     fn_map = {
-        'sleep': sleep,
+        'sleep': api_sleep,
         'logd': logd,
         'logi': logi,
         'logw': logw,
@@ -492,6 +651,7 @@ def _create_wait_steps_func_map(*,
         'page_wait_for_selector': page_wait_for_selector,
         'page_wait_for_selector_in_any_frame': page_wait_for_selector_in_any_frame,
         'page_scroll_down': page_scroll_down,
+        'page_go_back': page_go_back,
     }
 
     return fn_map

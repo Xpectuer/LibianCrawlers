@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 import asyncio
 import base64
+import json
 import os.path
 from dataclasses import dataclass
 from typing import Optional, Literal, Union, Dict, Callable, Awaitable, Any
@@ -58,9 +59,9 @@ async def get_browser(*,
                       my_public_ip_info: MyPublicIpInfo,
                       launch_options: Dict[str, Any],
                       ):
-    ctx = await _get_ctx()
-    pw = await ctx.__aenter__()
     if mode == 'connect':
+        ctx = await _get_ctx()
+        pw = await ctx.__aenter__()
         ws_endpoint = await read_config('camoufox', 'server', 'ws-endpoint')
         browser: Browser = await pw.firefox.connect(ws_endpoint=ws_endpoint)
         browser_context = await browser.new_context()
@@ -69,11 +70,17 @@ async def get_browser(*,
         user_data_dir = os.path.join(gecko_profile_dir,
                                      filename_slugify(mode.browser_data_dir_id, allow_unicode=True))
         logger.debug('create browser , user data dir at {}', user_data_dir)
-        browser_context: BrowserContext = await AsyncCamoufox(
+        firefox_user_prefs = dict()
+        if launch_options.get('firefox_user_prefs') is not None:
+            firefox_user_prefs.update(launch_options.pop('firefox_user_prefs'))
+        async_camoufox_launch_options = dict(
             persistent_context=True,
             user_data_dir=user_data_dir,
+            firefox_user_prefs=firefox_user_prefs,
             **launch_options,
-        ).__aenter__()
+        )
+        logger.debug('async_camoufox_launch_options is :\n{}', json.dumps(async_camoufox_launch_options, indent=2))
+        browser_context: BrowserContext = await AsyncCamoufox(**async_camoufox_launch_options).__aenter__()
         browser: None = browser_context.browser
         # browser = browser_context.browser
         # if browser is None:
@@ -234,7 +241,10 @@ async def page_info_to_dict(page: playwright.async_api.Page, *,
             pdf_res = await page.pdf(path=pdf_pth)
             pdf_err_str = None
         except BaseException as err:
-            logger.warning('Cannot pdf : {}', err)
+            if 'PDF generation is only supported for Headless Chromium' in str(err):
+                logger.debug('Cannot pdf : {}', err)
+            else:
+                logger.warning('Cannot pdf : {}', err)
             # noinspection PyUnusedLocal
             pdf_res = None
             pdf_err_str = str(err)
