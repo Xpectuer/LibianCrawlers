@@ -102,8 +102,8 @@ export async function generate_repository_api(
                 ...table,
                 batch_size: table.batch_size.code_gen,
                 on_bar: async (bar_render_param) => {
-                  await bar.set_total(1 + bar_render_param.total);
                   step1_total_remember.value = bar_render_param.total;
+                  await bar.set_total(1 + step1_total_remember.value);
                   await bar.set_completed(bar_render_param.completed);
                 },
                 cache_by_id,

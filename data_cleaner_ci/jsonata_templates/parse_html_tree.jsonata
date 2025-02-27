@@ -22,6 +22,14 @@
                 "comment": $distinct($comment)
             };
             $m
+        ),
+        "yangkeduo": (
+            $window_raw_data := $tags[str][$contains(str, "window.rawData")].str;
+            $window_raw_data_eval := $window_raw_data ? $deno_eval( $join(["let window={};" , $window_raw_data, "; console.log(JSON.stringify(window.rawData))"])) : null;
+            $m := {
+                "window_raw_data_eval": $window_raw_data_eval
+            };
+            $m
         )
     }
 )

@@ -1,10 +1,13 @@
 import postgres from "postgres";
 import { ColumnType, JSONColumnType } from "kysely";
 import jsonata from "jsonata";
-import { Jsons, Streams, Strs, write_file } from "./util.ts";
+import { Jsonatas, Jsons, Streams, Strs, Times, write_file } from "./util.ts";
 import { data_cleaner_ci_generated } from "./consts.ts";
 import path from "node:path";
 import { Nums } from "./util.ts";
+import { delay } from "@std/async/delay";
+// import { filesize } from "filesize";
+
 export type PostgresConnectionParam = {
   dbname: string;
   user: string;
@@ -113,88 +116,130 @@ export async function* read_postgres_table(
   if (isNaN(total)) {
     throw new Error("Count(*) return NAN");
   }
-  let completed = 0;
-  const existed_writer = Streams.backpressure<Jsons.JSONObject[]>({
-    gen: (async function* () {
-      if (cache_dir_exist && cache_by_id.enable) {
-        const buffer: Array<Jsons.JSONObject> = [];
+  const completed = {
+    value: 0,
+  };
+  const existed_writer = async function* () {
+    if (cache_dir_exist && cache_by_id.enable) {
+      let gid_list: number[] = [];
+      let memory_limit_guess: number[] = [];
+      let buffer: Array<Jsons.JSONObject> = [];
+      const gen = (async function* () {
         for await (const cache_file of Deno.readDir(cache_dir)) {
           const g_id = get_g_id(cache_file);
           if (g_id === "pass") {
             continue;
           }
-          const cache_file_path = path.join(cache_dir, cache_file.name);
-          const bytes = await Deno.readFile(cache_file_path);
-          const value = Jsons.load(Strs.parse_utf8(bytes));
-          if (value && typeof value === "object" && !Array.isArray(value)) {
-            buffer.push(value);
-          } else {
-            throw new Error(
-              `obj from load not a object , cache_file.name is ${cache_file.name}`
-            );
+          const cache_file_name = cache_file.name;
+          const cache_file_path = path.join(cache_dir, cache_file_name);
+          const [cache_file_stat, bytes] = await Promise.all([
+            Deno.stat(cache_file_path),
+            Deno.readFile(cache_file_path),
+          ]);
+          yield {
+            g_id,
+            cache_file_name,
+            cache_file_path,
+            cache_file_stat,
+            bytes,
+          };
+        }
+      })();
+      for await (const cache_file of Streams.backpressure({
+        gen: gen,
+        queue_size: 10,
+      })()) {
+        const value = Jsons.load(Strs.parse_utf8(cache_file.bytes));
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          buffer.push(value);
+          memory_limit_guess.push(cache_file.cache_file_stat.size);
+          gid_list.push(cache_file.g_id);
+        } else {
+          throw new Error(
+            `obj from load not a object , cache_file.name is ${cache_file.cache_file_name}`
+          );
+        }
+        const preventOOM =
+          memory_limit_guess.reduce((p, c) => p + c) >= 50 * 1024 * 1024;
+        if (preventOOM || buffer.length >= batch_size_final) {
+          if (preventOOM) {
+            // console.debug(
+            //   "preventOOM",
+            //   gid_list
+            //     .map((it, idx) => [it, memory_limit_guess[idx]])
+            //     .sort((a, b) => b[1] - a[1])
+            //     .map(([it, size]) => [it, filesize(size)])
+            // );
           }
-          if (buffer.length >= batch_size_final) {
-            yield buffer.splice(0, batch_size_final);
-          }
-          completed += 1;
-          if (on_bar) {
-            await on_bar({ completed, total });
+          yield buffer;
+          buffer = [];
+          memory_limit_guess = [];
+          gid_list = [];
+          if (preventOOM) {
+            await delay(200);
           }
         }
-        yield buffer.splice(0, buffer.length);
-      }
-
-      const create_select_sql = () =>
-        sql`SELECT * FROM ${sql(schema)}.${sql(
-          tablename
-        )} WHERE g_id NOT IN ${sql(
-          cached_ids.length > 0 ? cached_ids : [-114514]
-        )}`;
-      // console.debug(
-      //   "Select SQL statement :",
-      //   (await create_select_sql()).statement
-      // );
-      const cursor = create_select_sql().cursor(batch_size_final); //
-      for await (const rows of cursor) {
-        completed += rows.length;
+        completed.value += 1;
         if (on_bar) {
-          await on_bar({ completed, total });
-        }
-        yield rows;
-        if (cache_by_id.enable) {
-          for (const row of rows) {
-            const g_id = row["g_id"];
-            if (Nums.is_int(g_id)) {
-              await write_file({
-                file_path: path.join(cache_dir, `${g_id}.json`),
-                creator: {
-                  mode: "text",
-                  // deno-lint-ignore require-await
-                  content: async () => Jsons.dump(row, { indent: 2 }),
-                },
-                log_tag: "no",
-              });
-            } else {
-              throw new Error(
-                `g_id is not number , rows[0] is ${JSON.stringify(rows[0])}`
-              );
-            }
-          }
+          await on_bar({ completed: completed.value, total });
         }
       }
-    })(),
-    queue_size: 1,
-    writer_delay_ms: () => 4000,
-    before_event(ev) {
-      // if (ev === "reader_inqueue") console.debug("on read cache json >>>", ev);
-      // if (ev.indexOf("queue") >= 0) console.debug("on read cache json >>>", ev);
-      // console.debug("on read cache json >>>", ev);
-      // on_bar()
-    },
-  });
+      yield buffer;
+    }
+
+    const create_select_sql = () =>
+      sql`SELECT * FROM ${sql(schema)}.${sql(
+        tablename
+      )} WHERE g_id NOT IN ${sql(
+        cached_ids.length > 0 ? cached_ids : [-114514]
+      )}`;
+    // console.debug(
+    //   "Select SQL statement :",
+    //   (await create_select_sql()).statement
+    // );
+    const cursor = create_select_sql().cursor(batch_size_final); //
+    for await (const rows of cursor) {
+      completed.value += rows.length;
+      if (on_bar) {
+        await on_bar({ completed: completed.value, total });
+      }
+      // console.debug("cursor next rows , completed is ", completed.value);
+      const write_cache_promise = (async () => {
+        if (cache_by_id.enable) {
+          await Promise.all(
+            rows.map(async (row) => {
+              const g_id = row["g_id"];
+              if (Nums.is_int(g_id)) {
+                await write_file({
+                  file_path: path.join(cache_dir, `${g_id}.json`),
+                  creator: {
+                    mode: "text",
+                    // deno-lint-ignore require-await
+                    content: async () => Jsons.dump(row, { indent: 2 }),
+                  },
+                  log_tag: "no",
+                });
+              } else {
+                throw new Error(
+                  `g_id is not number , rows[0] is ${JSON.stringify(rows[0])}`
+                );
+              }
+            })
+          );
+        }
+      })();
+      yield rows;
+      await write_cache_promise;
+    }
+  };
+  const start_at = new Date().getTime();
   for await (const existed of existed_writer()) {
     yield existed;
   }
+  console.debug(
+    "\n\nCast time of foreach rows iterator from postgres (unit is s):",
+    (new Date().getTime() - start_at) / 1000.0
+  );
 }
 
 export type JsonataTemplate = string;
@@ -206,6 +251,7 @@ export async function* read_postgres_table_type_wrap<T>(param: {
   with_jsonata_template: JsonataTemplate[] | null | undefined;
 }) {
   const { jsonata_exp, rows_gen, with_jsonata_template } = param;
+  Jsonatas.register_common_function_on_exp(jsonata_exp);
   for await (const rows of rows_gen) {
     yield await Promise.all(
       rows.map(async (it) => {
@@ -220,6 +266,7 @@ export async function* read_postgres_table_type_wrap<T>(param: {
                 path.join("jsonata_templates", `${template_name}.jsonata`)
               )
             );
+            Jsonatas.register_common_function_on_exp(jsonata_template_exp);
             res[`template_${template_name}`] =
               await jsonata_template_exp.evaluate(it);
           }

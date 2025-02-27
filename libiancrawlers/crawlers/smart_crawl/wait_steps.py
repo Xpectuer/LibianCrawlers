@@ -253,18 +253,18 @@ def _create_wait_steps_func_map(*,
                                     suc_msg_template=f'success found selector {selector} in frame {{}} , result is {{}}')
 
     async def page_scroll_down(*,
-                               delta_y=200.0,
-                               interval=1.0,
+                               delta_y=233.0,
+                               interval=0.5,
                                max_height: Optional[float] = 20000,
                                retry_scroll_up_limit: int = 2,
-                               retry_scroll_down_limit: int = 3,
+                               retry_scroll_down_limit: int = 2,
                                page_click_if_found: JSON = None,
                                ):
         _page = await get_page()
         logger.debug('start page scroll down , current page title is {}', await _page.title())
 
         def random_interval():
-            return interval * (random.randint(3, 16) / 10.0)
+            return interval * (random.randint(7, 13) / 10.0)
 
         def random_delta_y():
             return delta_y * (random.randint(3, 16) / 10.0)

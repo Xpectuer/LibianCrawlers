@@ -10,6 +10,9 @@
     "jsr:@std/assert@~0.213.1": "0.213.1",
     "jsr:@std/async@*": "1.0.10",
     "jsr:@std/async@^1.0.10": "1.0.10",
+    "jsr:@std/datetime@*": "0.225.3",
+    "jsr:@std/datetime@~0.225.3": "0.225.3",
+    "jsr:@std/encoding@*": "0.213.1",
     "jsr:@std/encoding@0.213.1": "0.213.1",
     "jsr:@std/fmt@0.213.1": "0.213.1",
     "jsr:@std/fmt@1.0.3": "1.0.3",
@@ -23,6 +26,7 @@
     "npm:collection-utils@^1.0.1": "1.0.1",
     "npm:encoding@~0.1.13": "0.1.13",
     "npm:english2number@^1.0.8": "1.0.8",
+    "npm:filesize@^10.1.6": "10.1.6",
     "npm:intl-number-parser@^1.0.5": "1.0.5",
     "npm:is-arguments@^1.2.0": "1.2.0",
     "npm:is-array-buffer@^3.0.5": "3.0.5",
@@ -59,7 +63,7 @@
     "@denosaurs/plug@1.0.3": {
       "integrity": "b010544e386bea0ff3a1d05e0c88f704ea28cbd4d753439c2f1ee021a85d4640",
       "dependencies": [
-        "jsr:@std/encoding",
+        "jsr:@std/encoding@0.213.1",
         "jsr:@std/fmt@0.213.1",
         "jsr:@std/fs",
         "jsr:@std/path@0.213.1"
@@ -76,6 +80,9 @@
     },
     "@std/async@1.0.10": {
       "integrity": "2ff1b1c7d33d1416159989b0f69e59ec7ee8cb58510df01e454def2108b3dbec"
+    },
+    "@std/datetime@0.225.3": {
+      "integrity": "fda0b7791b43d9a46764986fec39922a8ceb70ffca642651fa7d0683501a171a"
     },
     "@std/encoding@0.213.1": {
       "integrity": "fcbb6928713dde941a18ca5db88ca1544d0755ec8fb20fe61e2dc8144b390c62"
@@ -229,6 +236,9 @@
     },
     "events@3.3.0": {
       "integrity": "sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q=="
+    },
+    "filesize@10.1.6": {
+      "integrity": "sha512-sJslQKU2uM33qH5nqewAwVB2QgR6w1aMNsYUp3aN5rMRyXEwJGmZvaWzeJFNTOXWlHQyBFCWrdj3fV/fsTOX8w=="
     },
     "for-each@0.3.4": {
       "integrity": "sha512-kKaIINnFpzW6ffJNDjjyjrk21BkDx38c0xa/klsT8VzLCaMEefv4ZTacrcVR4DmgTeBra++jMDAfS/tS799YDw==",
@@ -631,9 +641,11 @@
       "jsr:@deno-library/progress@^1.5.1",
       "jsr:@std/assert@^1.0.8",
       "jsr:@std/async@^1.0.10",
+      "jsr:@std/datetime@~0.225.3",
       "npm:collection-utils@^1.0.1",
       "npm:encoding@~0.1.13",
       "npm:english2number@^1.0.8",
+      "npm:filesize@^10.1.6",
       "npm:intl-number-parser@^1.0.5",
       "npm:is-arguments@^1.2.0",
       "npm:is-array-buffer@^3.0.5",

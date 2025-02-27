@@ -10,6 +10,9 @@ import NumberParser from "intl-number-parser";
 import english2number from "english2number";
 import { delay } from "@std/async/delay";
 import { equal } from "@std/assert/equal";
+import jsonata from "jsonata";
+import { encodeHex } from "jsr:@std/encoding/hex";
+import * as datetime from "jsr:@std/datetime";
 
 export function is_nullish(obj: any): obj is null | undefined {
   return obj === null || obj === undefined;
@@ -139,6 +142,18 @@ export async function write_file(param: {
     throw Error("Invalid param `creator.mode` , creator is", creator);
   }
   return await Deno.lstat(file_path);
+}
+
+/**
+ * https://stackoverflow.com/a/41854075/21185704
+ */
+export function name_function(name: string, body: (...args: any[]) => any) {
+  return {
+    // deno-lint-ignore no-explicit-any
+    [name](...args: any[]) {
+      return body.apply(this, args);
+    },
+  }[name];
 }
 
 // deno-lint-ignore no-namespace
@@ -1880,15 +1895,8 @@ export namespace Streams {
     return res;
   }
 
-  export function backpressure<
-    T,
-    G extends AsyncGenerator<T, void, undefined> = AsyncGenerator<
-      T,
-      void,
-      undefined
-    >
-  >(_param: {
-    gen: G;
+  export function backpressure<T>(_param: {
+    gen: AsyncGenerator<T, void, undefined>;
     queue_size: number;
     reader_delay_ms?: () => number;
     writer_delay_ms?: () => number;
@@ -1952,6 +1960,94 @@ export namespace Errors {
   export function logerror_and_throw(msg: string, obj: object): never {
     console.error(msg, obj);
     throw new Error(`${msg}`, { cause: obj });
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace Jsonatas {
+  export function register_common_function_on_exp(
+    jsonata_exp?: null | ReturnType<typeof jsonata>
+  ) {
+    if (jsonata_exp) {
+      jsonata_exp.registerFunction(
+        "deno_eval",
+        async (str: string) => {
+          let script_filename: string;
+          while (true) {
+            script_filename = path.join(
+              "user_code",
+              ".tmp",
+              "jsonata_deno_eval_scripts",
+              `${new Date()
+                .toISOString()
+                .slice(0, 19)
+                .replaceAll("-", "")
+                .replaceAll(":", "")
+                .replaceAll("T", "")}-${encodeHex(
+                await crypto.subtle.digest(
+                  "SHA-1",
+                  new TextEncoder().encode(str)
+                )
+              )}.js`
+            );
+            try {
+              await Deno.stat(script_filename);
+              await delay(1000);
+            } catch (err) {
+              if (err instanceof Deno.errors.NotFound) {
+                break;
+              } else {
+                throw err;
+              }
+            }
+          }
+          await write_file({
+            file_path: script_filename,
+            creator: {
+              mode: "text",
+              // deno-lint-ignore require-await
+              content: async () => str,
+            },
+            log_tag: "no",
+          });
+          const command = new Deno.Command("deno", {
+            args: [
+              "run",
+              script_filename,
+              "--check",
+              "--no-config",
+              "--no-lock",
+              "--no-npm",
+              "--no-remote",
+              "--",
+              "--deny-all",
+            ],
+            stdin: "null",
+            stdout: "piped",
+            stderr: "piped",
+            env: {},
+          });
+          const proc = command.spawn();
+          const o = await proc.output();
+          const stderr_str = new TextDecoder("utf-8").decode(o.stderr);
+          const stdout_str = new TextDecoder("utf-8").decode(o.stdout);
+          let stdout_json: Jsons.JSONValue;
+          try {
+            stdout_json = Jsons.load(stdout_str);
+          } catch (err) {
+            stdout_json = null;
+          }
+          return {
+            success: o.success,
+            code: o.code,
+            stderr_str,
+            stdout_str,
+            stdout_json,
+          };
+        },
+        "<s:o>"
+      );
+    }
   }
 }
 

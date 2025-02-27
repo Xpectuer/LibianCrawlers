@@ -1,19 +1,21 @@
 {
   "tasks": {
     "init:config": "deno run --allow-sys=homedir --allow-read=data_cleaner_ci_generated,user_code init_config.ts",
-    "init:code_gen": "deno run --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV --allow-read=data_cleaner_ci_generated,jsonata_templates --allow-write=data_cleaner_ci_generated code_gen.ts",
+    "init:code_gen": "deno run --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV --allow-read=data_cleaner_ci_generated,jsonata_templates,user_code/.tmp --allow-run=deno --allow-write=user_code,data_cleaner_ci_generated code_gen.ts",
     "dev:jsonata": "deno run --allow-env --allow-read --allow-run start_dev_jsonata.ts",
     "prerun:check": "deno check --all \"**/*.ts\" && deno test --quiet",
-    "run:clean:libian_crawler": "deno task init:code_gen && deno task prerun:check && deno run --allow-env=\"PG*\" --allow-read=data_cleaner_ci_generated/.cache_by_id,jsonata_templates general_data_process/libian_crawler/clean_and_merge.ts"
+    "run:clean:libian_crawler": "deno task init:code_gen && deno task prerun:check && deno run --allow-env=\"PG*\" --allow-read=data_cleaner_ci_generated/.cache_by_id,jsonata_templates,user_code/.tmp --allow-run=deno --allow-write=user_code general_data_process/libian_crawler/clean_and_merge.ts"
   },
   "imports": {
     "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.48",
     "@deno-library/progress": "jsr:@deno-library/progress@^1.5.1",
     "@std/assert": "jsr:@std/assert@^1.0.8",
     "@std/async": "jsr:@std/async@^1.0.10",
+    "@std/datetime": "jsr:@std/datetime@^0.225.3",
     "collection-utils": "npm:collection-utils@^1.0.1",
     "encoding": "npm:encoding@^0.1.13",
     "english2number": "npm:english2number@^1.0.8",
+    "filesize": "npm:filesize@^10.1.6",
     "intl-number-parser": "npm:intl-number-parser@^1.0.5",
     "is-arguments": "npm:is-arguments@^1.2.0",
     "is-array-buffer": "npm:is-array-buffer@^3.0.5",
