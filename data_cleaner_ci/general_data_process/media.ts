@@ -2,6 +2,7 @@ import { DataClean } from "../util.ts";
 export enum PlatformEnum {
   小红书 = "xiaohongshu.com",
   哔哩哔哩 = "bilibili.com",
+  拼多多h5yangkeduo = "mobile.yangkeduo.com",
 }
 
 export type MediaContentTag = {

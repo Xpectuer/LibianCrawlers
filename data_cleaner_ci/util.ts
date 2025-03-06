@@ -1087,7 +1087,9 @@ export namespace DataClean {
     return `https://${url2}` as const;
   }
 
-  export function url_use_https_emptyable<S extends string>(url: S | null) {
+  export function url_use_https_emptyable<S extends string>(
+    url: S | null | undefined
+  ) {
     if (Strs.is_not_blank(url)) {
       return url_use_https_noempty(url);
     } else {

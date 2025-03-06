@@ -1,10 +1,10 @@
-export type Cache<K extends string, V> = {
+export type ICache<K extends string, V> = {
   get_batch(keys: Set<K>): Record<K, V | Promise<V>>;
 
   set(k: K, v: V): "ok" | Promise<"ok">;
 };
 
-export function create_cache_in_memory<V>(): Cache<string, V> {
+export function create_cache_in_memory<V>(): ICache<string, V> {
   const cache: Record<string, V> = {};
   return {
     get_batch(keys) {

@@ -1,8 +1,8 @@
-import { MediaPostTable } from "../data_storage.ts";
+import { LibianCrawlerDatabase, MediaPostTable } from "../data_storage.ts";
 import { create_migration } from "../data_storage_migration.ts";
 import { sql } from "kysely";
 
-export default create_migration({
+export default create_migration<LibianCrawlerDatabase>({
   version: "20241227",
   ctb_mode: "alter_table",
   func_up: async (ctx) => {

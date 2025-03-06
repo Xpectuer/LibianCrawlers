@@ -1,16 +1,16 @@
 # -*- coding: UTF-8 -*-
 import asyncio
-from datetime import datetime
-import random
 import hashlib
-from typing import Optional, Literal, Any, TypedDict, Callable, Awaitable, Union, List, Tuple
+import random
+from datetime import datetime
+from typing import Optional, Literal, TypedDict, Callable, Awaitable, Union, List, Tuple
 
 from aioify import aioify
 from loguru import logger
 from playwright.async_api import Page, BrowserContext, Locator
 
 from libiancrawlers.app_util.types import JSON
-from libiancrawlers.util.coroutines import sleep, blocking_func
+from libiancrawlers.util.coroutines import sleep
 
 
 class SmartCrawlSignal(BaseException):

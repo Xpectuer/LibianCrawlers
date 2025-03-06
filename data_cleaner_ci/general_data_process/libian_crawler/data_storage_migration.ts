@@ -1,8 +1,5 @@
 import { PostgresColumnType } from "../../pg.ts";
-import {
-  LibianCrawlerDatabase,
-  _libian_crawler_cleaned,
-} from "./data_storage.ts";
+import { _libian_crawler_cleaned } from "./data_storage.ts";
 import {
   AlterTableColumnAlteringBuilder,
   CreateTableBuilder,
@@ -29,16 +26,17 @@ export type RequireImmediateValue<V> = V extends
   : Expression<V | unknown>;
 
 export function create_migration<
-  V extends string,
-  CM extends "create_table" | "alter_table"
+  DBInterface,
+  V extends string = typeof version,
+  CM extends "create_table" | "alter_table" = typeof ctb_mode
 >(param: {
   version: V;
-  ctb_mode: CM;
+  ctb_mode: "create_table" | "alter_table";
   func_up: (ctx: {
-    db: Kysely<LibianCrawlerDatabase>;
+    db: Kysely<DBInterface>;
     create_or_alter_table: <
-      TB extends LibianCrawlerDatabase[TN],
-      TN extends keyof LibianCrawlerDatabase = keyof LibianCrawlerDatabase
+      TB extends DBInterface[TN],
+      TN extends string & keyof DBInterface = string & keyof DBInterface
     >(
       table_name: TN,
       cb: (ctb_ctx: {
@@ -86,11 +84,8 @@ export function create_migration<
                       {}
                     : {
                         default_value: () => RequireImmediateValue<
-                          CN extends keyof InsertObject<
-                            LibianCrawlerDatabase,
-                            TN
-                          >
-                            ? InsertObject<LibianCrawlerDatabase, TN>[CN]
+                          CN extends keyof InsertObject<DBInterface, TN>
+                            ? InsertObject<DBInterface, TN>[CN]
                             : never
                         >;
                       }
@@ -101,12 +96,12 @@ export function create_migration<
       }) => Promise<void>
     ) => Promise<void>;
   }) => Promise<void>;
-  func_down: (ctx: { db: Kysely<LibianCrawlerDatabase> }) => Promise<void>;
+  func_down: (ctx: { db: Kysely<DBInterface> }) => Promise<void>;
 }) {
   const { version, func_up, func_down, ctb_mode } = param;
   return {
     version,
-    async up(db: Kysely<LibianCrawlerDatabase>) {
+    async up(db: Kysely<DBInterface>) {
       console.debug(`Start migration up`, { that: this, db });
       await db.schema
         .createSchema(_libian_crawler_cleaned)
@@ -184,7 +179,7 @@ export function create_migration<
       });
       console.debug(`Success migration up`);
     },
-    async down(db: Kysely<LibianCrawlerDatabase>) {
+    async down(db: Kysely<DBInterface>) {
       console.debug(`Start migration down`, { that: this, db });
       await func_down({ db });
       console.debug(`Success migration down`);

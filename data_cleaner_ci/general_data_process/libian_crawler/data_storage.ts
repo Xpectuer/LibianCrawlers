@@ -3,13 +3,17 @@ import config from "../../config.ts";
 import { MediaContent, PlatformEnum } from "../media.ts";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
-import { DataMerge } from "../../util.ts";
+import { DataMerge, Jsons } from "../../util.ts";
 import { PostgresColumnType } from "../../pg.ts";
 
 export const _libian_crawler_cleaned = "libian_crawler_cleaned" as const;
 
 export interface LibianCrawlerDatabase {
   "libian_crawler_cleaned.media_post": MediaPostTable;
+  "libian_crawler_cleaned.shop_good": ShopGoodTable;
+  // "libian_crawler_cleaned.file_storage": FileStorageTable;
+  // "libian_crawler_cleaned.image_ocr": ImageOcrTable;
+  // "libian_crawler_cleaned.audio_speech_recognition": AudioSpeechRecognitionTable;
 }
 
 export interface MediaPostTable {
@@ -79,6 +83,57 @@ export interface MediaPostTable {
   context_text_latest_lines_count: PostgresColumnType.Numeric | null;
   last_crawl_time: Date;
 }
+
+export interface ShopGoodTable {
+  id: string;
+  platform: PlatformEnum;
+  platform_duplicate_id: string;
+  create_time: Date | null;
+  update_time: Date | null;
+  count_good_buy: PostgresColumnType.Numeric | null;
+  count_good_want: PostgresColumnType.Numeric | null;
+  count_good_comment: PostgresColumnType.Numeric | null;
+  good_name: string;
+  shop_name: string;
+  good_image_file_ids: PostgresColumnType.JSON<string[]>;
+}
+
+// export interface FileStorageTable {
+//   id: string;
+//   create_time: Date;
+//   recommended_filename: string;
+//   ext_type: string;
+//   source_urls: PostgresColumnType.JSON<string[]>;
+//   meta_info: PostgresColumnType.JSON<Jsons.JSONObject>;
+//   is_image: boolean;
+//   is_video: boolean;
+//   is_audio: boolean;
+//   get_image_from_file_id: string | null;
+//   get_audio_from_file_id: string | null;
+//   hex_md5: string;
+//   hex_sha128: string;
+//   hex_sha256: string;
+//   hex_sha512: string;
+//   minio_public_address: string | null;
+//   // TODO
+// }
+
+// export interface ImageOcrTable {
+//   id: string;
+//   create_time: Date;
+//   file_id: string;
+//   ocr_framework_tag: string;
+//   ocr_result: PostgresColumnType.JSON<Jsons.JSONObject>;
+//   ocr_plain_text: string;
+//   // TODO
+// }
+
+// export interface AudioSpeechRecognitionTable {
+//   id: string;
+//   create_time: Date;
+//   file_id: string;
+//   // TODO
+// }
 
 export async function create_and_init_libian_srawler_database_scope<R>(
   scope: (db: Kysely<LibianCrawlerDatabase>) => Promise<R>

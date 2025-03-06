@@ -27,6 +27,7 @@
     "npm:encoding@~0.1.13": "0.1.13",
     "npm:english2number@^1.0.8": "1.0.8",
     "npm:filesize@^10.1.6": "10.1.6",
+    "npm:image-meta@~0.2.1": "0.2.1",
     "npm:intl-number-parser@^1.0.5": "1.0.5",
     "npm:is-arguments@^1.2.0": "1.2.0",
     "npm:is-array-buffer@^3.0.5": "3.0.5",
@@ -306,6 +307,9 @@
     },
     "ieee754@1.2.1": {
       "integrity": "sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA=="
+    },
+    "image-meta@0.2.1": {
+      "integrity": "sha512-K6acvFaelNxx8wc2VjbIzXKDVB0Khs0QT35U6NkGfTdCmjLNcO2945m7RFNR9/RPVFm48hq7QPzK8uGH18HCGw=="
     },
     "intl-number-parser@1.0.5": {
       "integrity": "sha512-hj4eRgHTFzxioRcdYTCPkzG0gn1k5mdoBf3rYd5J0hv6ITtyfpQbtYQJ8wqJ4kGgmn5awqNtpUOD1hAPiIv9Qw=="
@@ -646,6 +650,7 @@
       "npm:encoding@~0.1.13",
       "npm:english2number@^1.0.8",
       "npm:filesize@^10.1.6",
+      "npm:image-meta@~0.2.1",
       "npm:intl-number-parser@^1.0.5",
       "npm:is-arguments@^1.2.0",
       "npm:is-array-buffer@^3.0.5",
