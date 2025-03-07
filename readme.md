@@ -171,11 +171,12 @@ poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps
             * 在 Windows 上
                 * [x] 读取注册表 `Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings`
         * [ ] 优化 geoip , proxy-ip , locale , font 相互集成。
-            * [ ] 修复 MacOS 上缺少默认中文字体问题（应当仅在 locale = zh-CN 时启用并提供随机字体列表） 
+            * [ ] 修复 MacOS 上缺少默认中文字体问题（应当仅在 locale = zh-CN 时启用并提供随机字体列表）
         * Dump WebPage
             * [x] 读取所有 frame 的 html tree
             * [x] 调用截图功能
                 * [ ] 修复 firefox(camoufox) `Cannot take screenshot larger than 32767` 错误。
+            * 将图片或pdf上传到 MinIO，而不是保存 base64 。
             * 寻找解决 firefox(camoufox) 无法打印网页为 pdf 的替代方案。
         * Hook
             * [ ] hook 所有 request / response
@@ -200,7 +201,7 @@ poetry run smart-crawl --url https://www.taobao.com/ --locale zh-CN --wait_steps
 | 平台  | 域名                   | 爬取搜索菜单 | 清洗搜索菜单 | 爬取商品详情 | 清洗商品详情 |  
 |-----|----------------------|--------|--------|--------|--------|
 | 淘宝  | taobao.com           | ✔️     | todo   | todo   | todo   |   
-| 拼多多 | mobile.yangkeduo.com | ✔️     | todo   | ✔️     | todo   |   
+| 拼多多 | mobile.yangkeduo.com | ✔️     | todo   | ✔️     | ✔️     |   
 
 ##### 命令示例
 
