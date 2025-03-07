@@ -1,7 +1,16 @@
 import postgres from "postgres";
 import { ColumnType, JSONColumnType } from "kysely";
 import jsonata from "jsonata";
-import { Jsonatas, Jsons, Streams, Strs, Times, write_file } from "./util.ts";
+import {
+  DataClean,
+  is_deep_equal,
+  Jsonatas,
+  Jsons,
+  Streams,
+  Strs,
+  Times,
+  write_file,
+} from "./util.ts";
 import { data_cleaner_ci_generated } from "./consts.ts";
 import path from "node:path";
 import { Nums } from "./util.ts";
@@ -299,4 +308,44 @@ export namespace PostgresColumnType {
 
   export type JSON<T extends null | Jsons.JSONArray | Jsons.JSONObject> =
     JSONColumnType<T, T, T>;
+}
+
+/**
+ * existed dto 老是犯畜，一会儿把数字返回string，一会儿又返回number，因此这里要特殊处理。
+ * @param dto1
+ * @param dto2
+ * @returns
+ */
+export function pg_dto_equal(dto1: object, dto2: object): boolean {
+  if (is_deep_equal(dto1, dto2)) {
+    return true;
+  }
+  const keys = new Set(Object.keys(dto1));
+  if (!is_deep_equal(keys, new Set(Object.keys(dto2)))) {
+    return false;
+  }
+  for (const key of keys) {
+    const v1: unknown = dto1[key];
+    // deno-lint-ignore no-explicit-any
+    const v2: unknown = (dto2 as any)[key];
+    if (is_deep_equal(v1, v2)) {
+      continue;
+    }
+    if (
+      (typeof v1 === "string" || typeof v1 === "number") &&
+      (typeof v2 === "string" || typeof v2 === "number")
+    ) {
+      const num1 = DataClean.parse_number(v1, "allow_nan");
+      const num2 = DataClean.parse_number(v2, "allow_nan");
+      if (Nums.is_invalid(num1) || Nums.is_invalid(num2)) {
+        return false;
+      }
+      if (num1 !== num2) {
+        return false;
+      }
+      continue;
+    }
+    return false;
+  }
+  return true;
 }

@@ -13,6 +13,7 @@ import { equal } from "@std/assert/equal";
 import jsonata from "jsonata";
 import { encodeHex } from "jsr:@std/encoding/hex";
 import * as datetime from "jsr:@std/datetime";
+import { isDate } from "node:util/types";
 
 export function is_nullish(obj: any): obj is null | undefined {
   return obj === null || obj === undefined;
@@ -539,7 +540,9 @@ export namespace Times {
       return null;
     }
 
-    if (unix_ms_or_s > 12345678900) {
+    if (BigInt(unix_ms_or_s) > BigInt("12345678900000")) {
+      throw new Error(`Unsupport nano second unit , number is ${unix_ms_or_s}`);
+    } else if (unix_ms_or_s > 12345678900) {
       unit = "ms";
     } else {
       unit = "s";
@@ -633,6 +636,31 @@ export namespace Times {
       return null as any;
     }
     return new Date(time.toString());
+  }
+
+  export function parse_instant<
+    T extends number | string | Date | Temporal.Instant | null | undefined
+  >(value: T): Temporal.Instant | null {
+    if (value === null || typeof value === "undefined") {
+      return null;
+    }
+    if (value instanceof Temporal.Instant) {
+      return value;
+    }
+    if (typeof value === "string") {
+      return parse_text_to_instant(value);
+    }
+    if (typeof value === "number") {
+      return unix_to_time(value);
+    }
+    if (isDate(value)) {
+      const date_ms = value.getTime();
+      if (Nums.is_invalid(date_ms) || date_ms <= 0) {
+        return null;
+      }
+      return Temporal.Instant.fromEpochMilliseconds(date_ms);
+    }
+    throw new Error(`Unknown type of value ${value}`);
   }
 
   // export function format_yyyymmddhhmmss(date: Date) {

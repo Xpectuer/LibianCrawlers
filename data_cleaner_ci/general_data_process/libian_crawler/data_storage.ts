@@ -88,14 +88,19 @@ export interface ShopGoodTable {
   id: string;
   platform: PlatformEnum;
   platform_duplicate_id: string;
-  create_time: Date | null;
+  create_time: Date;
   update_time: Date | null;
-  count_good_buy: PostgresColumnType.Numeric | null;
-  count_good_want: PostgresColumnType.Numeric | null;
-  count_good_comment: PostgresColumnType.Numeric | null;
+  good_id: string;
   good_name: string;
+  shop_id: string;
   shop_name: string;
-  good_image_file_ids: PostgresColumnType.JSON<string[]>;
+  search_from: PostgresColumnType.JSON<string[]>;
+  good_images: PostgresColumnType.JSON<Jsons.JSONArray>;
+  good_first_image_url: string | null;
+  sku_list: PostgresColumnType.JSON<Jsons.JSONArray>;
+  sku_min_price_cny001: PostgresColumnType.Numeric;
+  sku_max_price_cny001: PostgresColumnType.Numeric;
+  link_url: string | null;
 }
 
 // export interface FileStorageTable {

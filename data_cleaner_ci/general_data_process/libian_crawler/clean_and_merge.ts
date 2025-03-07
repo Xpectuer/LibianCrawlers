@@ -2,15 +2,13 @@ import {
   type LibianCrawlerGarbage,
   read_LibianCrawlerGarbage,
 } from "../../user_code/LibianCrawlerGarbage.ts";
-import { type Kysely, type UpdateResult, type InsertResult } from "kysely";
+import { type UpdateResult, type InsertResult } from "kysely";
 import {
   Arrays,
   chain,
   DataClean,
-  DataCleanJsHtmlTree,
   DataMerge,
   Errors,
-  is_deep_equal,
   is_nullish,
   Mappings,
   Nums,
@@ -18,7 +16,6 @@ import {
   Streams,
   Strs,
   Times,
-  Trees,
 } from "../../util.ts";
 import { create_cache_in_memory, ICache } from "../caches.ts";
 import {
@@ -27,15 +24,15 @@ import {
   MediaVideo,
   PlatformEnum,
   MediaRelatedSearches,
-  MediaContentTag,
 } from "../media.ts";
 import { Paragraphs } from "../paragraph_analysis.ts";
 import { ShopGood } from "../shop_good.ts";
 import {
   create_and_init_libian_srawler_database_scope,
-  LibianCrawlerDatabase,
   MediaPostTable,
+  ShopGoodTable,
 } from "./data_storage.ts";
+import { pg_dto_equal } from "../../pg.ts";
 
 // deno-lint-ignore no-namespace
 export namespace LibianCrawlerCleanAndMergeUtil {
@@ -442,9 +439,21 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               template_parse_html_tree.yangkeduo.window_raw_data_eval
                 .stdout_json;
             const { goods, mall } = store.initDataObj;
+            const create_time = Nums.take_extreme_value("min", [
+              Times.parse_instant(goods.activity?.startTime),
+              Times.parse_instant(smart_crawl.g_create_time),
+              Temporal.Now.instant(),
+            ]);
+            const update_time = Nums.take_extreme_value("max", [
+              create_time,
+              Times.parse_instant(goods.activity?.startTime),
+              Times.parse_instant(store.initDataObj.goods.nowTime),
+            ]);
             const res: ShopGood = {
               platform: PlatformEnum.拼多多h5yangkeduo,
               platform_duplicate_id: `goodsid_${goods.goodsID}`,
+              create_time,
+              update_time,
               good_id: goods.goodsID,
               good_name: goods.goodsName,
               shop_id: goods.mallID,
@@ -511,6 +520,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                       .join(";") ?? "",
                 };
               }),
+              link_url: `https://mobile.yangkeduo.com/goods.html?goods_id=${goods.goodsID}`,
             };
             yield res;
             continue;
@@ -762,11 +772,30 @@ export namespace LibianCrawlerCleanAndMergeUtil {
     >({
       get_key_prefix: "shopgood",
       reduce(prev, cur) {
-        return cur;
+        const create_time = Nums.take_extreme_value("min", [
+          prev?.update_time ?? null,
+          cur.update_time,
+          prev?.create_time ?? null,
+          cur.create_time,
+        ]);
+        const update_time = Nums.take_extreme_value("max", [
+          prev?.update_time ?? null,
+          cur.update_time,
+          prev?.create_time ?? null,
+          cur.create_time,
+        ]);
+        return {
+          ...cur,
+          create_time,
+          update_time,
+        };
       },
     });
   }
 
+  /**
+   * 本来想把 kysely 的增删改查也封装的，奈何类型体操令人头晕目眩，所以先不管。
+   */
   export async function _insert_or_update<Item, ItemDto extends { id: string }>(
     values: Item[],
     options: {
@@ -900,6 +929,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
     ) => {
       return `${value.platform}___${value.platform_duplicate_id}`;
     };
+    const table = `libian_crawler_cleaned.media_post`;
     const get_dto_for_insert_or_update = (value: (typeof values)[number]) => {
       const author_first = chain(() =>
         Arrays.first_or_null([...value.authors.keys()])
@@ -1005,11 +1035,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           context_text_latest?.split("\n").length?.toString() ?? null,
         last_crawl_time: Times.instant_to_date(value.last_crawl_time),
       } satisfies Omit<
-        Parameters<
-          ReturnType<
-            typeof db.insertInto<"libian_crawler_cleaned.media_post">
-          >["values"]
-        >[0],
+        Parameters<ReturnType<typeof db.insertInto<typeof table>>["values"]>[0],
         "id"
       >;
       const _res_typecheck = res satisfies Omit<
@@ -1026,11 +1052,11 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           id: existed_dto.id,
           ...get_dto_for_insert_or_update(value),
         };
-        return is_deep_equal(value_to_dto, existed_dto);
+        return pg_dto_equal(value_to_dto, existed_dto);
       },
       read_existed_list: async () => {
         const existed_list = await db
-          .selectFrom("libian_crawler_cleaned.media_post")
+          .selectFrom(table)
           .selectAll()
           .where("id", "in", [...values.map((value) => get_id(value))])
           .execute();
@@ -1038,7 +1064,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
       },
       exec_update_result: async (ctx2) => {
         return await db
-          .updateTable("libian_crawler_cleaned.media_post")
+          .updateTable(table)
           .set((_eb) => {
             return {
               ...get_dto_for_insert_or_update(ctx2.value),
@@ -1049,7 +1075,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
       },
       exec_insert_result: async (ctx2) => {
         return await db
-          .insertInto("libian_crawler_cleaned.media_post")
+          .insertInto(table)
           .values([
             ...ctx2.not_existed.map((value) => {
               return {
@@ -1063,493 +1089,114 @@ export namespace LibianCrawlerCleanAndMergeUtil {
     });
   }
 
-  // export async function insert_or_update_media_content(
-  //   db: Parameters<
-  //     Parameters<typeof create_and_init_libian_srawler_database_scope>[0]
-  //   >[0],
-  //   values: LibianCrawlerCleanAndMergeUtil.MediaContentMerged[],
-  //   options: {
-  //     on_bar_text: (text: string) => Promise<void>;
-  //   }
-  // ) {
-  //   const { on_bar_text } = options;
-  //   try {
-  //     const get_id = (value: (typeof values)[number]) =>
-  //       `${value.platform}___${value.platform_duplicate_id}`;
-  //     const existed_list = await db
-  //       .selectFrom("libian_crawler_cleaned.media_post")
-  //       .selectAll()
-  //       .where("id", "in", [...values.map((value) => get_id(value))])
-  //       .execute();
-
-  //     const get_dto_for_insert_or_update = (value: (typeof values)[number]) => {
-  //       const author_first = chain(() =>
-  //         Arrays.first_or_null([...value.authors.keys()])
-  //       )
-  //         .map((k) =>
-  //           k === null ? null : ([k, value.authors.get(k)!] as const)
-  //         )
-  //         .map((entry) =>
-  //           entry === null
-  //             ? null
-  //             : ([
-  //                 entry[0],
-  //                 Arrays.last_or_null(entry[1])?.value ?? null,
-  //               ] as const)
-  //         )
-  //         .get_value();
-  //       const author_first_platform_user_id = chain(() => author_first?.[0])
-  //         .map((it) => (it === null ? null : `${it}`))
-  //         .get_value();
-  //       const {
-  //         content_text_timeline_count,
-  //         context_text_latest_str_length,
-  //         context_text_latest,
-  //         content_text_deleted_at_least_once,
-  //         content_text_deleted_first_time,
-  //         content_text_resume_after_deleted,
-  //         content_text_timeline,
-  //         found_tags_in_context_text,
-  //       } = DataClean.select_context_text({
-  //         content_text_summary_uncleaned_timeline:
-  //           value.content_text_summary_uncleaned_timeline,
-  //         content_text_detail_uncleaned_timeline:
-  //           value.content_text_detail_uncleaned_timeline,
-  //         platform: value.platform,
-  //       });
-  //       const tag_texts = new Set([
-  //         ...value.tag_texts,
-  //         ...found_tags_in_context_text,
-  //       ]);
-  //       const res = {
-  //         ...Mappings.filter_keys(value, "pick", [
-  //           "platform",
-  //           "platform_duplicate_id",
-  //         ]),
-  //         ...Mappings.object_from_entries(
-  //           (
-  //             [
-  //               "count_read",
-  //               "count_like",
-  //               "count_share",
-  //               "count_star",
-  //               "count_comment",
-  //               "video_total_count_danmaku",
-  //               "video_total_duration_sec",
-  //             ] as const
-  //           ).map((k) => [k, value[k]?.toString() ?? null])
-  //         ),
-  //         create_time: Times.instant_to_date(value.create_time),
-  //         update_time: Times.instant_to_date(value.update_time),
-  //         title: value.title_timeline.findLast((it) => it)?.value ?? "",
-  //         titles: [...value.title],
-  //         title_timeline: DataMerge.timeline_to_json(value.title_timeline),
-  //         content_link_url: Arrays.first_or_null([...value.content_link_urls]),
-  //         content_link_urls: [...value.content_link_urls],
-  //         from_search_questions: [...value.from_search_questions],
-  //         ip_location: [...value.ip_location],
-  //         author_first_unique_user_id: `${value.platform}___${author_first_platform_user_id}`,
-  //         author_first_platform_user_id,
-  //         author_first_nickname: author_first?.[1]?.nickname ?? null,
-  //         author_first_avater_url: author_first?.[1]?.avater_url ?? null,
-  //         author_first_home_link_url: author_first?.[1]?.home_link_url ?? null,
-  //         authors: Mappings.object_entries(
-  //           Mappings.map_to_record(value.authors)
-  //         ).map(([platform_user_id, timeline]) => ({
-  //           platform_user_id: `${platform_user_id}`,
-  //           timeline: DataMerge.timeline_to_json(timeline),
-  //         })),
-  //         cover_first_url: Arrays.first_or_null([...value.cover_urls]),
-  //         cover_urls: [...value.cover_urls],
-  //         platform_rank_score_timeline: DataMerge.timeline_to_json(
-  //           value.platform_rank_score_timeline
-  //         ),
-  //         tag_texts: [...tag_texts],
-  //         tag_text_joined: [...tag_texts].join(";"),
-  //         content_text_timeline_count,
-  //         context_text_latest_str_length,
-  //         context_text_latest,
-  //         content_text_deleted_at_least_once,
-  //         content_text_deleted_first_time:
-  //           content_text_deleted_first_time === "unknown"
-  //             ? null
-  //             : Times.instant_to_date(content_text_deleted_first_time),
-  //         content_text_resume_after_deleted,
-  //         content_text_timeline: DataMerge.timeline_to_json(
-  //           content_text_timeline
-  //         ),
-  //         content_text_summary_uncleaned_timeline: DataMerge.timeline_to_json(
-  //           value.content_text_summary_uncleaned_timeline
-  //         ),
-  //         content_text_detail_uncleaned_timeline: DataMerge.timeline_to_json(
-  //           value.content_text_detail_uncleaned_timeline
-  //         ),
-  //         context_text_latest_lines_count:
-  //           context_text_latest?.split("\n").length ?? null,
-  //         last_crawl_time: Times.instant_to_date(value.last_crawl_time),
-  //       } satisfies Omit<
-  //         Parameters<
-  //           ReturnType<
-  //             typeof db.insertInto<"libian_crawler_cleaned.media_post">
-  //           >["values"]
-  //         >[0],
-  //         "id"
-  //       >;
-  //       const _res_typecheck = res satisfies Omit<
-  //         // deno-lint-ignore no-explicit-any
-  //         { [P in keyof MediaPostTable]: any },
-  //         "id"
-  //       >;
-  //       return _res_typecheck;
-  //     };
-
-  //     const update_results = [];
-  //     const samed_count = {
-  //       value: 0,
-  //     };
-  //     const update_bar = async () =>
-  //       await on_bar_text(
-  //         `(updated ${update_results.length} + samed ${samed_count.value} / existed ${existed_list.length} / total ${values.length})`
-  //       );
-  //     for (const existed of existed_list) {
-  //       await update_bar();
-  //       const value = values.find((value) => get_id(value) === existed.id);
-  //       if (value === undefined) {
-  //         throw new Error(
-  //           `BUG, value_new not found in values , but values id should in existed list , context is : ${JSON.stringify(
-  //             { existed, existed_list, values }
-  //           )}`
-  //         );
-  //       }
-  //       const expect_existed = {
-  //         id: existed.id,
-  //         ...get_dto_for_insert_or_update(value),
-  //       };
-  //       if (is_deep_equal(existed, expect_existed)) {
-  //         // if (
-  //         //   existed.create_time &&
-  //         //   existed.update_time &&
-  //         //   existed.create_time > existed.update_time
-  //         // ) {
-  //         //   console.debug("bug", {
-  //         //     value,
-  //         //     existed,
-  //         //     expect_existed,
-  //         //   });
-  //         // }
-  //         samed_count.value += 1;
-  //         continue;
-  //       } else {
-  //         // console.debug("data changed", {
-  //         //   value,
-  //         //   existed,
-  //         //   expect_existed,
-  //         // });
-  //       }
-
-  //       const update_result = await db
-  //         .updateTable("libian_crawler_cleaned.media_post")
-  //         .set((_eb) => {
-  //           return {
-  //             ...get_dto_for_insert_or_update(value),
-  //             // ip_location: ['']
-  //           };
-  //         })
-  //         .where("id", "=", existed.id)
-  //         .executeTakeFirstOrThrow();
-  //       update_results.push(update_result);
-  //       continue;
-  //     }
-  //     await update_bar();
-
-  //     const not_existed = [...values].filter((it) => {
-  //       return (
-  //         undefined === existed_list.find((exist) => exist.id === get_id(it))
-  //       );
-  //     });
-
-  //     const insert_result =
-  //       not_existed.length > 0
-  //         ? await db
-  //             .insertInto("libian_crawler_cleaned.media_post")
-  //             .values([
-  //               ...not_existed.map((value) => {
-  //                 return {
-  //                   id: get_id(value),
-  //                   ...get_dto_for_insert_or_update(value),
-  //                 };
-  //               }),
-  //               // {
-  //               //   titles
-  //               // },
-  //             ])
-  //             .execute()
-  //         : null;
-
-  //     return {
-  //       update_results,
-  //       insert_result,
-  //     };
-  //   } catch (err) {
-  //     if (`${err}`.includes("duplicate key value violates")) {
-  //       // cause by pkey duplicate
-  //     } else {
-  //       throw err;
-  //     }
-  //   }
-  // }
-
-  // export async function insert_or_update(
-  //   db: Parameters<
-  //     Parameters<typeof create_and_init_libian_srawler_database_scope>[0]
-  //   >[0],
-  //   data:
-  //     | {
-  //         mode: "MediaContentMerged";
-  //         values: LibianCrawlerCleanAndMergeUtil.MediaContentMerged[];
-  //       }
-  //     | {
-  //         mode: "ShopGood";
-  //         values: LibianCrawlerCleanAndMergeUtil.ShopGoodMerged[];
-  //       },
-  //   options: {
-  //     on_bar_text: (text: string) => Promise<void>;
-  //   }
-  // ) {
-  //   const { on_bar_text } = options;
-  //   if (data.mode === "MediaContentMerged") {
-  //     try {
-  //       const { values } = data;
-  //       const get_id = (value: (typeof values)[number]) =>
-  //         `${value.platform}___${value.platform_duplicate_id}`;
-  //       const existed_list = await db
-  //         .selectFrom("libian_crawler_cleaned.media_post")
-  //         .selectAll()
-  //         .where("id", "in", [...values.map((value) => get_id(value))])
-  //         .execute();
-
-  //       const get_dto_for_insert_or_update = (
-  //         value: (typeof values)[number]
-  //       ) => {
-  //         const author_first = chain(() =>
-  //           Arrays.first_or_null([...value.authors.keys()])
-  //         )
-  //           .map((k) =>
-  //             k === null ? null : ([k, value.authors.get(k)!] as const)
-  //           )
-  //           .map((entry) =>
-  //             entry === null
-  //               ? null
-  //               : ([
-  //                   entry[0],
-  //                   Arrays.last_or_null(entry[1])?.value ?? null,
-  //                 ] as const)
-  //           )
-  //           .get_value();
-  //         const author_first_platform_user_id = chain(() => author_first?.[0])
-  //           .map((it) => (it === null ? null : `${it}`))
-  //           .get_value();
-  //         const {
-  //           content_text_timeline_count,
-  //           context_text_latest_str_length,
-  //           context_text_latest,
-  //           content_text_deleted_at_least_once,
-  //           content_text_deleted_first_time,
-  //           content_text_resume_after_deleted,
-  //           content_text_timeline,
-  //           found_tags_in_context_text,
-  //         } = DataClean.select_context_text({
-  //           content_text_summary_uncleaned_timeline:
-  //             value.content_text_summary_uncleaned_timeline,
-  //           content_text_detail_uncleaned_timeline:
-  //             value.content_text_detail_uncleaned_timeline,
-  //           platform: value.platform,
-  //         });
-  //         const tag_texts = new Set([
-  //           ...value.tag_texts,
-  //           ...found_tags_in_context_text,
-  //         ]);
-  //         const res = {
-  //           ...Mappings.filter_keys(value, "pick", [
-  //             "platform",
-  //             "platform_duplicate_id",
-  //           ]),
-  //           ...Mappings.object_from_entries(
-  //             (
-  //               [
-  //                 "count_read",
-  //                 "count_like",
-  //                 "count_share",
-  //                 "count_star",
-  //                 "count_comment",
-  //                 "video_total_count_danmaku",
-  //                 "video_total_duration_sec",
-  //               ] as const
-  //             ).map((k) => [k, value[k]?.toString() ?? null])
-  //           ),
-  //           create_time: Times.instant_to_date(value.create_time),
-  //           update_time: Times.instant_to_date(value.update_time),
-  //           title: value.title_timeline.findLast((it) => it)?.value ?? "",
-  //           titles: [...value.title],
-  //           title_timeline: DataMerge.timeline_to_json(value.title_timeline),
-  //           content_link_url: Arrays.first_or_null([
-  //             ...value.content_link_urls,
-  //           ]),
-  //           content_link_urls: [...value.content_link_urls],
-  //           from_search_questions: [...value.from_search_questions],
-  //           ip_location: [...value.ip_location],
-  //           author_first_unique_user_id: `${value.platform}___${author_first_platform_user_id}`,
-  //           author_first_platform_user_id,
-  //           author_first_nickname: author_first?.[1]?.nickname ?? null,
-  //           author_first_avater_url: author_first?.[1]?.avater_url ?? null,
-  //           author_first_home_link_url:
-  //             author_first?.[1]?.home_link_url ?? null,
-  //           authors: Mappings.object_entries(
-  //             Mappings.map_to_record(value.authors)
-  //           ).map(([platform_user_id, timeline]) => ({
-  //             platform_user_id: `${platform_user_id}`,
-  //             timeline: DataMerge.timeline_to_json(timeline),
-  //           })),
-  //           cover_first_url: Arrays.first_or_null([...value.cover_urls]),
-  //           cover_urls: [...value.cover_urls],
-  //           platform_rank_score_timeline: DataMerge.timeline_to_json(
-  //             value.platform_rank_score_timeline
-  //           ),
-  //           tag_texts: [...tag_texts],
-  //           tag_text_joined: [...tag_texts].join(";"),
-  //           content_text_timeline_count,
-  //           context_text_latest_str_length,
-  //           context_text_latest,
-  //           content_text_deleted_at_least_once,
-  //           content_text_deleted_first_time:
-  //             content_text_deleted_first_time === "unknown"
-  //               ? null
-  //               : Times.instant_to_date(content_text_deleted_first_time),
-  //           content_text_resume_after_deleted,
-  //           content_text_timeline: DataMerge.timeline_to_json(
-  //             content_text_timeline
-  //           ),
-  //           content_text_summary_uncleaned_timeline: DataMerge.timeline_to_json(
-  //             value.content_text_summary_uncleaned_timeline
-  //           ),
-  //           content_text_detail_uncleaned_timeline: DataMerge.timeline_to_json(
-  //             value.content_text_detail_uncleaned_timeline
-  //           ),
-  //           context_text_latest_lines_count:
-  //             context_text_latest?.split("\n").length ?? null,
-  //           last_crawl_time: Times.instant_to_date(value.last_crawl_time),
-  //         } satisfies Omit<
-  //           Parameters<
-  //             ReturnType<
-  //               typeof db.insertInto<"libian_crawler_cleaned.media_post">
-  //             >["values"]
-  //           >[0],
-  //           "id"
-  //         >;
-  //         const _res_typecheck = res satisfies Omit<
-  //           // deno-lint-ignore no-explicit-any
-  //           { [P in keyof MediaPostTable]: any },
-  //           "id"
-  //         >;
-  //         return _res_typecheck;
-  //       };
-
-  //       const update_results = [];
-  //       const samed_count = {
-  //         value: 0,
-  //       };
-  //       const update_bar = async () =>
-  //         await on_bar_text(
-  //           `(updated ${update_results.length} + samed ${samed_count.value} / existed ${existed_list.length} / total ${values.length})`
-  //         );
-  //       for (const existed of existed_list) {
-  //         await update_bar();
-  //         const value = values.find((value) => get_id(value) === existed.id);
-  //         if (value === undefined) {
-  //           throw new Error(
-  //             `BUG, value_new not found in values , but values id should in existed list , context is : ${JSON.stringify(
-  //               { existed, existed_list, values }
-  //             )}`
-  //           );
-  //         }
-  //         const expect_existed = {
-  //           id: existed.id,
-  //           ...get_dto_for_insert_or_update(value),
-  //         };
-  //         if (is_deep_equal(existed, expect_existed)) {
-  //           // if (
-  //           //   existed.create_time &&
-  //           //   existed.update_time &&
-  //           //   existed.create_time > existed.update_time
-  //           // ) {
-  //           //   console.debug("bug", {
-  //           //     value,
-  //           //     existed,
-  //           //     expect_existed,
-  //           //   });
-  //           // }
-  //           samed_count.value += 1;
-  //           continue;
-  //         } else {
-  //           // console.debug("data changed", {
-  //           //   value,
-  //           //   existed,
-  //           //   expect_existed,
-  //           // });
-  //         }
-
-  //         const update_result = await db
-  //           .updateTable("libian_crawler_cleaned.media_post")
-  //           .set((_eb) => {
-  //             return {
-  //               ...get_dto_for_insert_or_update(value),
-  //               // ip_location: ['']
-  //             };
-  //           })
-  //           .where("id", "=", existed.id)
-  //           .executeTakeFirstOrThrow();
-  //         update_results.push(update_result);
-  //         continue;
-  //       }
-  //       await update_bar();
-
-  //       const not_existed = [...values].filter((it) => {
-  //         return (
-  //           undefined === existed_list.find((exist) => exist.id === get_id(it))
-  //         );
-  //       });
-
-  //       const insert_result =
-  //         not_existed.length > 0
-  //           ? await db
-  //               .insertInto("libian_crawler_cleaned.media_post")
-  //               .values([
-  //                 ...not_existed.map((value) => {
-  //                   return {
-  //                     id: get_id(value),
-  //                     ...get_dto_for_insert_or_update(value),
-  //                   };
-  //                 }),
-  //                 // {
-  //                 //   titles
-  //                 // },
-  //               ])
-  //               .execute()
-  //           : null;
-
-  //       return {
-  //         update_results,
-  //         insert_result,
-  //       };
-  //     } catch (err) {
-  //       if (`${err}`.includes("duplicate key value violates")) {
-  //         // cause by pkey duplicate
-  //       } else {
-  //         throw err;
-  //       }
-  //     }
-  //   }
-  // }
+  export async function insert_or_update_shop_good(
+    db: Parameters<
+      Parameters<typeof create_and_init_libian_srawler_database_scope>[0]
+    >[0],
+    values: LibianCrawlerCleanAndMergeUtil.ShopGoodMerged[],
+    options: {
+      on_bar_text: (text: string) => Promise<void>;
+    }
+  ) {
+    const get_id = (value: LibianCrawlerCleanAndMergeUtil.ShopGoodMerged) => {
+      return `${value.platform}___${value.platform_duplicate_id}`;
+    };
+    const table = `libian_crawler_cleaned.shop_good`;
+    const get_dto_for_insert_or_update = (value: (typeof values)[number]) => {
+      const res = {
+        ...Mappings.filter_keys(value, "pick", [
+          "platform",
+          "platform_duplicate_id",
+          "good_name",
+          "shop_name",
+          "link_url",
+        ]),
+        ...Mappings.object_from_entries(
+          (["good_id", "shop_id"] as const).map((k) => [
+            k,
+            value[k]?.toString() ?? null,
+          ])
+        ),
+        create_time: Times.instant_to_date(value.create_time),
+        update_time: Times.instant_to_date(value.update_time),
+        search_from: [...value.search_from],
+        good_images: value.good_images,
+        good_first_image_url: Arrays.first_or_null(
+          value.good_images
+            .map((it) => it.url)
+            .filter((url) => Strs.is_not_blank(url))
+        ),
+        sku_list: value.sku_list.map((it) => {
+          return {
+            ...it,
+            price_display_cny_unit001:
+              it.price_display_cny_unit001?.toString() ?? null,
+          };
+        }),
+        sku_min_price_cny001: (
+          Nums.take_extreme_value("min", [
+            null,
+            ...value.sku_list.map((it) => it.price_display_cny_unit001),
+          ]) ?? 0
+        ).toString(),
+        sku_max_price_cny001: Nums.take_extreme_value("max", [
+          BigInt(0),
+          ...value.sku_list.map((it) => it.price_display_cny_unit001),
+        ]).toString(),
+      } satisfies Omit<
+        Parameters<ReturnType<typeof db.insertInto<typeof table>>["values"]>[0],
+        "id"
+      >;
+      const _res_typecheck = res satisfies Omit<
+        // deno-lint-ignore no-explicit-any
+        { [P in keyof ShopGoodTable]: any },
+        "id"
+      >;
+      return _res_typecheck;
+    };
+    return await _insert_or_update(values, options, {
+      get_id,
+      is_value_equal_then_value_dto(value, existed_dto) {
+        const value_to_dto: typeof existed_dto = {
+          id: existed_dto.id,
+          ...get_dto_for_insert_or_update(value),
+        };
+        return pg_dto_equal(value_to_dto, existed_dto);
+      },
+      read_existed_list: async () => {
+        const existed_list = await db
+          .selectFrom(table)
+          .selectAll()
+          .where("id", "in", [...values.map((value) => get_id(value))])
+          .execute();
+        return existed_list;
+      },
+      exec_update_result: async (ctx2) => {
+        return await db
+          .updateTable(table)
+          .set((_eb) => {
+            return {
+              ...get_dto_for_insert_or_update(ctx2.value),
+            };
+          })
+          .where("id", "=", ctx2.existed.id)
+          .executeTakeFirstOrThrow();
+      },
+      exec_insert_result: async (ctx2) => {
+        return await db
+          .insertInto(table)
+          .values([
+            ...ctx2.not_existed.map((value) => {
+              return {
+                id: get_id(value),
+                ...get_dto_for_insert_or_update(value),
+              };
+            }),
+          ])
+          .execute();
+      },
+    });
+  }
 }
 
 async function _main() {
@@ -1640,9 +1287,6 @@ async function _main() {
       };
     }
 
-    // create_context_of_insert_or_update_reduced_data({
-    //   reducer: reducer_for_shop_good,
-    // });
     const ctx_list = await Promise.all(
       [
         create_context_of_insert_or_update_reduced_data({
@@ -1650,6 +1294,12 @@ async function _main() {
           reducer: reducer_for_media_content,
           insert_or_update:
             LibianCrawlerCleanAndMergeUtil.insert_or_update_media_content,
+        }),
+        create_context_of_insert_or_update_reduced_data({
+          tag_text: "ShopGood",
+          reducer: reducer_for_shop_good,
+          insert_or_update:
+            LibianCrawlerCleanAndMergeUtil.insert_or_update_shop_good,
         }),
       ].map(async (ctx) => {
         const { all_key, cache } = await ctx.stop();
@@ -1662,6 +1312,7 @@ async function _main() {
     );
     const total = ctx_list.reduce((prev, cur) => prev + cur.all_key.size, 0);
     await create_and_init_libian_srawler_database_scope(async (db) => {
+      let completed_offset = 0;
       for (const { ctx, all_key, cache } of ctx_list) {
         for (const { start, end, sliced } of Streams.split_array_use_batch_size(
           100,
@@ -1673,15 +1324,19 @@ async function _main() {
             )
           );
           const on_bar_text = async (text: string) => {
-            render_param[1].completed = end;
+            render_param[1].completed = completed_offset + end;
             render_param[1].total = total;
             render_param[1].text = `${ctx.tag_text} Batch(${start}~${end}) ${text}`;
             await bars.render(render_param);
           };
-          await ctx.insert_or_update(db, values, {
+          // 只要不乱改，这的类型就没问题。
+          // 我只想偷懒。
+          // deno-lint-ignore no-explicit-any
+          await ctx.insert_or_update(db, values as any, {
             on_bar_text,
           });
         }
+        completed_offset += all_key.size;
       }
     });
   });

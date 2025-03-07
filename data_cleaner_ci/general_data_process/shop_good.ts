@@ -4,11 +4,8 @@ import { PlatformEnum } from "./media.ts";
 export interface ShopGood {
   platform: PlatformEnum;
   platform_duplicate_id: string;
-  //   create_time: Date | null;
-  //   update_time: Date | null;
-  //   count_good_buy: DataClean.NaturalNumber | null;
-  //   count_good_want: DataClean.NaturalNumber | null;
-  //   count_good_comment: DataClean.NaturalNumber | null;
+  create_time: Temporal.Instant;
+  update_time: Temporal.Instant | null;
   good_id: string | number;
   good_name: string;
   shop_id: string | number;
@@ -28,5 +25,6 @@ export interface ShopGood {
     price_display_cny_unit001: DataClean.NaturalNumber | null;
     label: string;
   }[];
+  link_url: DataClean.HttpUrl | null;
   //   good_image_file_ids: PostgresColumnType.JSON<string[]>;
 }
