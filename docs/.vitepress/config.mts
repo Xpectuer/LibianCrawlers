@@ -21,6 +21,7 @@ function create_sidebar_item(): DefaultTheme.SidebarItem[] {
 export default defineConfig({
   lang: "zh-CN",
   title: "LibianCrawler Document",
+  base: "/libiancrawlers/",
   description: "",
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
