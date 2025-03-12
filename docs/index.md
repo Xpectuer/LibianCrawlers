@@ -10,9 +10,9 @@ hero:
     - theme: brand
       text: "来了解 LibianCrawler"
       link: /guide/learn-about-libiancrawler
-    - theme: alt
-      text: "项目功能模块化设计与路线图"
-      link: /api-examples
+    # - theme: alt
+    #   text: "项目功能模块化设计与路线图"
+    #   link: /api-examples
 
 features:
   - title: 浏览器模拟操作

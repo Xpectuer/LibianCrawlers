@@ -2,7 +2,8 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,venv,windows,linux,macos,intellij+iml,pycharm+iml,visualstudiocode,go,node,goland+iml,deno
 
 # vitepress
-**/*.ts-timestamp-*.*s
+# **/*.ts-timestamp-*.*s
+**/*.-timestamp-*.*s
 docs/.vitepress/dist
 docs/.vitepress/cache
 
