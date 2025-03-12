@@ -2,7 +2,11 @@ import {
   type LibianCrawlerGarbage,
   read_LibianCrawlerGarbage,
 } from "../../user_code/LibianCrawlerGarbage.ts";
-import { type UpdateResult, type InsertResult } from "kysely";
+import {
+  type UpdateResult,
+  type InsertResult,
+  type InsertObject,
+} from "kysely";
 import {
   Arrays,
   chain,
@@ -16,6 +20,7 @@ import {
   Streams,
   Strs,
   Times,
+  Typings,
 } from "../../util.ts";
 import { create_cache_in_memory, ICache } from "../caches.ts";
 import {
@@ -101,8 +106,8 @@ export namespace LibianCrawlerCleanAndMergeUtil {
       try {
         if (garbage.group__xiaohongshu_note__) {
           const { g_content, g_search_key } = garbage.group__xiaohongshu_note__;
-          const g_create_time = garbage.group__xiaohongshu_note__
-            .g_create_time as any as string;
+          const g_create_time: string =
+            garbage.group__xiaohongshu_note__.g_create_time;
           const { note, note_id } = g_content;
           const {
             title,
@@ -190,9 +195,18 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 ? [
                     {
                       count_play: null,
-                      download_urls: Object.entries(video.media.stream).flatMap(
-                        ([stream_key, streams]) =>
-                          streams.flatMap((s) => [
+                      download_urls: Mappings.object_entries(
+                        video.media.stream
+                      ).flatMap(([stream_key, streams]) => {
+                        const streams2: Typings.TuplifyUnion<
+                          typeof streams
+                        >[number] = streams;
+
+                        return streams2.flatMap((s) => {
+                          if (!("master_url" in s) || !("backup_urls" in s)) {
+                            return [];
+                          }
+                          return [
                             {
                               url: DataClean.url_use_https_noempty(
                                 s.master_url
@@ -205,8 +219,9 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                               is_master: false,
                               key: `${stream_key}_backup_${idx}`,
                             })),
-                          ])
-                      ),
+                          ];
+                        });
+                      }),
                       duration_sec: video.capa.duration,
                       count_review: null,
                       count_danmaku: null,
@@ -224,9 +239,8 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           if (!items) {
             continue;
           }
-          const g_create_time = garbage
-            .group__xiaohongshu_search_result__lib_xhs
-            .g_create_time as any as string;
+          const g_create_time: string =
+            garbage.group__xiaohongshu_search_result__lib_xhs.g_create_time;
           for (const item of items) {
             const { id, xsec_token, note_card, rec_query, hot_query } = item;
             if (note_card) {
@@ -315,9 +329,9 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         ) {
           const { g_content, g_search_key } =
             garbage["group__bilibili_search_result__lib_bilibili-api-python"];
-          const g_create_time = garbage[
-            "group__bilibili_search_result__lib_bilibili-api-python"
-          ].g_create_time as any as string;
+          const g_create_time: string =
+            garbage["group__bilibili_search_result__lib_bilibili-api-python"]
+              .g_create_time;
           const search_result_list = g_content.result.obj.result;
           for (const search_result of search_result_list) {
             const {
@@ -796,7 +810,10 @@ export namespace LibianCrawlerCleanAndMergeUtil {
   /**
    * 本来想把 kysely 的增删改查也封装的，奈何类型体操令人头晕目眩，所以先不管。
    */
-  export async function _insert_or_update<Item, ItemDto extends { id: string }>(
+  export async function _insert_or_update<
+    Item,
+    SelectDto extends { id: string }
+  >(
     values: Item[],
     options: {
       on_bar_text: (text: string) => Promise<void>;
@@ -806,12 +823,12 @@ export namespace LibianCrawlerCleanAndMergeUtil {
       // get_dto_for_insert_or_update: (t: Item) => Omit<ItemDto, "id">;
       is_value_equal_then_value_dto: (
         value: Item,
-        existed_dto: ItemDto
+        existed_dto: SelectDto
       ) => boolean;
-      read_existed_list: () => Promise<ItemDto[]>;
+      read_existed_list: () => Promise<SelectDto[]>;
       exec_update_result: (ctx2: {
         value: Item;
-        existed: ItemDto;
+        existed: SelectDto;
       }) => Promise<UpdateResult>;
       exec_insert_result: (ctx2: {
         not_existed: Item[];
@@ -1288,20 +1305,22 @@ async function _main() {
     }
 
     const ctx_list = await Promise.all(
-      [
-        create_context_of_insert_or_update_reduced_data({
-          tag_text: "MediaContent",
-          reducer: reducer_for_media_content,
-          insert_or_update:
-            LibianCrawlerCleanAndMergeUtil.insert_or_update_media_content,
-        }),
-        create_context_of_insert_or_update_reduced_data({
-          tag_text: "ShopGood",
-          reducer: reducer_for_shop_good,
-          insert_or_update:
-            LibianCrawlerCleanAndMergeUtil.insert_or_update_shop_good,
-        }),
-      ].map(async (ctx) => {
+      (
+        [
+          create_context_of_insert_or_update_reduced_data({
+            tag_text: "MediaContent",
+            reducer: reducer_for_media_content,
+            insert_or_update:
+              LibianCrawlerCleanAndMergeUtil.insert_or_update_media_content,
+          }),
+          create_context_of_insert_or_update_reduced_data({
+            tag_text: "ShopGood",
+            reducer: reducer_for_shop_good,
+            insert_or_update:
+              LibianCrawlerCleanAndMergeUtil.insert_or_update_shop_good,
+          }),
+        ] as const
+      ).map(async (ctx) => {
         const { all_key, cache } = await ctx.stop();
         return {
           ctx,

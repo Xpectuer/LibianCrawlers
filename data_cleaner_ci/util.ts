@@ -150,7 +150,6 @@ export async function write_file(param: {
  */
 export function name_function(name: string, body: (...args: any[]) => any) {
   return {
-    // deno-lint-ignore no-explicit-any
     [name](...args: any[]) {
       return body.apply(this, args);
     },

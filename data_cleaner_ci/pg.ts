@@ -311,7 +311,7 @@ export namespace PostgresColumnType {
 }
 
 /**
- * existed dto 老是犯畜，一会儿把数字返回string，一会儿又返回number，因此这里要特殊处理。
+ * 由于 SelectObject 和 InsertObject 存在不同，因此这里要特殊处理。
  * @param dto1
  * @param dto2
  * @returns

@@ -271,13 +271,13 @@ export async function generate_repository_api_type<T>(param: {
         runtimeTypecheckIgnoreUnknownProperties: true,
       },
       combineClasses: true,
-      // inferMaps: false,
-      // inferEnums: true,
-      // inferUuids: false,
-      // inferDateTimes: false,
-      // inferIntegerStrings: false,
-      // inferBooleanStrings: false,
-      // ignoreJsonRefs: true,
+      inferMaps: false,
+      inferEnums: true,
+      inferUuids: false,
+      inferDateTimes: false,
+      inferIntegerStrings: false,
+      inferBooleanStrings: false,
+      ignoreJsonRefs: true,
     });
     res_file_content = res_quicktype.lines.join("\n");
   } else {
