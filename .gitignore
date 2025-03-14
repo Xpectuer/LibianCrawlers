@@ -1,14 +1,16 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,venv,windows,linux,macos,intellij+iml,pycharm+iml,visualstudiocode,go,node,goland+iml,deno
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,venv,windows,linux,macos,intellij+iml,pycharm+iml,visualstudiocode,go,node,goland+iml,deno
 
+
+#region output_dirs
 # vitepress
-# **/*.ts-timestamp-*.*s
 **/*.-timestamp-*.*s
 docs/.vitepress/dist
 docs/.vitepress/cache
 
-
 /.data
+# ...
+#endregion output_dirs
 
 ### Deno ###
 /.idea/

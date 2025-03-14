@@ -35,8 +35,15 @@ function template_config() {
   };
 }
 
+// #region init_config
+// ...
+
+/**
+ * init_config 将创建符号链接并创建一些模板文件。
+ */
 export async function init_config() {
   const home_dir = os.homedir();
+  // 在家目录中创建配置文件
   const config_file_path = path.join(
     home_dir,
     ".libian",
@@ -57,6 +64,7 @@ export async function init_config() {
       alia_name: "config file",
     },
   });
+  // 将家目录下的配置文件符号链接至 data_cleaner_ci_generated
   await write_file({
     file_path: path.join(data_cleaner_ci_generated, "config.json"),
     creator: {
@@ -68,6 +76,7 @@ export async function init_config() {
       alia_name: "config file symlink",
     },
   });
+  // 在家目录下创建 user_code 目录
   const user_code_dir = path.join(
     home_dir,
     ".libian",
@@ -81,6 +90,7 @@ export async function init_config() {
   });
   console.log("Mkdir user code dir at :", user_code_dir);
   const user_code_dir_link = path.join("user_code");
+  // 将家目录下的 user_code 目录符号链接至 data_cleaner_ci_generated
   await write_file({
     file_path: user_code_dir_link,
     creator: {
@@ -129,6 +139,8 @@ export const read_LibianCrawlerGarbage = ()=>{} // 自己改成自己数仓的 a
   });
 }
 
+// ...
+// #endregion init_config
 if (import.meta.main) {
   await init_config();
 }
