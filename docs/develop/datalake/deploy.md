@@ -24,8 +24,9 @@ SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=465
 SMTP_SSL_PY_BOOL=True
 SMTP_SSL_JS_BOOL=true
-SMTP_USERNAME=xxxxxxxxxx@gmail.com
-SMTP_PASSWORD=xxxxxxxxxx
+SMTP_USERNAME=smtpxxxxsmtp
+SMTP_PASSWORD=smtpxxxxsmtp
+SMTP_SENDER=smtpxxxxsmtp@gmail.com
 ```
 
 ::::
@@ -48,11 +49,12 @@ export $(cat .env | xargs) && \
     \"Servers\": {
         \"1\": {
             \"Name\": \"Libian Crawler Postgres\",
-            \"Group\": \"Server Group 1\",
+            \"Group\": \"Libian Crawler Server Group\",
             \"Username\": \"$POSTGRES_USERNAME\",
             \"Host\": \"$POSTGRES_HOSTNAME\",
             \"Port\": 5432,
             \"SSLMode\": \"verify-full\",
+            \"SSLRootCert\": \"system\",
             \"MaintenanceDB\": \"$POSTGRES_DB\",
             \"PassFile\": \"/pgpass\"
         }
@@ -73,6 +75,7 @@ MAIL_PORT = $SMTP_PORT
 MAIL_USE_SSL = $SMTP_SSL_PY_BOOL
 MAIL_USERNAME = '$SMTP_USERNAME'
 MAIL_PASSWORD = '$SMTP_PASSWORD'
+SECURITY_EMAIL_SENDER = '$SMTP_SENDER'
 
 # Change log level
 CONSOLE_LOG_LEVEL = logging.INFO
@@ -160,7 +163,7 @@ services:
       NC_ADMIN_PASSWORD: ${NC_ADMIN_PASSWORD}
       NC_INVITE_ONLY_SIGNUP: true
       NC_DISABLE_TELE: true
-      NC_SMTP_FROM: true
+      NC_SMTP_FROM: ${SMTP_SENDER}
       NC_SMTP_HOST: ${SMTP_SERVER}
       NC_SMTP_PORT: ${SMTP_PORT}
       NC_SMTP_USERNAME: ${SMTP_USERNAME}
