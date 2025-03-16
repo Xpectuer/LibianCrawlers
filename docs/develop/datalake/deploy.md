@@ -219,12 +219,27 @@ services:
 
 最后，试一试是否成功部署了呢:
 
+:::code-group
+
 ```shell
 docker compose up
 ```
 
-:::tip
-在 cpu 非常差的服务器上，pgadmin 的安装需要等待将近 20 分钟，请保持耐心...
+```shell
+docker compose up -d && docker compose logs -t -f -n 100
+```
 
-不过， nocodb 的部署不需要等待 pgadmin 完成，因此你可以先去手动初始化 nocodb 的一些配置，比如将你的 `$POSTGRES_HOSTNAME` 添加到数据源中。
+:::
+
+:::tip pgAdmin 的安装需要长时间等待
+在 cpu 非常差的服务器上，pgadmin 的安装需要等待将近 20 分钟，请保持耐心...
+:::
+
+:::tip NocoDB 的安装很快完成，但安装后需要手动配置
+你可以先去手动初始化 nocodb 的一些配置，比如:
+
+- 在 `Integrations` 中新增你的数据源连接。
+- 在 `Teams & Settings` - `Setup` - `Configure E-mail` 中测试一下你的 SMTP 是否配置正确。
+- 在 用户上拉框 - `Language` 中设置界面语言。
+
 :::
