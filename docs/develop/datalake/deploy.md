@@ -1,5 +1,7 @@
 # 1-部署数据湖
 
+## 1. create env file
+
 第一步，先创建好 `.env` 文件。以便之后 `docker-compose.yml` 读取。
 
 :::warning 
@@ -36,6 +38,8 @@ SMTP_SENDER=smtpxxxxsmtp@gmail.com
 ```shell
 export $(cat .env | xargs) && echo $PGADMIN_MY_EMAIL
 ```
+
+## 2. create pgadmin4 volume directory
 
 第二步，[由于 pgadmin4 容器内的用户设计](https://www.pgadmin.org/docs/pgadmin4/latest/container_deployment.html#mapped-files-and-directories)，你得先运行以下命令来预先创建 volume 目录并设置用户组。
 
@@ -96,6 +100,8 @@ FILE_LOG_LEVEL = logging.INFO
   ls -la volume/*
 ```
 
+## 3. check ssl certs
+
 第三步，确保你的 postgres 使用的 ssl 证书和密钥权限正确:
 
 ```shell
@@ -105,6 +111,8 @@ chown 999:999 ./ca/server.crt && \
   chmod 600 ./ca/server.key && \
   ls -la ./ca
 ```
+
+## 4. docker compose deploy
 
 第四步，创建 `docker-compose.yml`。
 
@@ -241,5 +249,4 @@ docker compose up -d && docker compose logs -t -f -n 100
 - 在 `Integrations` 中新增你的数据源连接。
 - 在 `Teams & Settings` - `Setup` - `Configure E-mail` 中测试一下你的 SMTP 是否配置正确。
 - 在 用户上拉框 - `Language` 中设置界面语言。
-
 :::
