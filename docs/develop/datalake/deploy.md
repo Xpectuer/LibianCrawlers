@@ -8,7 +8,7 @@
 
 :::
 
-::::code-group
+:::code-group
 
 ```env [.env]
 POSTGRES_HOSTNAME=libian-datalake-postgres.yourhostname.com
@@ -29,7 +29,7 @@ SMTP_PASSWORD=smtpxxxxsmtp
 SMTP_SENDER=smtpxxxxsmtp@gmail.com
 ```
 
-::::
+:::
 
 然后使用以下命令读入并检查 `.env` 中的环境变量。
 
@@ -224,7 +224,7 @@ docker compose up
 ```
 
 :::tip
-在 cpu 较差的服务器上，pgadmin 的安装需要等待将近 20 分钟，请保持耐心...
+在 cpu 非常差的服务器上，pgadmin 的安装需要等待将近 20 分钟，请保持耐心...
 
-由于 nocodb 的部署不需要等待 pgadmin 完成，因此你可以先去手动初始化 nocodb 的一些配置，比如将你的 `$POSTGRES_HOSTNAME` 添加到数据源中。
+不过， nocodb 的部署不需要等待 pgadmin 完成，因此你可以先去手动初始化 nocodb 的一些配置，比如将你的 `$POSTGRES_HOSTNAME` 添加到数据源中。
 :::
