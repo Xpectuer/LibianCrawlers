@@ -11,8 +11,8 @@
 ::::code-group
 
 ```env [.env]
-POSTGRES_DB=libian-datalake
 POSTGRES_HOSTNAME=libian-datalake-postgres.yourhostname.com
+POSTGRES_DB=libian-datalake
 POSTGRES_USERNAME=postgres
 POSTGRES_PASSWORD=xxxxxxxxxx
 PGADMIN_MY_EMAIL=xxxxxxxxxx@gmail.com
@@ -48,19 +48,19 @@ export $(cat .env | xargs) && \
   echo "{
     \"Servers\": {
         \"1\": {
-            \"Name\": \"Libian Crawler Postgres\",
-            \"Group\": \"Libian Crawler Server Group\",
+            \"Name\": \"Datalake Postgres\",
+            \"Group\": \"Libian\",
             \"Username\": \"$POSTGRES_USERNAME\",
             \"Host\": \"$POSTGRES_HOSTNAME\",
             \"Port\": 5432,
             \"SSLMode\": \"verify-full\",
             \"SSLRootCert\": \"system\",
             \"MaintenanceDB\": \"$POSTGRES_DB\",
-            \"PassFile\": \"/pgpass\"
+            \"PassFile\": \"~/.pgpass\"
         }
     }
 }" > ./volume/pgadmin_config/servers.json && \
-  echo "$POSTGRES_DB:5432:postgres:postgres:$POSTGRES_PASSWORD" > ./volume/pgadmin_config/pgpass && \
+  echo "$POSTGRES_HOSTNAME:5432:*:$POSTGRES_USERNAME:$POSTGRES_PASSWORD" > ./volume/pgadmin_config/pgpass && \
   echo "import logging
 
 # Switch between server and desktop mode
@@ -90,6 +90,9 @@ FILE_LOG_LEVEL = logging.INFO
   cat ./volume/pgadmin_config/servers.json && \
   cat ./volume/pgadmin_config/pgpass && \
   cat ./volume/pgadmin_config/config_local.py && \
+  chmod 644 ./volume/pgadmin_config/servers.json && \
+  chmod 644 ./volume/pgadmin_config/config_local.py && \
+  chmod 600 ./volume/pgadmin_config/pgpass && \
   ls -la volume/*
 ```
 
@@ -201,7 +204,7 @@ services:
     volumes:
       - "./volume/pgadmin_data:/var/lib/pgadmin"
       - "./volume/pgadmin_config/servers.json:/pgadmin4/servers.json"
-      - "./volume/pgadmin_config/pgpass:/pgpass"
+      - "./volume/pgadmin_config/pgpass:/home/pgadmin/.pgpass"
       - "./volume/pgadmin_config/config_local.py:/pgadmin4/config_local.py"
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:80"]
