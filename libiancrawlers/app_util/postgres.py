@@ -27,12 +27,16 @@ async def close_global_pg_pool():
 
 async def get_pool():
     dbname = await read_config("crawler", "postgres", "dbname")
-    user = await read_config("crawler", "postgres", "user")
+    user = await read_config("crawler", "postgres", "user", allow_null=True)
+    if user is None:
+        user = 'postgres'
     password = await read_config("crawler", "postgres", "password")
     host = await read_config("crawler", "postgres", "host")
-    port = await read_config("crawler", "postgres", "port")
-    # dsn = f'scheme=postgresql dbname={dbname} user={user} password={password} host={host} port={port}'
-
+    port = await read_config("crawler", "postgres", "port", allow_null=True)
+    if port is None:
+        port = 5432
+    if not isinstance(port, int):
+        port = int(port)
     global _POOL
     if _POOL is None:
         async with _INIT_POOL_LOCK:

@@ -26,18 +26,27 @@ cookie=
 """
 
 
-def is_config_truthy(s: Optional[str]):
-    y = (s.lower() == 'true'
-         or s == 1 or s == '1'
-         or s.lower() == 'yes'
-         or s.lower() == 'y')
-    n = (s.lower() == 'false'
-         or s == 0 or s == '0'
-         or s.lower() == 'no'
-         or s.lower() == 'n')
-    if not y and not n:
-        raise ValueError('Invalid config boolean %s' % s)
-    return y
+def is_config_truthy(s: Union[None, str, bool]):
+    if s is None:
+        raise ValueError('Can not test truthy for None')
+    if isinstance(s, bool):
+        return s
+    elif isinstance(s, int):
+        return not s == 0
+    elif isinstance(s, str):
+        y = (s.lower() == 'true'
+             or s == '1'
+             or s.lower() == 'yes'
+             or s.lower() == 'y')
+        n = (s.lower() == 'false'
+             or s == '0'
+             or s.lower() == 'no'
+             or s.lower() == 'n')
+        if not y and not n:
+            raise ValueError('Invalid config boolean %s' % s)
+        return y
+    else:
+        raise ValueError('Unsupported type %s : %s' % (type(s), s))
 
 
 _READIED_CONFIG = None
@@ -58,7 +67,9 @@ async def _sys_exit_config() -> NoReturn:
 
 async def read_config(*args: str,
                       sys_exit: Optional[SysExitExConfig] = None,
-                      checking_sync: Optional[Callable[[Any], Optional[str]]] = None):
+                      checking_sync: Optional[Callable[[Any], Optional[str]]] = None,
+                      allow_null: bool = False,
+                      ):
     global _READIED_CONFIG
     if _READIED_CONFIG is None:
         _READIED_CONFIG = await _read_config(sys_exit=sys_exit)
@@ -66,7 +77,12 @@ async def read_config(*args: str,
     arg = None
     try:
         for arg in args:
-            o = o[arg]
+            if not allow_null:
+                o = o[arg]
+            else:
+                o = o.get(arg)
+                if o is None:
+                    break
         err_msg = checking_sync(o) if checking_sync is not None else None
         if err_msg:
             raise ValueError('Invalid config %s : %s' % (args, err_msg))

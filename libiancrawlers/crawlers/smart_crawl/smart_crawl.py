@@ -15,7 +15,7 @@ from loguru import logger
 from libiancrawlers.app_util.networks import update_proxies
 from libiancrawlers.app_util.networks.iputil import get_my_public_ip_info
 from libiancrawlers.app_util.playwright_util import get_browser, response_to_dict, \
-    page_info_to_dict, BlobOutput, url_parse_to_dict, frame_tree_to_dict
+    page_info_to_dict, BlobOutput, url_parse_to_dict, frame_tree_to_dict, ResultOfPageInfoToDict
 from libiancrawlers.app_util.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException, JSON
 
@@ -57,7 +57,12 @@ DevtoolStatus = TypedDict('DevtoolStatus', {
 
 async def smart_crawl_v1(*,
                          url: str,
-                         mode: Literal['insert_to_db', 'save_file', 'save_file_and_insert_to_db', 'all'] = 'save_file',
+                         mode: Literal[
+                             'insert_to_db',
+                             'save_file',
+                             'save_file_and_insert_to_db',
+                             'all',
+                         ] = 'save_file',
                          output_dir: Optional[str] = None,
                          tag_group: str = 'cli-group',
                          tag_version: Optional[str] = None,
@@ -207,7 +212,7 @@ async def smart_crawl_v1(*,
                 page_info_smart_wait_insert_to_db = await page_info_to_dict(
                     page,
                     on_screenshot=BlobOutput(
-                        mode='base64',
+                        mode='minio',
                         base_dir=None,
                         png_filename=None,
                         pdf_filename=None)
@@ -230,7 +235,13 @@ async def smart_crawl_v1(*,
             else:
                 page_info_smart_wait_save_file = None
 
-            def get_dumped_obj(*, page_info_smart_wait: Any):
+            def get_dumped_obj(*, page_info_smart_wait: Any,
+                               __page_info_smart_wait_insert_to_db: Optional[ResultOfPageInfoToDict] = None):
+                if __page_info_smart_wait_insert_to_db is not None:
+                    __page_info_smart_wait_insert_to_db__files = __page_info_smart_wait_insert_to_db['files']
+                else:
+                    __page_info_smart_wait_insert_to_db__files = None
+
                 return json.loads(json.dumps(dict(
                     tag_version=tag_version,
                     tag_group=tag_group,
@@ -238,37 +249,50 @@ async def smart_crawl_v1(*,
                     all_steps_run=_all_steps_run,
                     frame_tree=frame_tree,
                     page_info_smart_wait=page_info_smart_wait,
+                    __page_info_smart_wait_insert_to_db__files=__page_info_smart_wait_insert_to_db__files,
                 ), ensure_ascii=True))
 
-            if is_save_file:
-                logger.debug('start save file')
-                if base_dir is None:
-                    raise LibianCrawlerBugException('BUG, base_dir should not none')
+            async def _run_save_file(*, __page_info_smart_wait_insert_to_db: Optional[ResultOfPageInfoToDict] = None):
+                if is_save_file:
+                    logger.debug('start save file')
+                    if base_dir is None:
+                        raise LibianCrawlerBugException('BUG, base_dir should not none')
 
-                _result_json = json.dumps(
-                    get_dumped_obj(
-                        page_info_smart_wait=page_info_smart_wait_save_file
-                    ),
-                    indent=save_file_json_indent,
-                    ensure_ascii=False
-                )
-                logger.debug('start write to file , _result_json length is {}', len(_result_json))
-                async with aiofiles.open(
-                        os.path.join(
-                            base_dir,
-                            f"{filename_slugify(f'dump_{dump_tag}', allow_unicode=True)}.json"
+                    _result_json = json.dumps(
+                        get_dumped_obj(
+                            page_info_smart_wait=page_info_smart_wait_save_file,
+                            __page_info_smart_wait_insert_to_db=__page_info_smart_wait_insert_to_db,
                         ),
-                        mode='wt',
-                        encoding='utf-8') as _f:
-                    await _f.write(_result_json)
-                logger.debug('finish save file')
+                        indent=save_file_json_indent,
+                        ensure_ascii=False
+                    )
+                    logger.debug('start write to file , _result_json length is {}', len(_result_json))
+                    async with aiofiles.open(
+                            os.path.join(
+                                base_dir,
+                                f"{filename_slugify(f'dump_{dump_tag}', allow_unicode=True)}.json"
+                            ),
+                            mode='wt',
+                            encoding='utf-8') as _f:
+                        await _f.write(_result_json)
+                    logger.debug('finish save file')
 
             if is_insert_to_db:
-                await _insert_to_garbage_table(
-                    dump_page_info=get_dumped_obj(
-                        page_info_smart_wait=page_info_smart_wait_insert_to_db,
+                try:
+                    await _insert_to_garbage_table(
+                        dump_page_info=get_dumped_obj(
+                            page_info_smart_wait=page_info_smart_wait_insert_to_db,
+                        )
                     )
-                )
+                    await _run_save_file(__page_info_smart_wait_insert_to_db=page_info_smart_wait_insert_to_db)
+                except BaseException:
+                    if not is_save_file:
+                        raise
+                    else:
+                        await _run_save_file(__page_info_smart_wait_insert_to_db=page_info_smart_wait_insert_to_db)
+                        raise
+            else:
+                await _run_save_file()
             pass
 
         async def _get_devtool_status():

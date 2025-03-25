@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+import hashlib
 import os
 from typing import List
 
@@ -41,6 +42,14 @@ def filename_slugify(value, *, allow_unicode: bool):
         value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
     value = re.sub(r'[^\w\s-]', '', value.lower())
     return re.sub(r'[-\s]+', '-', value).strip('-_')
+
+
+async def get_file_hash_sha1(_file_path: str, *, buf_size=65536):
+    sha1 = hashlib.sha1()
+    async with aiofiles.open(_file_path, mode='rb') as f:
+        buf = await f.read(buf_size)
+        sha1.update(buf)
+    return sha1.hexdigest()
 
 
 if __name__ == '__main__':

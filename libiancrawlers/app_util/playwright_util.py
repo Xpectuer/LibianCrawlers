@@ -1,12 +1,15 @@
 # -*- coding: UTF-8 -*-
 import asyncio
 import base64
+import pathlib
+from datetime import datetime
 import json
 import os.path
 from dataclasses import dataclass
-from typing import Optional, Literal, Union, Dict, Callable, Awaitable, Any
+from typing import Optional, Literal, Union, Dict, Callable, Awaitable, Any, TypedDict, List, Tuple
 from urllib.parse import urlparse, parse_qs
 
+import hashlib
 import aiofiles.os
 import aiofiles.ospath
 import playwright.async_api
@@ -16,12 +19,13 @@ from loguru import logger
 # noinspection PyProtectedMember
 from playwright.async_api import PlaywrightContextManager, Frame
 from playwright.async_api import async_playwright, BrowserContext, Browser
+from playwright.sync_api import ViewportSize
 
 from libiancrawlers.app_util.app_init import get_app_init_conf
-from libiancrawlers.app_util.config import read_config, read_config_get_path
+from libiancrawlers.app_util.config import read_config, read_config_get_path, is_config_truthy
 from libiancrawlers.app_util.networks.iputil import MyPublicIpInfo
 from libiancrawlers.app_util.types import LibianCrawlerInitConfDisabled, LaunchBrowserParam
-from libiancrawlers.util.fs import filename_slugify
+from libiancrawlers.util.fs import filename_slugify, get_file_hash_sha1
 
 PLAYWRIGHT_LOCK = asyncio.Lock()
 PLAYWRIGHT_CONTEXT: Optional[PlaywrightContextManager] = None
@@ -89,11 +93,31 @@ async def get_browser(*,
     return browser_context, browser
 
 
-def url_parse_to_dict(url: Optional[str]):
+ResultOfUrlParseToDict = TypedDict('ResultOfUrlParseToDict', {
+    'url': str,
+    'url_len': int,
+    'scheme': Optional[str],
+    'netloc': Optional[str],
+    'path': Optional[str],
+    'path_arr': List[str],
+    'path_arr_len': int,
+    'params': Optional[str],
+    'query': Optional[str],
+    'query_dict': Dict[str, Optional[Union[str, List, Tuple]]],
+    'fragment': Optional[str],
+    'username': Optional[str],
+    'password': Optional[str],
+    'hostname': Optional[str],
+    'port': Optional[int],
+
+})
+
+
+def url_parse_to_dict(url: Optional[str]) -> Optional[ResultOfUrlParseToDict]:
     if url is None:
         return None
     _url = urlparse(url)
-    return dict(
+    _res: ResultOfUrlParseToDict = dict(
         url=url,
         url_len=len(url),
         scheme=_url.scheme,
@@ -106,14 +130,13 @@ def url_parse_to_dict(url: Optional[str]):
         query_dict={
             k: None if v is None or len(v) == 0 or (len(v) == 1 and v[0].strip() == '') else v[0] if len(v) == 1 else v
             for k, v in parse_qs(_url.query).items()},
-        # parse_qs=parse_qs(_url.query),
-        # parse_qsl=parse_qsl(_url.query),
         fragment=_url.fragment,
         username=_url.username,
         password=_url.password,
         hostname=_url.hostname,
         port=_url.port,
     )
+    return _res
 
 
 async def response_to_dict(resp: Optional[playwright.async_api.Response]):
@@ -178,16 +201,41 @@ async def frame_tree_to_dict(frame: Frame):
 
 @dataclass
 class BlobOutput:
-    mode: Literal['ignore', 'file', 'base64']
+    mode: Literal['ignore', 'file', 'minio']
     base_dir: Optional[str]
     png_filename: Optional[str]
     pdf_filename: Optional[str]
 
 
+ScreenShotResult = TypedDict('ScreenShotResult', {
+    'png_pth': str,
+    'pdf_pth': str,
+    'png_err_str': Optional[str],
+    'pdf_err_str': Optional[str],
+    'png_size': int,
+    'pdf_size': int,
+})
+
+MinIOObjectWriteResult = TypedDict('MinIOObjectWriteResult', {
+    'bucket_name': Any,
+    'object_name': Any,
+    'version_id': Any,
+    'etag': Any,
+    'http_headers': Any,
+    'last_modified': Any,
+    'location': Any,
+})
+
+MinIOScreenShotResult = TypedDict('MinIOScreenShotResult', {
+    'res_screenshot': ScreenShotResult,
+    'res_obj_write': MinIOObjectWriteResult,
+    'public_url': str,
+})
+
+
 async def _get_blob(*,
                     blob_output: Optional[BlobOutput],
-                    func_mode_file: Callable[[], Awaitable[Any]],
-                    func_mode_base64: Callable[[], Awaitable[Dict]],
+                    get_screenshot: Callable[[], Awaitable[ScreenShotResult]],
                     ):
     if blob_output is None:
         return None
@@ -198,24 +246,130 @@ async def _get_blob(*,
         if not await aiofiles.ospath.isdir(base_dir):
             raise OSError(f'require isdir : {base_dir}')
         # noinspection PyArgumentList
-        return await func_mode_file(
+        return await get_screenshot(
             output_base_dir=blob_output.base_dir,
             png_filename=blob_output.png_filename,
             pdf_filename=blob_output.pdf_filename,
         )
-    if blob_output.mode == 'base64':
-        return await func_mode_base64()
+    if blob_output.mode == 'minio':
+        endpoint = await read_config('crawler', 'minio', 'endpoint', allow_null=True)
+        _client_config_secure = await read_config('crawler', 'minio', 'secure', allow_null=True)
+        _client_config_cert_check = await read_config('crawler', 'minio', 'cert_check', allow_null=True)
+        access_key = await read_config('crawler', 'minio', 'access_key', allow_null=True)
+        secret_key = await read_config('crawler', 'minio', 'secret_key', allow_null=True)
+        session_token = await read_config('crawler', 'minio', 'session_token', allow_null=True)
+        region = await read_config('crawler', 'minio', 'region', allow_null=True)
+        secure = True if _client_config_secure is None else is_config_truthy(_client_config_secure)
+        cert_check = True if _client_config_cert_check is None else is_config_truthy(_client_config_cert_check)
+        public_endpoint_url = await read_config('crawler', 'minio', 'public_endpoint_url', allow_null=True)
+        if public_endpoint_url is None:
+            public_endpoint_url = f'{"https://" if secure else "http://"}{endpoint}'
 
+        from miniopy_async import Minio
+        async with aiofiles.tempfile.TemporaryDirectory(
+                suffix='-temp-screenshot',
+                prefix='libiancrawler-',
+                dir='.data') as temp_dir:
+            png_file_name = 'screenshot.png'
+            # noinspection PyArgumentList
+            res_screenshot = await get_screenshot(
+                output_base_dir=temp_dir,
+                png_filename=png_file_name,
+                pdf_filename='screenshot.pdf',
+            )
+            png_file_path = res_screenshot['png_pth']
+            png_file_sha1 = await get_file_hash_sha1(png_file_path)
+
+            client = Minio(endpoint=endpoint,
+                           access_key=access_key,
+                           secret_key=secret_key,
+                           session_token=session_token,
+                           region=region,
+                           secure=secure,
+                           cert_check=cert_check, )
+            bucket_name = await read_config('crawler', 'minio', 'bucket_name', allow_null=True)
+            if bucket_name is None:
+                bucket_name = 'libiancrawler'
+            if not await client.bucket_exists(bucket_name):
+                await client.make_bucket(bucket_name)
+                logger.info('Create MinIO bucket {}', bucket_name)
+            object_name = f'smart-crawl-screenshot/{datetime.today().strftime("%Y%m%d")}/{datetime.today().strftime("%H%M%S")}-sha1-{png_file_sha1}.png'
+            logger.debug('put object to minio start  : bucket_name is {} , object_name is {} , file_path is {}',
+                         bucket_name, object_name, png_file_path)
+            res_obj_write = await client.fput_object(
+                bucket_name=bucket_name,
+                object_name=object_name,
+                file_path=png_file_path,
+                content_type='image/png',
+                metadata={
+                    "Content-Type": "image/png"
+                },
+            )
+            from multidict import MultiDictProxy
+            if isinstance(res_obj_write.http_headers, MultiDictProxy):
+                def _first_or_all(__items):
+                    if isinstance(__items, list) or isinstance(__items, set) or isinstance(__items, tuple):
+                        if len(__items) == 1:
+                            return __items[0]
+                        else:
+                            return __items
+                    else:
+                        return __items
+
+                res_obj_write_http_headers = {k: _first_or_all(res_obj_write.http_headers.getall(k)) for k in
+                                              res_obj_write.http_headers.__iter__()}
+            else:
+                res_obj_write_http_headers = res_obj_write.http_headers
+
+            _res_obj_write: MinIOObjectWriteResult = {
+                'bucket_name': res_obj_write.bucket_name,
+                'object_name': res_obj_write.object_name,
+                'version_id': res_obj_write.version_id,
+                'etag': res_obj_write.etag,
+                'http_headers': res_obj_write_http_headers,
+                'last_modified': res_obj_write.last_modified,
+                'location': res_obj_write.location,
+            }
+            # assert it can be json dump
+            assert json.dumps(_res_obj_write) is not None
+            public_url = str.join('/', [
+                public_endpoint_url.rstrip('/'),
+                res_obj_write.bucket_name,
+                res_obj_write.object_name,
+            ])
+            logger.debug('put object to minio finish : result is {}', _res_obj_write)
+            logger.debug('put object to minio public_url : \n{}', public_url)
+
+        _res_value: MinIOScreenShotResult = {
+            'res_obj_write': _res_obj_write,
+            'res_screenshot': res_screenshot,
+            'public_url': public_url,
+        }
+        return _res_value
     return None
+
+
+ResultOfPageInfoToDictVideo = TypedDict('ResultOfPageInfoToDictVideo', {
+    'path': pathlib.Path,
+})
+
+ResultOfPageInfoToDict = TypedDict('ResultOfPageInfoToDict', {
+    'url': Optional[ResultOfUrlParseToDict],
+    'viewport_size': Optional[ViewportSize],
+    'video': Optional[ResultOfPageInfoToDictVideo],
+    'title': str,
+    'is_closed': bool,
+    'files': Union[None, ScreenShotResult, MinIOScreenShotResult]
+})
 
 
 async def page_info_to_dict(page: playwright.async_api.Page, *,
                             on_screenshot: Optional[BlobOutput] = None,
-                            ):
-    async def screenshot_mode_file(*,
-                                   output_base_dir: str,
-                                   png_filename: str,
-                                   pdf_filename: str):
+                            ) -> ResultOfPageInfoToDict:
+    async def get_screenshot(*,
+                             output_base_dir: str,
+                             png_filename: str,
+                             pdf_filename: str) -> ScreenShotResult:
         png_pth = os.path.join(output_base_dir, png_filename)
         logger.debug('start screenshot , png_pth is {}', png_pth)
         try:
@@ -255,42 +409,8 @@ async def page_info_to_dict(page: playwright.async_api.Page, *,
             pdf_pth=pdf_pth,
             png_err_str=png_err_str,
             pdf_err_str=pdf_err_str,
-            # png_res=png_res if png_res is None else base64.b64encode(png_res).decode(),
-            # pdf_res=pdf_res if pdf_res is None else base64.b64encode(pdf_res).decode(),
-        )
-
-    async def screenshot_mode_base64():
-        logger.debug('start screenshot to base64')
-        try:
-            png_res = await page.screenshot(
-                type='png',
-                full_page=True,
-                scale='css',
-            )
-            png_err_str = None
-        except BaseException as err:
-            logger.warning('Cannot screenshot : {}', err)
-            # noinspection PyUnusedLocal
-            png_res = None
-            png_err_str = str(err)
-        finally:
-            logger.debug('finish screenshot to base64')
-        logger.debug('start pdf')
-        try:
-            pdf_res = await page.pdf()
-            pdf_err_str = None
-        except BaseException as err:
-            logger.warning('Cannot pdf : {}', err)
-            # noinspection PyUnusedLocal
-            pdf_res = None
-            pdf_err_str = str(err)
-        finally:
-            logger.debug('finish pdf')
-        return dict(
-            png_res=png_res if png_res is None else base64.b64encode(png_res).decode(),
-            pdf_res=pdf_res if pdf_res is None else base64.b64encode(pdf_res).decode(),
-            png_err_str=png_err_str,
-            pdf_err_str=pdf_err_str,
+            png_size=0 if png_res is None else len(png_res),
+            pdf_size=0 if pdf_res is None else len(pdf_res),
         )
 
     return dict(
@@ -303,8 +423,7 @@ async def page_info_to_dict(page: playwright.async_api.Page, *,
         is_closed=page.is_closed(),
         files=await _get_blob(
             blob_output=on_screenshot,
-            func_mode_file=screenshot_mode_file,
-            func_mode_base64=screenshot_mode_base64,
+            get_screenshot=get_screenshot,
         )
     )
 

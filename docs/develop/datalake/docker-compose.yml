@@ -52,7 +52,6 @@ services:
       - "18195:9001"
     environment:
       MINIO_CONFIG_ENV_FILE: /etc/config.env
-      # MINIO_SERVER_URL: "https://${MINIOSNSD_HOSTNAME}:${MINIOSNSD_BOTH_PORT}"
       MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
       <<: *env
     volumes:
