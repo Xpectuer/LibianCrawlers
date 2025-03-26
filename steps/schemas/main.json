@@ -1,0 +1,497 @@
+{
+  "$id": "libian_crawler/main/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Step"
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "Step": {
+      "oneOf": [
+        {
+          "description": "`continue` 指令不会起任何作用，通常作为回调块的占位符使用，以代替回调块的默认处理。\n\n比如，很多时候可以在 on_timeout 回调命令中使用，来阻止默认的抛出超时异常的行为。\n\n```json\n{\n  fn: \"page_click\",\n  args: [\n    \".cpCloseIcon\",\n  ],\n  on_timeout_steps: \"continue\"\n}\n```",
+          "type": "string",
+          "enum": [
+            "continue"
+          ]
+        },
+        {
+          "type": "string",
+          "enum": [
+            "break"
+          ]
+        },
+        {
+          "type": "string",
+          "enum": [
+            "stop"
+          ],
+          "description": "`stop` 指令会通过抛出异常终止爬虫。"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "debug"
+          ],
+          "description": "仅当命令行 `--debug` 参数启用时，`stop` 指令会暂停爬虫执行，直到接收到确认命令（例如在 gui 界面确认或退出）。"
+        },
+        {
+          "description": "TODO: 这个功能尚未实现",
+          "type": "string",
+          "enum": [
+            "enable_devtool"
+          ]
+        },
+        {
+          "description": "暂停。单位为毫秒。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "sleep"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "additionalItems": false,
+              "minItems": 1,
+              "maxItems": 1,
+              "items": [
+                {
+                  "type": "number",
+                  "description": "暂停时间，单位为毫秒。",
+                  "minimum": 33,
+                  "examples": [
+                    1000
+                  ]
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 0,
+              "maxProperties": 0
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "控制台输出 debug 级别日志。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "logd"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "additionalItems": true,
+              "items": [
+                {
+                  "type": "string"
+                }
+              ],
+              "examples": [
+                [
+                  "Hey {} , {said}",
+                  "JoJo"
+                ]
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "examples": [
+                {
+                  "said": "let's go eat together!"
+                }
+              ]
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "控制台输出 info 级别日志。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "logi"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "additionalItems": true,
+              "items": [
+                {
+                  "type": "string"
+                }
+              ],
+              "examples": [
+                [
+                  "Hey {} , {said}",
+                  "JoJo"
+                ]
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "examples": [
+                {
+                  "said": "let's go eat together!"
+                }
+              ]
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "控制台输出 warn 级别日志。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "logw"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "additionalItems": true,
+              "items": [
+                {
+                  "type": "string"
+                }
+              ],
+              "examples": [
+                [
+                  "Hey {} , {said}",
+                  "JoJo"
+                ]
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "examples": [
+                {
+                  "said": "let's go eat together!"
+                }
+              ]
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "控制台输出 error 级别日志。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "loge"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "additionalItems": true,
+              "items": [
+                {
+                  "type": "string"
+                }
+              ],
+              "examples": [
+                [
+                  "Hey {} , {said}",
+                  "JoJo"
+                ]
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "examples": [
+                {
+                  "said": "let's go eat together!"
+                }
+              ]
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "浏览器光标在视口中胡乱移动，装模作样像个人。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_random_mouse_move"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 0,
+              "maxProperties": 0
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "这是一个封装好的等待页面加载完成的工具，它会调用\n`page.wait_for_load_state('domcontentloaded')`、`page.wait_for_load_state('networkidle')`、`page.bring_to_front()` 等多种方式来等待页面加载完成。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_wait_loaded"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 0,
+              "maxProperties": 0
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "等待指定的 selector 在任意 frame 中出现。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args",
+            "kwargs"
+          ],
+          "examples": [
+            {
+              "description": "这是一个模拟登陆网站的示例。",
+              "fn": "page_wait_for_selector_in_any_frame",
+              "args": [
+                "#login"
+              ],
+              "kwargs": {
+                "timeout": 6000
+              },
+              "on_timeout_steps": [
+                {
+                  "fn": "logd",
+                  "args": [
+                    "已登录拼多多, 无需手动登陆"
+                  ]
+                }
+              ],
+              "on_success_steps": [
+                {
+                  "fn": "logi",
+                  "args": [
+                    "未登录拼多多, 需要手动登陆"
+                  ]
+                },
+                {
+                  "fn": "gui_confirm",
+                  "kwargs": {
+                    "title": "need manually login taobao.com",
+                    "message": "LibianCrawler 需要手动完成登陆拼多多，请在浏览器窗口完成登陆后，点击此窗口的确认按钮"
+                  }
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_wait_for_selector_in_any_frame"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "additionalItems": false,
+              "items": [
+                {
+                  "type": "string",
+                  "description": "传递给 [`frame.wait_for_selector`](https://playwright.dev/python/docs/api/class-frame#frame-wait-for-selector) 的 selector 参数。"
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "minProperties": 1,
+              "maxProperties": 3,
+              "additionalProperties": false,
+              "required": [
+                "timeout"
+              ],
+              "properties": {
+                "timeout": {
+                  "type": "number",
+                  "description": "超时时间，单位为毫秒。",
+                  "minimum": 33,
+                  "examples": [
+                    6000
+                  ]
+                },
+                "strict": {
+                  "type": "boolean",
+                  "description": "传递给 [`frame.wait_for_selector`](https://playwright.dev/python/docs/api/class-frame#frame-wait-for-selector) 的 strict 参数。"
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "attached",
+                    "detached",
+                    "hidden",
+                    "visible"
+                  ],
+                  "description": "传递给 [`frame.wait_for_selector`](https://playwright.dev/python/docs/api/class-frame#frame-wait-for-selector) 的 state 参数。"
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "StepsBlock": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/Step"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Step"
+          }
+        }
+      ]
+    }
+  }
+}

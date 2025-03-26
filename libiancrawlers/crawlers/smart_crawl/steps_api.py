@@ -26,7 +26,7 @@ XY = TypedDict('XY', {'x': float, 'y': float})
 PageRef = TypedDict('PageRef', {'value': Page, })
 
 
-def _create_wait_steps_func_map(*,
+def _create_steps_api_functions(*,
                                 b_page: Page,
                                 browser_context: BrowserContext,
                                 _dump_page: Callable[[str, Page], Awaitable],

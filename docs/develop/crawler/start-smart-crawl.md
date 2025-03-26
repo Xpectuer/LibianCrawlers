@@ -15,8 +15,14 @@
 poetry run smart-crawl --debug --url https://www.taobao.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/taobao-search.json5?q=羽绒服
 ```
 
-### 拼多多(mobile.yangkeduo.com):
+### 拼多多(mobile.yangkeduo.com)
 
 ```shell
-poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-CN --wait_steps jsonfile:wait_steps/yangkeduo-mobile-search.json5?q=羽绒服
+poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-CN --steps jsonfile:steps/yangkeduo-mobile-search.json5?q=羽绒服
+```
+
+### 小红书
+
+```shell
+poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --steps jsonfile:steps/xiaohongshu.json5?q=丸子头
 ```

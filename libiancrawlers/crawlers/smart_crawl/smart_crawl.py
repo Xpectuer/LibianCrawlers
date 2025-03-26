@@ -71,18 +71,31 @@ async def smart_crawl_v1(*,
                          wait_until_close_browser=False,
                          _should_init_app=True,
                          save_file_json_indent=2,
-                         wait_steps: JSON = None,
+                         steps: JSON = None,
                          debug: bool = False,
                          ):
     _is_success_end = True
     base_dir = None
     _param_json = json.dumps(locals(), ensure_ascii=False, indent=save_file_json_indent)
 
+    ___steps_param = steps
+    if isinstance(steps, str):
+        logger.debug('Parsing --steps argument ...')
+        from libiancrawlers.app_util.cmdarg_util import parse_json_or_read_file_json_like
+        steps = await parse_json_or_read_file_json_like(steps)
+        if isinstance(steps, dict):
+            steps = steps['steps']
+    if steps is None:
+        steps = []
+    if not (isinstance(steps, list) or isinstance(steps, tuple) or isinstance(steps, set)):
+        raise ValueError(
+            f'Invalid steps , not iterable , typeof steps is {type(steps)} , param is {___steps_param} , but parsed value is {steps}')
+
     from libiancrawlers.app_util.types import Initiator
     from libiancrawlers.app_util.app_init import init_app
     from libiancrawlers.app_util.magic_util import get_magic_info
     from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options, read_proxy_server
-    from libiancrawlers.crawlers.smart_crawl.wait_steps import SmartCrawlStopSignal
+    from libiancrawlers.crawlers.smart_crawl.steps_api import SmartCrawlStopSignal
     from asyncio import locks
 
     if mode == 'all':
@@ -184,12 +197,7 @@ async def smart_crawl_v1(*,
         if is_insert_to_db:
             await _insert_to_garbage_table(**(await parse_resp_goto()))
 
-        if isinstance(wait_steps, str):
-            from libiancrawlers.app_util.cmdarg_util import parse_json_or_read_file_json_like
-            wait_steps = await parse_json_or_read_file_json_like(wait_steps)
-        if wait_steps is None:
-            wait_steps = []
-        from libiancrawlers.crawlers.smart_crawl.wait_steps import _create_wait_steps_func_map
+        from libiancrawlers.crawlers.smart_crawl.steps_api import _create_steps_api_functions
 
         if is_save_file:
             base_dir, tag_version = await _get_base_dir_when_save_file(tag_version=tag_version, output_dir=output_dir,
@@ -332,69 +340,69 @@ async def smart_crawl_v1(*,
                 _devtool_status['thread'] = _devtool_thread
             return
 
-        async def _process_steps(steps):
-            if not (isinstance(steps, tuple) or isinstance(steps, list) or isinstance(steps, set)):
-                steps = [steps]
-            for wait_step in steps:
+        async def _process_steps(_steps):
+            if not (isinstance(_steps, tuple) or isinstance(_steps, list) or isinstance(_steps, set)):
+                _steps = [_steps]
+            for _step in _steps:
                 if await _check_devtool() == 'stop':
                     raise SmartCrawlStopSignal()
-                _all_steps_run.append(json.loads(json.dumps(wait_step, ensure_ascii=False)))
-                if wait_step == 'continue':
+                _all_steps_run.append(json.loads(json.dumps(_step, ensure_ascii=False)))
+                if _step == 'continue':
                     continue
-                if wait_step == 'break':
+                if _step == 'break':
                     break
-                if wait_step == 'stop':
+                if _step == 'stop':
                     raise SmartCrawlStopSignal()
-                if wait_step == 'debug':
+                if _step == 'debug':
                     if debug:
                         await launch_debug(message='debug step')
                         continue
                     else:
                         logger.debug('Skip debug command')
                         continue
-                if wait_step == 'enable_devtool':
+                if _step == 'enable_devtool':
                     await _enable_devtool()
                     continue
                 try:
-                    logger.debug('🎼 on step : {}', wait_step)
-                    if wait_step.get('fn') is not None:
-                        _waited_args = wait_step.get('args')
-                        _waited_kwargs = wait_step.get('kwargs')
+                    logger.debug('🎼 on step : {}', _step)
+                    if _step.get('fn') is not None:
+                        _waited_args = _step.get('args')
+                        _waited_kwargs = _step.get('kwargs')
                         if _waited_args is None:
                             _waited_args = []
                         if _waited_kwargs is None:
                             _waited_kwargs = dict()
-                        fn_map = _create_wait_steps_func_map(
+                        fn_map = _create_steps_api_functions(
                             b_page=b_page,
                             browser_context=browser_context,
                             _dump_page=_dump_page,
                             _process_steps=_process_steps,
                         )
-                        await fn_map[wait_step['fn']](*_waited_args, **_waited_kwargs)
-                        on_success_steps = wait_step.get('on_success_steps')
+                        await fn_map[_step['fn']](*_waited_args, **_waited_kwargs)
+                        on_success_steps = _step.get('on_success_steps')
                         if on_success_steps is not None:
                             logger.debug('process on success steps')
                             await _process_steps(on_success_steps)
                     else:
                         logger.error(
                             'Invalid wait_step , not exist fn , please see libiancrawlers/crawlers/smart_crawl/wait_steps.py . Value of wait_step is {}',
-                            wait_step)
+                            _step)
                 except BaseException as err_timeout:
                     from libiancrawlers.util.exceptions import is_timeout_error
                     if is_timeout_error(err_timeout):
-                        on_timeout_steps = wait_step.get('on_timeout_steps')
+                        on_timeout_steps = _step.get('on_timeout_steps')
                         if on_timeout_steps is not None:
                             logger.debug('process on timeout steps')
                             await _process_steps(on_timeout_steps)
                             continue
                         else:
-                            raise TimeoutError(f'timeout on step : {wait_step}') from err_timeout
+                            raise TimeoutError(f'timeout on step : {_step}') from err_timeout
                     else:
                         raise
 
         try:
             await _process_steps([
-                *wait_steps
+                *steps
             ])
         except SmartCrawlStopSignal:
             logger.warning('except stop signal , i am stopping... ')
