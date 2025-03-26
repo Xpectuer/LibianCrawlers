@@ -4,9 +4,7 @@ import { data as schema_str } from './steps_api.data.ts'
 
 # Steps API
 
-在工程目录下的 wait_steps 目录中存放着各个网站的自动化脚本。
-
-这些脚本使用 特定的 json schema 编写。
+在工程目录下的 `./steps` 目录中存放着各个网站的自动化脚本。
 
 ## API 指南
 
