@@ -29,6 +29,12 @@ port=${vars.pg.port}
 
 [crawler.gecko]
 profile-dir-base="{{HOME}}/.libian/crawler/gecko-profile"
+
+[crawler.minio]
+endpoint=""
+access_key=""
+secret_key=""
+secure=true
 ```
 
 :::
