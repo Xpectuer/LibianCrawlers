@@ -38,9 +38,7 @@ deno task init:config
             "code_gen": 500
           },
           "cache_by_id": true,
-          "with_jsonata_template": [
-            "parse_html_tree"
-          ]
+          "with_jsonata_template": ["parse_html_tree"]
         }
       ]
     }
@@ -65,5 +63,11 @@ deno task init:config
   }
 }
 ```
+
+:::
+
+:::details 了解 初始化配置文件 具体做了什么
+
+<<< @/../data_cleaner_ci/init_config.ts#init_config{1 ts:line-numbers} [data_cleaner_ci/init_config.ts]
 
 :::
