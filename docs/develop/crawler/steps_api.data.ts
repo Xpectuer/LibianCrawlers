@@ -45,9 +45,46 @@ export default {
               name: string;
               require: boolean;
               type: string;
+              enum: string[] | undefined | null;
               example: any;
               description: string | undefined | null;
+              _rg: any;
             }[] = [];
+
+            const parse_type = (rg: unknown) => {
+              if (typeof rg !== "object" || rg === null) {
+                return "unknown";
+              }
+              if ("enum" in rg && Array.isArray(rg.enum)) {
+                return (
+                  "Literal[" +
+                  rg.enum.map((it) => `${JSON.stringify(it)}`).join(", ") +
+                  "]"
+                );
+              } else if ("type" in rg && typeof rg.type === "string") {
+                if (rg.type === "array" && "items" in rg) {
+                  if (typeof rg.items === "object" && rg.items !== null) {
+                    return "List[" + parse_type(rg.items) + "]";
+                  }
+                }
+
+                return rg.type;
+              } else if ("$ref" in rg && typeof rg.$ref === "string") {
+                const clzname = rg.$ref.split("/").reverse()[0];
+                return `[${clzname}](#${clzname.toLowerCase()})`;
+              } else if ("oneOf" in rg && Array.isArray(rg.oneOf)) {
+                return (
+                  "Union[" +
+                  rg.oneOf
+                    .filter((it) => typeof it === "object")
+                    .map((it) => parse_type(it))
+                    .join(", ") +
+                  "]"
+                );
+              } else {
+                return "unknown";
+              }
+            };
 
             if (
               "enum" in s &&
@@ -139,9 +176,11 @@ export default {
                     arg_table.push({
                       name: `arg[${i}]`,
                       require: i < minItems,
-                      type: item["type"],
+                      type: parse_type(item),
+                      enum: item["enum"],
                       example: item["examples"]?.at(0),
                       description: item["description"],
+                      _rg: item,
                     });
                   }
 
@@ -155,8 +194,10 @@ export default {
                       name: `arg[${i}...${maxItems < 0 ? "" : maxItems}]`,
                       require: false,
                       type: "unknown",
+                      enum: null,
                       example: "",
                       description: "",
+                      _rg: undefined,
                     });
                   }
 
@@ -291,9 +332,11 @@ export default {
                     arg_table.push({
                       name: `${k}`,
                       require: required.includes(k),
-                      type: v["type"],
+                      type: parse_type(v),
+                      enum: v["enum"],
                       example: v["examples"]?.at(0),
                       description: v["description"],
+                      _rg: v,
                     });
                   }
 
@@ -315,11 +358,41 @@ export default {
                 ) {
                   arg_table.push({
                     name: "**kwargs",
-                    require: true,
+                    require: false,
                     type: "KWARGS",
+                    enum: null,
                     example: "",
                     description: "",
+                    _rg: undefined,
                   });
+                }
+
+                if (
+                  "examples" in s.properties.kwargs &&
+                  Array.isArray(s.properties.kwargs.examples) &&
+                  s.properties.kwargs.examples.length > 0
+                ) {
+                  example_json["kwargs"] = s.properties.kwargs.examples[0];
+                } else if (
+                  "properties" in s.properties.kwargs &&
+                  typeof s.properties.kwargs.properties === "object" &&
+                  s.properties.kwargs.properties !== null &&
+                  Object.entries(s.properties.kwargs.properties)
+                    .map(
+                      ([k, v]) =>
+                        typeof v === "object" &&
+                        v &&
+                        "examples" in v &&
+                        Array.isArray(v.examples) &&
+                        v.examples.length > 0
+                    )
+                    .reduce((prev, cur) => prev && cur)
+                ) {
+                  example_json["kwargs"] = Object.fromEntries(
+                    Object.entries(s.properties.kwargs.properties).map(
+                      ([k, v]) => [k, v.examples[0]]
+                    )
+                  );
                 }
               }
 
@@ -349,14 +422,31 @@ export default {
                 md_desc += "\n\n";
               }
               const arg_desc_table = arg_table
+                .map((it) => {
+                  if (it.type === "object") {
+                    const s = `\n\n:::details schema\n\`\`\`json\n${JSON.stringify(
+                      it._rg,
+                      null,
+                      2
+                    )}\n\`\`\`\n:::\n\n`;
+                    if (!it.description) {
+                      it.description = "";
+                    }
+                    it.description = s + it.description;
+                  }
+                  return it;
+                })
                 .filter((it) => it.description?.trim())
                 .map((it) => (it.description?.trim() ? it : null))
-                .filter((it) => it);
+                .filter((it) => it !== null);
               if (arg_desc_table.length > 0) {
-                md_desc += "\n:::details 参数详情";
+                md_desc += "\n:::details 参数含义文档";
                 for (const arg of arg_desc_table) {
-                  md_desc += `\n\n> **${arg?.name}**`;
-                  md_desc += `\n>\n>${arg?.description}`;
+                  md_desc += `\n\n> **${arg.name}**`;
+
+                  md_desc += `\n>\n> ${arg.description
+                    ?.split("\n")
+                    ?.join("\n> ")}`;
                 }
                 md_desc += "\n:::\n\n";
               }

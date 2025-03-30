@@ -22,7 +22,7 @@ import { data as schema_str } from './steps_api.data.ts'
 }
 ```
 
-这两个属性的值可以传入 `Array<Step>` 或 `Step`。
+这两个属性的值可以传入 [StepsBlock](#stepsblock)。
 
 `on_timeout_steps` 将会在函数抛出 常见的超时异常 时发生作用。
 
@@ -31,7 +31,7 @@ import { data as schema_str } from './steps_api.data.ts'
 - 当未指定 `on_timeout_steps` 时，异常将会继续抛出，这很有可能会直接中止爬虫。
 - 当指定 `on_timeout_steps` 后。将会继续执行 `on_timeout_steps` 值的指令。
 
-而 `on_success_steps` 会于没有任何异常抛出时执行，通常用作 `on_timeout_steps` 的 else 分支 
+而 `on_success_steps` 会于没有任何异常抛出时执行，通常用作 `on_timeout_steps` 的 else 分支
 
 #### description
 
@@ -52,3 +52,11 @@ import { data as schema_str } from './steps_api.data.ts'
 <h4 :id="s['markdown_title']">{{s['markdown_title']}}</h4>
 <div v-html="s['markdown_html']" />
 </div>
+
+### Ref
+
+#### StepsBlock
+
+#### XY
+
+#### LocatorBlock

@@ -477,6 +477,401 @@
               "type": "string"
             }
           }
+        },
+        {
+          "description": "等待GUI界面确认。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "kwargs"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "gui_confirm"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "minProperties": 2,
+              "maxProperties": 2,
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "message"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "在GUI确认框上的标题。",
+                  "examples": [
+                    "需要手动确认登陆"
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "description": "在GUI确认框上的消息正文。",
+                  "examples": [
+                    "请在浏览器中手动完成登陆后，再关闭此对话框，然后爬虫会继续运行。"
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "封装了以多种方式点击页面的命令。共有以下模式:\n\n- A: 使用 [`page.mouse.click`](https://playwright.dev/python/docs/api/class-mouse#mouse-click) 并指定 xy 坐标直接点击页面。\n\n- B: 先使用 [`page.locator`](https://playwright.dev/python/docs/api/class-locator) 定位元素，然后:\n\n  - B1: 使用 [`Locator.click`](https://playwright.dev/python/docs/api/class-locator#locator-click) 触发点击事件。\n\n  - B2:  使用 [`Locator.tap`](https://playwright.dev/python/docs/api/class-locator#locator-tap) 触发点击事件。\n\n:::tip\n由于这里封装了多种模式的 kwargs 参数，因此在下方的参数含义文档中会特地注明某可选参数适用的模式。\n:::",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "examples": [
+            {
+              "fn": "page_click",
+              "args": [
+                ".closeIcon"
+              ],
+              "kwargs": {
+                "timeout": 2000
+              },
+              "description": "如果有广告弹窗则关闭",
+              "on_timeout_steps": "continue"
+            }
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_click"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "additionalItems": false,
+              "items": [
+                {
+                  "description": "传入字符串时，将会使用【模式B】，并将其作为传递给 [`_page.locator`](https://playwright.dev/python/docs/locators#locate-by-css-or-xpath) 的 selector 参数。\n\n传入 XY 时，将会使用【模式A】，并将其作为传递给 `page.mouse.click` 的参数。",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/XY"
+                    }
+                  ]
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "minProperties": 0,
+              "maxProperties": 14,
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "timeout": {
+                  "type": "number",
+                  "description": "【适用模式B】。超时时间。 **默认值** 5000，单位为毫秒。",
+                  "minimum": 33,
+                  "examples": [
+                    6000
+                  ]
+                },
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "click",
+                    "tap"
+                  ],
+                  "description": "【适用模式B】。\n\n传入 **默认值** `\"click\"` 时，将会使用【模式B1】，使用 playwright 的 [`Locator.click`](https://playwright.dev/python/docs/api/class-locator#locator-click) 触发点击事件。\n\n传入 `\"tap\"` 时，将会使用【模式B2】，使用 playwright 的 [`Locator.tap`](https://playwright.dev/python/docs/api/class-locator#locator-tap) 触发点击事件。"
+                },
+                "wait_any_page_create_time_limit": {
+                  "type": "number",
+                  "description": "【适用全部模式】。当在点击页面后的这段时间内有新页面被创建，且 `on_new_page` 属性不为 `\"ignore\"`，则会调用 `on_new_page` 块；反之则不会调用。 **默认值** 3000。单位为毫秒。",
+                  "examples": [
+                    3000
+                  ]
+                },
+                "on_new_page": {
+                  "description": "【适用全部模式】。此参数用于控制 “当点击页面后假如出现新页面” 的行为：\n\n**默认值** `\"switch_it_and_run_steps_no_matter_which_page\"` 将会自动将当前页面指针指向新页面，但假如没有新页面则无事发生。\n\n`\"ignore\"` 值将会忽略新页面（且当前页面指针不会指向新页面）。\n\n如果传入 StepsBlock，则先将自动将当前页面指针指向新页面，然后 **在新页面中调用此 StepsBlock** ，并且会在 StepsBlock 块完毕后自动将当前页面指针 **指回旧页面** 。",
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "ignore",
+                        "switch_it_and_run_steps_no_matter_which_page"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    }
+                  ]
+                },
+                "has_text": {
+                  "type": "string",
+                  "description": "【适用模式B】。传递给 [`Page.locator`](https://playwright.dev/python/docs/locators#locate-by-text) 的 `has_text` 可选参数。根据包含的文本查找元素，可以通过子串、精确字符串或正则表达式进行匹配。匹配元素内部包含指定文本的元素，可能是子元素或后代元素。当传递字符串时，匹配不区分大小写并搜索子字符串。例如，`\"Playwright\"` 匹配 `<article><div>Playwright</div></article>` 。"
+                },
+                "has_not_text": {
+                  "type": "string",
+                  "description": "【适用模式B】。传递给 [`Page.locator`](https://playwright.dev/python/docs/locators#locate-by-text) 的 `has_not_text` 可选参数。匹配内部某处不包含指定文本的元素，可能是子元素或后代元素。传递字符串时，匹配不区分大小写并搜索子字符串。"
+                },
+                "on_locator": {
+                  "description": "【适用模式B】。在每次返回 Locator 后继续调用",
+                  "$ref": "#/definitions/OnLocatorBlock"
+                },
+                "modifiers": {
+                  "description": "【适用模式B】。传递给 `Locator.click` 或 `Locator.tap` 的 `modifiers` 可选参数。",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "Alt",
+                      "Control",
+                      "ControlOrMeta",
+                      "Meta",
+                      "Shift"
+                    ]
+                  }
+                },
+                "force": {
+                  "type": "boolean",
+                  "description": "【适用模式B】。不进行 [actionability](https://playwright.dev/docs/actionability) 检查而强行点击。"
+                },
+                "no_wait_after": {
+                  "type": "boolean",
+                  "description": "【适用模式B】。此参数已经被 playwright 弃用。"
+                },
+                "trial": {
+                  "type": "boolean",
+                  "description": "【适用模式B】。设置后，此方法仅执行 [actionability](https://playwright.dev/docs/actionability) 检查并跳过操作。默认为 `false`。等待元素准备好执行操作而不执行操作很有用。请注意，无论 `trial` 如何，键盘 `修饰键` 都会被按下，以允许测试仅在按下这些键时才可见的元素。"
+                },
+                "position": {
+                  "description": "【适用模式B】。传递给 `Locator.click` 或 `Locator.tap` 的 `position` 可选参数。",
+                  "$ref": "#/definitions/XY"
+                },
+                "delay": {
+                  "type": "number",
+                  "description": "【适用模式A和B】。\n\n在【模式A】中，作为传递给 `page.mouse.click` 的 `delay` 可选参数， **默认值** 0。\n\n在【模式B】中，作为传递给 `Locator.click` 或 `Locator.tap` 的 `delay` 可选参数， **默认值** 0。"
+                },
+                "button": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "middle",
+                    "right"
+                  ],
+                  "description": "【适用模式A和B1】。\n\n在【模式A】中，作为传递给 `page.mouse.click` 的 `button` 可选参数。 **默认值** `\"left\"`。\n\n在【模式B1】中，作为传递给 `Locator.click` 的 `button` 可选参数。 **默认值** `\"left\"`。"
+                },
+                "click_count": {
+                  "type": "number",
+                  "description": "【适用模式A和B1】。\n\n在【模式A】中，传递给 `page.mouse.click` 的 `click_count` 可选参数。 **默认值** 1。\n\n在【模式B1】中，传递给 `Locator.click` 的 `click_count` 可选参数。 **默认值** 1。"
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "打字。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_type"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "additionalItems": false,
+              "items": [
+                {
+                  "type": "string",
+                  "description": "第一个参数是 selector。如果有多个元素满足选择器且 `strict` 不为 false，则使用第一个。",
+                  "examples": [
+                    "input[type=\"search\"]"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "description": "第二个参数是要输入的文本。",
+                  "examples": [
+                    "羽绒服"
+                  ]
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "minProperties": 0,
+              "maxProperties": 4,
+              "additionalProperties": false,
+              "properties": {
+                "delay": {
+                  "type": "number",
+                  "description": "打字按键间隙，单位为毫秒。 **默认值** 300。",
+                  "minimum": 0
+                },
+                "timeout": {
+                  "type": "number",
+                  "minimum": 33,
+                  "description": "超时时间，单位为毫秒。"
+                },
+                "no_wait_after": {
+                  "type": "boolean",
+                  "description": "此参数已经被 playwright 弃用。"
+                },
+                "strict": {
+                  "type": "boolean",
+                  "description": "如果为 true，则调用要求选择器解析为单个元素。如果给定的选择器解析为多个元素，则调用会引发异常。"
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "将页面向下滚动到底或最大高度。\n\n当滚到底部时，会上滚一下再下滚，反复多次后若高度不变（没有加载新玩意）则认为滚动完成。\n\n如果指定了 `page_click_if_found` 属性，则会在合适的时机点击每个符合选择器的元素，在点击之后还会运行 dump_page ，并可以指定 dump_page 前后运行指定的步骤。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_scroll_down"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "minProperties": 0,
+              "maxProperties": 6,
+              "additionalProperties": false,
+              "properties": {
+                "max_height": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "向下滚动到最大高度后将会停止。 **默认值** `20000` 。如果你需要完整的网页截屏，请不要设置过高的值，因为 firefox 有个 [老问题](https://www.google.com.hk/search?q=Cannot+take+screenshot+larger+than+32767) ，设置过高的高度可能导致截屏失败。",
+                  "examples": [
+                    20000
+                  ]
+                },
+                "delta_y": {
+                  "type": "number",
+                  "minimum": 100,
+                  "description": "每次向下滚动的距离因子。实际向下滚动的距离为其的 0.3~1.6 倍。 **默认值** `233.0` 。建议不要修改，容易出 BUG。",
+                  "examples": [
+                    233
+                  ]
+                },
+                "interval": {
+                  "type": "number",
+                  "minimum": 0.2,
+                  "description": "每次向下滚动事件之间的时间间隔因子。实际的间隔时间为它的 0.7~1.3 倍。 **默认值** `0.5`。建议不要修改，容易出 BUG。",
+                  "examples": [
+                    0.5
+                  ]
+                },
+                "retry_scroll_down_limit": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "**默认值** 2 。当发现滚动后高度和上次一致时，再向下滚动此次数，若还是一致或高度缩短，则认为 没有发现新加载的内容。",
+                  "examples": [
+                    2
+                  ]
+                },
+                "retry_scroll_up_limit": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "**默认值** 2 。当 没有发现新加载的内容 时，会 试图向上滚动再向下滚动检查 此次数。当该过程中发现了新加载的内容，清空此计数器并继续向下滚动；直到此计数器超过该值 或 超过高度上限 时，才会认为页面已经滚动到底。",
+                  "examples": [
+                    2
+                  ]
+                },
+                "page_click_if_found": {
+                  "type": "object",
+                  "description": "当指定此值时，将会在向下滚动的过程中不断的将 满足 `locator` 属性的选择器要求的元素 的位置收集入列表中。\n\n此列表会根据元素的 inner_text 与 inner_html 去重。\n\n仅当同时满足 元素可以被点击、元素出现在视口内、元素的长宽均超过5 时，将会使用 [【模式A】] （即传入XY）点击(#page_click) 此元素。如果没满足点击条件，则会保留在列表中，直到满足条件才被点击并移出列表。\n\n对于每个被点击的元素，点击元素并短暂的等待后: \n\n1. 先会执行一次 dump_page ;\n\n2. 然后执行 `on_found_after_click_steps` 属性中的 StepsBlock（通常可以用作继续向下滚动）;\n\n3. 再运行一次 dump_page;\n\n4. 最后再执行 `on_found_after_click_steps` 属性中的 StepsBlock（通常可以用作回到主页）。 ",
+                  "minProperties": 1,
+                  "required": [
+                    "locator"
+                  ],
+                  "properties": {
+                    "locator": {
+                      "type": "string",
+                      "description": "选择器。"
+                    },
+                    "on_found_after_click_steps": {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    "on_found_after_click_and_dump_steps": {
+                      "$ref": "#/definitions/StepsBlock"
+                    }
+                  }
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
         }
       ]
     },
@@ -489,6 +884,224 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/Step"
+          }
+        }
+      ]
+    },
+    "XY": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "minProperties": 2,
+      "maxProperties": 2,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      }
+    },
+    "OnLocatorBlockItem": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "fn",
+            "args"
+          ],
+          "minProperties": 2,
+          "maxProperties": 3,
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "get_by_text",
+                "get_by_alt_text"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": [
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "minProperties": 0,
+              "maxProperties": 1,
+              "properties": {
+                "exact": {
+                  "type": "boolean",
+                  "description": "是否查找精确匹配：区分大小写和全字符串。默认为 false。通过正则表达式定位时忽略。请注意，精确匹配仍会修剪空格。"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "fn",
+            "args"
+          ],
+          "minProperties": 2,
+          "maxProperties": 3,
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "get_by_role"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "alert",
+                    "alertdialog",
+                    "application",
+                    "article",
+                    "banner",
+                    "blockquote",
+                    "button",
+                    "caption",
+                    "cell",
+                    "checkbox",
+                    "code",
+                    "columnheader",
+                    "combobox",
+                    "complementary",
+                    "contentinfo",
+                    "definition",
+                    "deletion",
+                    "dialog",
+                    "directory",
+                    "document",
+                    "emphasis",
+                    "feed",
+                    "figure",
+                    "form",
+                    "generic",
+                    "grid",
+                    "gridcell",
+                    "group",
+                    "heading",
+                    "img",
+                    "insertion",
+                    "link",
+                    "list",
+                    "listbox",
+                    "listitem",
+                    "log",
+                    "main",
+                    "marquee",
+                    "math",
+                    "menu",
+                    "menubar",
+                    "menuitem",
+                    "menuitemcheckbox",
+                    "menuitemradio",
+                    "meter",
+                    "navigation",
+                    "none",
+                    "note",
+                    "option",
+                    "paragraph",
+                    "presentation",
+                    "progressbar",
+                    "radio",
+                    "radiogroup",
+                    "region",
+                    "row",
+                    "rowgroup",
+                    "rowheader",
+                    "scrollbar",
+                    "search",
+                    "searchbox",
+                    "separator",
+                    "slider",
+                    "spinbutton",
+                    "status",
+                    "strong",
+                    "subscript",
+                    "superscript",
+                    "switch",
+                    "tab",
+                    "table",
+                    "tablist",
+                    "tabpanel",
+                    "term",
+                    "textbox",
+                    "time",
+                    "timer",
+                    "toolbar",
+                    "tooltip",
+                    "tree",
+                    "treegrid",
+                    "treeitem"
+                  ]
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "minProperties": 0,
+              "maxProperties": 9,
+              "properties": {
+                "checked": {
+                  "type": "boolean"
+                },
+                "disabled": {
+                  "type": "boolean"
+                },
+                "expanded": {
+                  "type": "boolean"
+                },
+                "include_hidden": {
+                  "type": "boolean"
+                },
+                "level": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "pressed": {
+                  "type": "boolean"
+                },
+                "selected": {
+                  "type": "boolean"
+                },
+                "exact": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "OnLocatorBlock": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/OnLocatorBlockItem"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OnLocatorBlockItem"
           }
         }
       ]

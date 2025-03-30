@@ -1,165 +1,162 @@
 {
-    "$schema": "./schemas/main.json",
-    "steps": [
-        "enable_devtool",
+  "$schema": "./schemas/main.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start PinDuoDuo (mobile.yangkeduo.com) search"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_wait_for_selector_in_any_frame",
+      "args": [
+        "#login"
+      ],
+      "kwargs": {
+        "timeout": 6000
+      },
+      "on_timeout_steps": [
         {
-            "fn": "page_random_mouse_move"
-        },
-        {
-            "fn": "page_wait_loaded"
-        },
-        {
-            "fn": "page_random_mouse_move"
-        },
-        {
-            "fn": "logi",
-            "args": [
-                "Start PinDuoDuo (mobile.yangkeduo.com) search"
-            ]
-        },
-        {
-            "fn": "sleep",
-            "args": [
-                1000
-            ]
-        },
-        {
-            "fn": "page_wait_for_selector_in_any_frame",
-            "args": [
-                "#login"
-            ],
-            "kwargs": {
-                "timeout": 6000
-            },
-            "on_timeout_steps": [
-                {
-                    "fn": "logd",
-                    "args": [
-                        "已登录拼多多, 无需手动登陆"
-                    ]
-                }
-            ],
-            "on_success_steps": [
-                {
-                    "fn": "logi",
-                    "args": [
-                        "未登录拼多多, 需要手动登陆"
-                    ]
-                },
-                {
-                    "fn": "gui_confirm",
-                    "kwargs": {
-                        "title": "need manually login taobao.com",
-                        "message": "LibianCrawler 需要手动完成登陆拼多多，请在浏览器窗口完成登陆后，点击此窗口的确认按钮"
-                    }
-                }
-            ]
-        },
-        {
-            "fn": "page_click",
-            "args": [
-                "svg[width=\"200\"][height=\"200\"]:not([p-id])"
-            ],
-            "kwargs": {
-                "timeout": 6000
-            }
-        },
-        {
-            "fn": "sleep",
-            "args": [
-                1000
-            ]
-        },
-        {
-            "fn": "page_type",
-            "args": [
-                "input[type=\"search\"]",
-                "<<<<!q!>>>>"
-            ],
-            "kwargs": {
-                "delay": 300
-            }
-        },
-        {
-            "fn": "sleep",
-            "args": [
-                1000
-            ]
-        },
-        {
-            "fn": "page_click",
-            "args": [
-                "div"
-            ],
-            "kwargs": {
-                "has_text": "搜索",
-                "timeout": 4000,
-                "on_locator": [
-                    {
-                        "fn": "get_by_text",
-                        "args": [
-                            "搜索"
-                        ]
-                    }
-                ]
-            }
-        },
-        {
-            "fn": "sleep",
-            "args": [
-                1000
-            ]
-        },
-        {
-            "fn": "page_wait_for_selector_in_any_frame",
-            "args": [
-                "#login"
-            ],
-            "kwargs": {
-                "timeout": 6000
-            },
-            "on_timeout_steps": [
-                {
-                    "fn": "logd",
-                    "args": [
-                        "已登录拼多多, 无需手动登陆"
-                    ]
-                }
-            ],
-            "on_success_steps": [
-                {
-                    "fn": "logi",
-                    "args": [
-                        "未登录拼多多, 需要手动登陆"
-                    ]
-                },
-                {
-                    "fn": "gui_confirm",
-                    "kwargs": {
-                        "title": "need manually login taobao.com",
-                        "message": "LibianCrawler 需要手动完成登陆拼多多，请在浏览器窗口完成登陆后，点击此窗口的确认按钮"
-                    }
-                }
-            ]
-        },
-        {
-            "fn": "page_scroll_down",
-            "kwargs": {
-                "max_height": 10000,
-                "page_click_if_found": {
-                    "locator": "div[data-uniqid][style='width:1.86rem;margin-right:0.03rem;margin-bottom:0.03rem']",
-                    "on_found_after_click_steps": [
-                        {
-                            "fn": "page_scroll_down"
-                        }
-                    ],
-                    "on_found_after_click_and_dump_steps": [
-                        {
-                            "fn": "page_go_back"
-                        }
-                    ]
-                }
-            }
+          "fn": "logd",
+          "args": [
+            "已登录拼多多, 无需手动登陆"
+          ]
         }
-    ]
+      ],
+      "on_success_steps": [
+        {
+          "fn": "logi",
+          "args": [
+            "未登录拼多多, 需要手动登陆"
+          ]
+        },
+        {
+          "fn": "gui_confirm",
+          "kwargs": {
+            "title": "need manually login taobao.com",
+            "message": "LibianCrawler 需要手动完成登陆拼多多，请在浏览器窗口完成登陆后，点击此窗口的确认按钮"
+          }
+        }
+      ]
+    },
+    {
+      "fn": "page_click",
+      "args": [
+        "svg[width=\"200\"][height=\"200\"]:not([p-id])"
+      ],
+      "kwargs": {
+        "timeout": 6000
+      }
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_type",
+      "args": [
+        "input[type=\"search\"]",
+        "<<<<!q!>>>>"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_click",
+      "args": [
+        "div"
+      ],
+      "kwargs": {
+        "has_text": "搜索",
+        "timeout": 4000,
+        "on_locator": [
+          {
+            "fn": "get_by_text",
+            "args": [
+              "搜索"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_wait_for_selector_in_any_frame",
+      "args": [
+        "#login"
+      ],
+      "kwargs": {
+        "timeout": 6000
+      },
+      "on_timeout_steps": [
+        {
+          "fn": "logd",
+          "args": [
+            "已登录拼多多, 无需手动登陆"
+          ]
+        }
+      ],
+      "on_success_steps": [
+        {
+          "fn": "logi",
+          "args": [
+            "未登录拼多多, 需要手动登陆"
+          ]
+        },
+        {
+          "fn": "gui_confirm",
+          "kwargs": {
+            "title": "need manually login taobao.com",
+            "message": "LibianCrawler 需要手动完成登陆拼多多，请在浏览器窗口完成登陆后，点击此窗口的确认按钮"
+          }
+        }
+      ]
+    },
+    {
+      "fn": "page_scroll_down",
+      "kwargs": {
+        "max_height": 10000,
+        "page_click_if_found": {
+          "locator": "div[data-uniqid][style='width:1.86rem;margin-right:0.03rem;margin-bottom:0.03rem']",
+          "on_found_after_click_steps": [
+            {
+              "fn": "page_scroll_down"
+            }
+          ],
+          "on_found_after_click_and_dump_steps": [
+            {
+              "fn": "page_go_back"
+            }
+          ]
+        }
+      }
+    }
+  ]
 }

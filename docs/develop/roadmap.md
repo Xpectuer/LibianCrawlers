@@ -36,3 +36,7 @@
     - [x] 增量修改到 postgres
     - [x] 自动运行 postgres 迁移
     - [x] 用 typescript 确保 迁移对象 和 数据对象 的类型一致
+
+## 爬虫功能模块
+
+参考: [爬虫功能模块完成进度](./crawler/start-smart-crawl.md#爬虫功能模块完成进度)

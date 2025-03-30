@@ -31,6 +31,7 @@
             "kwargs": {
                 "timeout": 2000
             },
+            "description": "如果有广告弹窗则关闭",
             "on_timeout_steps": "continue"
         },
         {
@@ -45,10 +46,7 @@
             "args": [
                 "#q",
                 "<<<<!q!>>>>"
-            ],
-            "kwargs": {
-                "delay": 300
-            }
+            ]
         },
         {
             "fn": "sleep",

@@ -5,7 +5,7 @@ layout: home
 hero:
   name: "LibianCrawler"
   text: ""
-  tagline: "一个高效、灵活且可扩展的数据 采集-清洗-存储-展示-计算 框架。"
+  tagline: "一个高效、灵活且可扩展的数据 采集-清洗-存储-展示-保护-计算 框架。"
   actions:
     - theme: brand
       text: "来了解 LibianCrawler"
@@ -13,19 +13,17 @@ hero:
     # - theme: alt
     #   text: "项目功能模块化设计与路线图"
     #   link: /api-examples
-
-# features:
-#   - title: 数据采集(浏览器自动化)
-#     details: 基于 Playwright + 指纹浏览器 Camoufox 实现对各类网站的自动化访问，通过编写符合 json schema 的脚本来操纵浏览器。
-#   - title: 数据采集(API库)
-#     details: 内嵌了一些平台的 API 库，这同样也可以用作爬虫的数据来源。
-#   - title: 数据清洗
-#     details: 利用 TypeScript 生态实现类型生成、本地缓存、预转换数据类型、数据清洗、类型检查、数据合并去重。
-#   - title: 数据存储
-#     details: 将清洗后的数据增量更新到 PostgreSQL 数据库，并自动检查和运行数据库迁移。或是将图片、音频、视频上传到 MinIO。
-#   - title: 数据展示
-#     details: 对 nocodb 的数据格式和api进行兼容。nocodb 是一个基于数据库的漂亮的仿电子表格界面，https://nocodb.com 了解更多。
-#   - title: 数据计算
-#     details: 读取MinIO中的图片和音视频并运行内容识别，保存结果至数据库。将数据库内的数据接入 ElasticSearch，或是用作 LLM 的训练材料。
+features:
+  - title: 数据采集
+    details: 基于 Playwright 和 Camoufox ，通过脚本操控浏览器进行网站数据采集。内置多平台API库，可作为爬虫数据来源。
+  - title: 数据清洗
+    details: TypeScript + Jsonata + Quicktype 实现的数据处理，包含类型生成与缓存、数据转换与检查等功能。
+  - title: 数据存储
+    details: 将清洗后的数据更新到 PostgreSQL ，或上传多媒体文件至 MinIO 。
+  - title: 数据展示
+    details: 部署和支持 NocoDB ，提供类似电子表格的可视化界面。
+  - title: 数据保护
+    details: 从工程架构上为个人开发者保护数据安全。
+  - title: 数据计算
+    details: 执行内容识别并存储结果，或将数据用于搜索引擎或LLM训练。
 ---
-

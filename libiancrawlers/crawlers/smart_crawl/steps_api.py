@@ -12,6 +12,15 @@ from playwright.async_api import Page, BrowserContext, Locator
 from libiancrawlers.app_util.types import JSON
 from libiancrawlers.util.coroutines import sleep
 
+StepsBlock = Union[
+    JSON,
+    List[JSON],
+]
+
+OnLocatorBlock = JSON
+
+PageScrollDownPageClickIfFound = JSON
+
 
 class SmartCrawlSignal(BaseException):
     pass
@@ -185,7 +194,7 @@ def _create_steps_api_functions(*,
     def loge(*args, **kwargs):
         logger.error(*args, **kwargs)
 
-    async def on_locator(loc: Locator, opts: JSON) -> Locator:
+    async def on_locator(loc: Locator, opts: OnLocatorBlock) -> Locator:
         if not (isinstance(opts, list) or isinstance(opts, set) or isinstance(opts, tuple)):
             opts = [opts]
         for opt in opts:
@@ -196,7 +205,9 @@ def _create_steps_api_functions(*,
                     }
                 fn = opt.get('fn')
                 if not isinstance(fn, str):
-                    raise ValueError(f'Invalid on locator operation , it should be literal string or dict : {opt}')
+                    raise ValueError(
+                        f'Invalid fn type in OnLocatorBlock , fn should be literal string ,\n but fn is {fn} ,\n opt is {opt} ,\n opts is {opts}')
+
                 for func in [
                     loc.get_by_text,
                     loc.get_by_alt_text,
@@ -206,6 +217,9 @@ def _create_steps_api_functions(*,
                         loc2 = func(*opt.get('args', []), **opt.get('kwargs', dict()))
                         logger.debug('on locator : \n    call {}\n    from {}\n    to {}', opt, loc, loc2)
                         loc = loc2
+                        break
+                else:
+                    logger.warning('Unknown fn {} in OnLocatorBlock , Skipped . opts is {}', fn, opts)
 
             except BaseException as err:
                 raise ValueError(f'Invalid on locator operation : {opt}') from err
@@ -258,7 +272,7 @@ def _create_steps_api_functions(*,
                                max_height: Optional[float] = 20000,
                                retry_scroll_up_limit: int = 2,
                                retry_scroll_down_limit: int = 2,
-                               page_click_if_found: JSON = None,
+                               page_click_if_found: PageScrollDownPageClickIfFound = None,
                                ):
         _page = await get_page()
         logger.debug('start page scroll down , current page title is {}', await _page.title())
@@ -279,6 +293,8 @@ def _create_steps_api_functions(*,
         viewport_size = _page.viewport_size
         if viewport_size is not None:
             logger.debug('viewport size is {}', viewport_size)
+        else:
+            logger.warning('page.viewport_size is None , why scroll page ?')
 
         curr_height_min = 999999999
 
@@ -293,7 +309,7 @@ def _create_steps_api_functions(*,
 
             if page_click_if_found is not None:
                 if viewport_size is not None:
-                    _element_list_locator = _page.locator(page_click_if_found.get('locator'))
+                    _element_list_locator = _page.locator(page_click_if_found['locator'])
                     _element_idx = 0
                     _elements_count = await _element_list_locator.count()
                     _elements = dict()
@@ -452,8 +468,7 @@ def _create_steps_api_functions(*,
                                      'switch_it_and_run_steps_no_matter_which_page',
                                      'ignore'
                                  ],
-                                 JSON,
-                                 List[JSON],
+                                 StepsBlock
                              ]
                          ] = None,
                          wait_any_page_create_time_limit: Optional[float] = None,
@@ -621,7 +636,8 @@ def _create_steps_api_functions(*,
         return await (await get_page()).wait_for_function(*args, **kwargs)
 
     async def page_type(*args, **kwargs):
-        return await (await get_page()).type(*args, **kwargs)
+        delay = kwargs.pop('delay', 300)
+        return await (await get_page()).type(*args, delay=delay, **kwargs)
 
     async def page_wait_for_selector(*args, **kwargs):
         return await (await get_page()).wait_for_selector(*args, **kwargs)
