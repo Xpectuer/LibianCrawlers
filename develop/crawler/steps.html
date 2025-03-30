@@ -9,11 +9,11 @@
     <link rel="preload stylesheet" href="/LibianCrawlers/assets/style.Dq18Ckhl.css" as="style">
     <link rel="preload stylesheet" href="/LibianCrawlers/vp-icons.css" as="style">
     
-    <script type="module" src="/LibianCrawlers/assets/app.BVW9tiD4.js"></script>
+    <script type="module" src="/LibianCrawlers/assets/app.D8h603mR.js"></script>
     <link rel="preload" href="/LibianCrawlers/assets/inter-roman-latin.Di8DUHzh.woff2" as="font" type="font/woff2" crossorigin="">
-    <link rel="modulepreload" href="/LibianCrawlers/assets/chunks/theme.0Tp9RaLO.js">
+    <link rel="modulepreload" href="/LibianCrawlers/assets/chunks/theme.DiWAykKq.js">
     <link rel="modulepreload" href="/LibianCrawlers/assets/chunks/framework.B3HI_LuJ.js">
-    <link rel="modulepreload" href="/LibianCrawlers/assets/develop_crawler_steps.md.NopUA_Bb.lean.js">
+    <link rel="modulepreload" href="/LibianCrawlers/assets/develop_crawler_steps.md.PFCXSidh.lean.js">
     <script id="check-dark-mode">(()=>{const e=localStorage.getItem("vitepress-theme-appearance")||"auto",a=window.matchMedia("(prefers-color-scheme: dark)").matches;(!e||e==="auto"?a:e==="dark")&&document.documentElement.classList.add("dark")})();</script>
     <script id="check-mac-os">document.documentElement.classList.toggle("mac",/Mac|iPhone|iPod|iPad/i.test(navigator.platform));</script>
   </head>
@@ -22,7 +22,7 @@
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF;">  &quot;fn&quot;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF;">&quot;page_random_mouse_move&quot;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">,</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF;">  &quot;on_success_steps&quot;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF;">&quot;continue&quot;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">,</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF;">  &quot;on_timeout_steps&quot;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF;">&quot;continue&quot;</span></span>
-<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">}</span></span></code></pre></div><p>这两个属性的值可以传入 <code>Array&lt;Step&gt;</code> 或 <code>Step</code>。</p><p><code>on_timeout_steps</code> 将会在函数抛出 常见的超时异常 时发生作用。</p><blockquote><p>常见的超时异常如 <code>playwright.async_api.TimeoutError</code>,<code>asyncio.TimeoutError</code>, <code>TimeoutError</code> 。</p></blockquote><ul><li>当未指定 <code>on_timeout_steps</code> 时，异常将会继续抛出，这很有可能会直接中止爬虫。</li><li>当指定 <code>on_timeout_steps</code> 后。将会继续执行 <code>on_timeout_steps</code> 值的指令。</li></ul><p>而 <code>on_success_steps</code> 会于没有任何异常抛出时执行，通常用作 <code>on_timeout_steps</code> 的 else 分支</p><h4 id="description" tabindex="-1">description <a class="header-anchor" href="#description" aria-label="Permalink to &quot;description&quot;">​</a></h4><p>每个形如 <code>{&quot;fn&quot;:&quot;function_name&quot;}</code> 的指令都可以传入 <code>description</code> 属性，例如:</p><div class="language-json vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">json</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">{</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">}</span></span></code></pre></div><p>这两个属性的值可以传入 <a href="#stepsblock">StepsBlock</a>。</p><p><code>on_timeout_steps</code> 将会在函数抛出 常见的超时异常 时发生作用。</p><blockquote><p>常见的超时异常如 <code>playwright.async_api.TimeoutError</code>,<code>asyncio.TimeoutError</code>, <code>TimeoutError</code> 。</p></blockquote><ul><li>当未指定 <code>on_timeout_steps</code> 时，异常将会继续抛出，这很有可能会直接中止爬虫。</li><li>当指定 <code>on_timeout_steps</code> 后。将会继续执行 <code>on_timeout_steps</code> 值的指令。</li></ul><p>而 <code>on_success_steps</code> 会于没有任何异常抛出时执行，通常用作 <code>on_timeout_steps</code> 的 else 分支</p><h4 id="description" tabindex="-1">description <a class="header-anchor" href="#description" aria-label="Permalink to &quot;description&quot;">​</a></h4><p>每个形如 <code>{&quot;fn&quot;:&quot;function_name&quot;}</code> 的指令都可以传入 <code>description</code> 属性，例如:</p><div class="language-json vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">json</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">{</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF;">  &quot;fn&quot;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF;">&quot;page_random_mouse_move&quot;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">,</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF;">  &quot;description&quot;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF;">&quot;正在模拟人类移动鼠标&quot;</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">}</span></span></code></pre></div><p><code>description</code> 属性不会起任何作用，它仅用于便于人类阅读。</p><h3 id="step-指令列表" tabindex="-1"><code>Step</code> 指令列表 <a class="header-anchor" href="#step-指令列表" aria-label="Permalink to &quot;`Step` 指令列表&quot;">​</a></h3><!--[--><div><h4 id="continue">continue</h4><div><p><code>continue</code> 指令不会起任何作用，通常作为回调块的占位符使用，以代替回调块的默认处理。</p>
@@ -74,7 +74,7 @@
 </tr>
 </tbody>
 </table>
-<details class="details custom-block"><summary>参数详情</summary>
+<details class="details custom-block"><summary>参数含义文档</summary>
 <blockquote>
 <p><strong>arg[0]</strong></p>
 <p>暂停时间，单位为毫秒。</p>
@@ -113,7 +113,7 @@
 </tr>
 <tr>
 <td>**kwargs</td>
-<td>✔️</td>
+<td></td>
 <td><em>KWARGS</em></td>
 <td></td>
 </tr>
@@ -156,7 +156,7 @@
 </tr>
 <tr>
 <td>**kwargs</td>
-<td>✔️</td>
+<td></td>
 <td><em>KWARGS</em></td>
 <td></td>
 </tr>
@@ -199,7 +199,7 @@
 </tr>
 <tr>
 <td>**kwargs</td>
-<td>✔️</td>
+<td></td>
 <td><em>KWARGS</em></td>
 <td></td>
 </tr>
@@ -242,7 +242,7 @@
 </tr>
 <tr>
 <td>**kwargs</td>
-<td>✔️</td>
+<td></td>
 <td><em>KWARGS</em></td>
 <td></td>
 </tr>
@@ -305,12 +305,12 @@
 <tr>
 <td>state</td>
 <td></td>
-<td><em>string</em></td>
+<td><em>Literal[&quot;attached&quot;, &quot;detached&quot;, &quot;hidden&quot;, &quot;visible&quot;]</em></td>
 <td></td>
 </tr>
 </tbody>
 </table>
-<details class="details custom-block"><summary>参数详情</summary>
+<details class="details custom-block"><summary>参数含义文档</summary>
 <blockquote>
 <p><strong>arg[0]</strong></p>
 <p>传递给 <a href="https://playwright.dev/python/docs/api/class-frame#frame-wait-for-selector" target="_blank" rel="noreferrer"><code>frame.wait_for_selector</code></a> 的 selector 参数。</p>
@@ -363,8 +363,476 @@
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  ]</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br><span class="line-number">4</span><br><span class="line-number">5</span><br><span class="line-number">6</span><br><span class="line-number">7</span><br><span class="line-number">8</span><br><span class="line-number">9</span><br><span class="line-number">10</span><br><span class="line-number">11</span><br><span class="line-number">12</span><br><span class="line-number">13</span><br><span class="line-number">14</span><br><span class="line-number">15</span><br><span class="line-number">16</span><br><span class="line-number">17</span><br><span class="line-number">18</span><br><span class="line-number">19</span><br><span class="line-number">20</span><br><span class="line-number">21</span><br><span class="line-number">22</span><br><span class="line-number">23</span><br><span class="line-number">24</span><br><span class="line-number">25</span><br><span class="line-number">26</span><br><span class="line-number">27</span><br><span class="line-number">28</span><br><span class="line-number">29</span><br><span class="line-number">30</span><br><span class="line-number">31</span><br><span class="line-number">32</span><br><span class="line-number">33</span><br></div></div></details>
-</div></div><!--]--></div></div></main><footer class="VPDocFooter" data-v-39a288b8 data-v-e257564d><!--[--><!--]--><div class="edit-info" data-v-e257564d><div class="edit-link" data-v-e257564d><a class="VPLink link vp-external-link-icon no-icon edit-link-button" href="https://github.com/Xpectuer/LibianCrawlers/blob/main/docs/develop%2Fcrawler%2Fsteps.md" target="_blank" rel="noreferrer" data-v-e257564d><!--[--><span class="vpi-square-pen edit-link-icon" data-v-e257564d></span> 去Github编辑<!--]--></a></div><div class="last-updated" data-v-e257564d><p class="VPLastUpdated" data-v-e257564d data-v-e98dd255>最后更新于 : <time datetime="2025-03-29T09:41:55.000Z" data-v-e98dd255></time></p></div></div><nav class="prev-next" aria-labelledby="doc-footer-aria-label" data-v-e257564d><span class="visually-hidden" id="doc-footer-aria-label" data-v-e257564d>Pager</span><div class="pager" data-v-e257564d><a class="VPLink link pager-link prev" href="/LibianCrawlers/develop/crawler/start-smart-crawl.html" data-v-e257564d><!--[--><span class="desc" data-v-e257564d>上一章</span><span class="title" data-v-e257564d>3-启动爬虫</span><!--]--></a></div><div class="pager" data-v-e257564d><a class="VPLink link pager-link next" href="/LibianCrawlers/develop/crawler/start-test.html" data-v-e257564d><!--[--><span class="desc" data-v-e257564d>下一章</span><span class="title" data-v-e257564d>运行测试</span><!--]--></a></div></nav></footer><!--[--><!--]--></div></div></div><!--[--><!--]--></div></div><!----><!--[--><!--]--></div></div>
-    <script>window.__VP_HASH_MAP__=JSON.parse("{\"develop_crawler_init-config.md\":\"DYgoqfhp\",\"develop_crawler_install.md\":\"B4AyUaik\",\"develop_crawler_start-smart-crawl.md\":\"CQrcmSUE\",\"develop_crawler_start-test.md\":\"Dt0Lx31B\",\"develop_crawler_steps.md\":\"NopUA_Bb\",\"develop_data_cleaner_ci_init-config.md\":\"CFNz1D1f\",\"develop_data_cleaner_ci_install.md\":\"BRQE0ekp\",\"develop_data_cleaner_ci_start-code-gen.md\":\"DAEBzrn1\",\"develop_data_cleaner_ci_start-data-clean.md\":\"8jDnOOwO\",\"develop_datalake_deploy.md\":\"FhGUYLea\",\"develop_index.md\":\"BYLgSY4L\",\"develop_roadmap.md\":\"CJraKIZU\",\"guide_index.md\":\"CC486CXO\",\"guide_learn-about-libiancrawler.md\":\"WHOjzepx\",\"guide_when-data-clean.md\":\"BLfCGAC2\",\"guide_when-data-crawl.md\":\"3jKgcRXM\",\"guide_when-data-protect.md\":\"D2732B7y\",\"guide_when-data-storage-and-visualization.md\":\"Bynwsq_2\",\"index.md\":\"DKGTgbGl\"}");function deserializeFunctions(r){return Array.isArray(r)?r.map(deserializeFunctions):typeof r=="object"&&r!==null?Object.keys(r).reduce((t,n)=>(t[n]=deserializeFunctions(r[n]),t),{}):typeof r=="string"&&r.startsWith("_vp-fn_")?new Function(`return ${r.slice(7)}`)():r};window.__VP_SITE_DATA__=deserializeFunctions(JSON.parse("{\"lang\":\"zh-CN\",\"dir\":\"ltr\",\"title\":\"LibianCrawler Document\",\"description\":\"A VitePress site\",\"base\":\"/LibianCrawlers/\",\"head\":[],\"router\":{\"prefetchLinks\":true},\"appearance\":true,\"themeConfig\":{\"nav\":[{\"text\":\"Home\",\"link\":\"/\"}],\"socialLinks\":[{\"icon\":\"github\",\"link\":\"https://github.com/Xpectuer/LibianCrawlers\"}],\"editLink\":{\"pattern\":\"_vp-fn_(pagedata) => {\\n        return `https://github.com/Xpectuer/LibianCrawlers/blob/main/docs/${encodeURIComponent(\\n          pagedata.filePath\\n        )}`;\\n      }\",\"text\":\"去Github编辑\"},\"sidebar\":[{\"text\":\"1-使用指南\",\"link\":\"/guide/index.md\",\"items\":[{\"text\":\"1-了解 LibianCrawler\",\"link\":\"/guide/learn-about-libiancrawler\"},{\"text\":\"2-数据采集中的挑战与解决方案\",\"link\":\"/guide/when-data-crawl\"},{\"text\":\"3-数据清洗：确保数据质量与一致性\",\"link\":\"/guide/when-data-clean\"},{\"text\":\"4-数据存储和可视化\",\"link\":\"/guide/when-data-storage-and-visualization\"},{\"text\":\"5-私有数据保护\",\"link\":\"/guide/when-data-protect\"}],\"collapsed\":false},{\"text\":\"2-开发者指南\",\"link\":\"/develop/index.md\",\"items\":[{\"text\":\"crawler\",\"items\":[{\"text\":\"1-安装爬虫\",\"link\":\"/develop/crawler/install\"},{\"text\":\"2-在启动之前做好配置\",\"link\":\"/develop/crawler/init-config\"},{\"text\":\"3-启动爬虫\",\"link\":\"/develop/crawler/start-smart-crawl\"},{\"text\":\"Steps API\",\"link\":\"/develop/crawler/steps\"},{\"text\":\"运行测试\",\"link\":\"/develop/crawler/start-test\"}],\"collapsed\":true},{\"text\":\"data cleaner ci\",\"items\":[{\"text\":\"1-安装 Deno 和依赖\",\"link\":\"/develop/data_cleaner_ci/install\"},{\"text\":\"2-初始化配置文件\",\"link\":\"/develop/data_cleaner_ci/init-config\"},{\"text\":\"3-启动代码生成\",\"link\":\"/develop/data_cleaner_ci/start-code-gen\"},{\"text\":\"4-启动数据清洗-以 libian crawler 为例\",\"link\":\"/develop/data_cleaner_ci/start-data-clean\"}],\"collapsed\":true},{\"text\":\"datalake\",\"items\":[{\"text\":\"1-部署数据湖\",\"link\":\"/develop/datalake/deploy\"}],\"collapsed\":true},{\"text\":\"项目功能模块化设计与路线图\",\"link\":\"/develop/roadmap\"}],\"collapsed\":false}],\"search\":{\"provider\":\"local\"},\"lastUpdated\":{\"text\":\"最后更新于 \",\"formatOptions\":{\"dateStyle\":\"full\",\"timeStyle\":\"medium\"}},\"darkModeSwitchLabel\":\"暗色模式\",\"sidebarMenuLabel\":\"全部目录\",\"returnToTopLabel\":\"回到网页顶部\",\"langMenuLabel\":\"语言\",\"notFound\":{\"title\":\"页面不见了\",\"quote\":\"或许是文件发生了更改而导致链接失效...\",\"linkText\":\"返回首页\"},\"docFooter\":{\"next\":\"下一章\",\"prev\":\"上一章\"},\"outline\":{\"label\":\"跳转标题或顶部\",\"level\":\"deep\"}},\"locales\":{},\"scrollOffset\":134,\"cleanUrls\":false}"));</script>
+</div></div><div><h4 id="gui_confirm">gui_confirm</h4><div><p>等待GUI界面确认。</p>
+<table tabindex="0">
+<thead>
+<tr>
+<th>name</th>
+<th>require</th>
+<th>type</th>
+<th>example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>title</td>
+<td>✔️</td>
+<td><em>string</em></td>
+<td><code>&quot;需要手动确认登陆&quot;</code></td>
+</tr>
+<tr>
+<td>message</td>
+<td>✔️</td>
+<td><em>string</em></td>
+<td><code>&quot;请在浏览器中手动完成登陆后，再关闭此对话框，然后爬虫会继续运行。&quot;</code></td>
+</tr>
+</tbody>
+</table>
+<details class="details custom-block"><summary>参数含义文档</summary>
+<blockquote>
+<p><strong>title</strong></p>
+<p>在GUI确认框上的标题。</p>
+</blockquote>
+<blockquote>
+<p><strong>message</strong></p>
+<p>在GUI确认框上的消息正文。</p>
+</blockquote>
+</details>
+<div class="info custom-block"><p class="custom-block-title">示例</p>
+<div class="language-json vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">json</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0" v-pre=""><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"gui_confirm"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "kwargs"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "title"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"需要手动确认登陆"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "message"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"请在浏览器中手动完成登陆后，再关闭此对话框，然后爬虫会继续运行。"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br><span class="line-number">4</span><br><span class="line-number">5</span><br><span class="line-number">6</span><br><span class="line-number">7</span><br></div></div></div>
+</div></div><div><h4 id="page_click">page_click</h4><div><p>封装了以多种方式点击页面的命令。共有以下模式:</p>
+<ul>
+<li>
+<p>A: 使用 <a href="https://playwright.dev/python/docs/api/class-mouse#mouse-click" target="_blank" rel="noreferrer"><code>page.mouse.click</code></a> 并指定 xy 坐标直接点击页面。</p>
+</li>
+<li>
+<p>B: 先使用 <a href="https://playwright.dev/python/docs/api/class-locator" target="_blank" rel="noreferrer"><code>page.locator</code></a> 定位元素，然后:</p>
+<ul>
+<li>
+<p>B1: 使用 <a href="https://playwright.dev/python/docs/api/class-locator#locator-click" target="_blank" rel="noreferrer"><code>Locator.click</code></a> 触发点击事件。</p>
+</li>
+<li>
+<p>B2:  使用 <a href="https://playwright.dev/python/docs/api/class-locator#locator-tap" target="_blank" rel="noreferrer"><code>Locator.tap</code></a> 触发点击事件。</p>
+</li>
+</ul>
+</li>
+</ul>
+<div class="tip custom-block"><p class="custom-block-title">TIP</p>
+<p>由于这里封装了多种模式的 kwargs 参数，因此在下方的参数含义文档中会特地注明某可选参数适用的模式。</p>
+</div>
+<table tabindex="0">
+<thead>
+<tr>
+<th>name</th>
+<th>require</th>
+<th>type</th>
+<th>example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arg[0]</td>
+<td>✔️</td>
+<td><em>Union[string, <a href="#xy">XY</a>]</em></td>
+<td></td>
+</tr>
+<tr>
+<td>timeout</td>
+<td></td>
+<td><em>number</em></td>
+<td><code>6000</code></td>
+</tr>
+<tr>
+<td>method</td>
+<td></td>
+<td><em>Literal[&quot;click&quot;, &quot;tap&quot;]</em></td>
+<td></td>
+</tr>
+<tr>
+<td>wait_any_page_create_time_limit</td>
+<td></td>
+<td><em>number</em></td>
+<td><code>3000</code></td>
+</tr>
+<tr>
+<td>on_new_page</td>
+<td></td>
+<td><em>Union[Literal[&quot;ignore&quot;, &quot;switch_it_and_run_steps_no_matter_which_page&quot;], <a href="#stepsblock">StepsBlock</a>]</em></td>
+<td></td>
+</tr>
+<tr>
+<td>has_text</td>
+<td></td>
+<td><em>string</em></td>
+<td></td>
+</tr>
+<tr>
+<td>has_not_text</td>
+<td></td>
+<td><em>string</em></td>
+<td></td>
+</tr>
+<tr>
+<td>on_locator</td>
+<td></td>
+<td><em><a href="#onlocatorblock">OnLocatorBlock</a></em></td>
+<td></td>
+</tr>
+<tr>
+<td>modifiers</td>
+<td></td>
+<td><em>List[Literal[&quot;Alt&quot;, &quot;Control&quot;, &quot;ControlOrMeta&quot;, &quot;Meta&quot;, &quot;Shift&quot;]]</em></td>
+<td></td>
+</tr>
+<tr>
+<td>force</td>
+<td></td>
+<td><em>boolean</em></td>
+<td></td>
+</tr>
+<tr>
+<td>no_wait_after</td>
+<td></td>
+<td><em>boolean</em></td>
+<td></td>
+</tr>
+<tr>
+<td>trial</td>
+<td></td>
+<td><em>boolean</em></td>
+<td></td>
+</tr>
+<tr>
+<td>position</td>
+<td></td>
+<td><em><a href="#xy">XY</a></em></td>
+<td></td>
+</tr>
+<tr>
+<td>delay</td>
+<td></td>
+<td><em>number</em></td>
+<td></td>
+</tr>
+<tr>
+<td>button</td>
+<td></td>
+<td><em>Literal[&quot;left&quot;, &quot;middle&quot;, &quot;right&quot;]</em></td>
+<td></td>
+</tr>
+<tr>
+<td>click_count</td>
+<td></td>
+<td><em>number</em></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<details class="details custom-block"><summary>参数含义文档</summary>
+<blockquote>
+<p><strong>arg[0]</strong></p>
+<p>传入字符串时，将会使用【模式B】，并将其作为传递给 <a href="https://playwright.dev/python/docs/locators#locate-by-css-or-xpath" target="_blank" rel="noreferrer"><code>_page.locator</code></a> 的 selector 参数。</p>
+<p>传入 XY 时，将会使用【模式A】，并将其作为传递给 <code>page.mouse.click</code> 的参数。</p>
+</blockquote>
+<blockquote>
+<p><strong>timeout</strong></p>
+<p>【适用模式B】。超时时间。 <strong>默认值</strong> 5000，单位为毫秒。</p>
+</blockquote>
+<blockquote>
+<p><strong>method</strong></p>
+<p>【适用模式B】。</p>
+<p>传入 <strong>默认值</strong> <code>&quot;click&quot;</code> 时，将会使用【模式B1】，使用 playwright 的 <a href="https://playwright.dev/python/docs/api/class-locator#locator-click" target="_blank" rel="noreferrer"><code>Locator.click</code></a> 触发点击事件。</p>
+<p>传入 <code>&quot;tap&quot;</code> 时，将会使用【模式B2】，使用 playwright 的 <a href="https://playwright.dev/python/docs/api/class-locator#locator-tap" target="_blank" rel="noreferrer"><code>Locator.tap</code></a> 触发点击事件。</p>
+</blockquote>
+<blockquote>
+<p><strong>wait_any_page_create_time_limit</strong></p>
+<p>【适用全部模式】。当在点击页面后的这段时间内有新页面被创建，且 <code>on_new_page</code> 属性不为 <code>&quot;ignore&quot;</code>，则会调用 <code>on_new_page</code> 块；反之则不会调用。 <strong>默认值</strong> 3000。单位为毫秒。</p>
+</blockquote>
+<blockquote>
+<p><strong>on_new_page</strong></p>
+<p>【适用全部模式】。此参数用于控制 “当点击页面后假如出现新页面” 的行为：</p>
+<p><strong>默认值</strong> <code>&quot;switch_it_and_run_steps_no_matter_which_page&quot;</code> 将会自动将当前页面指针指向新页面，但假如没有新页面则无事发生。</p>
+<p><code>&quot;ignore&quot;</code> 值将会忽略新页面（且当前页面指针不会指向新页面）。</p>
+<p>如果传入 StepsBlock，则先将自动将当前页面指针指向新页面，然后 <strong>在新页面中调用此 StepsBlock</strong> ，并且会在 StepsBlock 块完毕后自动将当前页面指针 <strong>指回旧页面</strong> 。</p>
+</blockquote>
+<blockquote>
+<p><strong>has_text</strong></p>
+<p>【适用模式B】。传递给 <a href="https://playwright.dev/python/docs/locators#locate-by-text" target="_blank" rel="noreferrer"><code>Page.locator</code></a> 的 <code>has_text</code> 可选参数。根据包含的文本查找元素，可以通过子串、精确字符串或正则表达式进行匹配。匹配元素内部包含指定文本的元素，可能是子元素或后代元素。当传递字符串时，匹配不区分大小写并搜索子字符串。例如，<code>&quot;Playwright&quot;</code> 匹配 <code>&lt;article&gt;&lt;div&gt;Playwright&lt;/div&gt;&lt;/article&gt;</code> 。</p>
+</blockquote>
+<blockquote>
+<p><strong>has_not_text</strong></p>
+<p>【适用模式B】。传递给 <a href="https://playwright.dev/python/docs/locators#locate-by-text" target="_blank" rel="noreferrer"><code>Page.locator</code></a> 的 <code>has_not_text</code> 可选参数。匹配内部某处不包含指定文本的元素，可能是子元素或后代元素。传递字符串时，匹配不区分大小写并搜索子字符串。</p>
+</blockquote>
+<blockquote>
+<p><strong>on_locator</strong></p>
+<p>【适用模式B】。在每次返回 Locator 后继续调用</p>
+</blockquote>
+<blockquote>
+<p><strong>modifiers</strong></p>
+<p>【适用模式B】。传递给 <code>Locator.click</code> 或 <code>Locator.tap</code> 的 <code>modifiers</code> 可选参数。</p>
+</blockquote>
+<blockquote>
+<p><strong>force</strong></p>
+<p>【适用模式B】。不进行 <a href="https://playwright.dev/docs/actionability" target="_blank" rel="noreferrer">actionability</a> 检查而强行点击。</p>
+</blockquote>
+<blockquote>
+<p><strong>no_wait_after</strong></p>
+<p>【适用模式B】。此参数已经被 playwright 弃用。</p>
+</blockquote>
+<blockquote>
+<p><strong>trial</strong></p>
+<p>【适用模式B】。设置后，此方法仅执行 <a href="https://playwright.dev/docs/actionability" target="_blank" rel="noreferrer">actionability</a> 检查并跳过操作。默认为 <code>false</code>。等待元素准备好执行操作而不执行操作很有用。请注意，无论 <code>trial</code> 如何，键盘 <code>修饰键</code> 都会被按下，以允许测试仅在按下这些键时才可见的元素。</p>
+</blockquote>
+<blockquote>
+<p><strong>position</strong></p>
+<p>【适用模式B】。传递给 <code>Locator.click</code> 或 <code>Locator.tap</code> 的 <code>position</code> 可选参数。</p>
+</blockquote>
+<blockquote>
+<p><strong>delay</strong></p>
+<p>【适用模式A和B】。</p>
+<p>在【模式A】中，作为传递给 <code>page.mouse.click</code> 的 <code>delay</code> 可选参数， <strong>默认值</strong> 0。</p>
+<p>在【模式B】中，作为传递给 <code>Locator.click</code> 或 <code>Locator.tap</code> 的 <code>delay</code> 可选参数， <strong>默认值</strong> 0。</p>
+</blockquote>
+<blockquote>
+<p><strong>button</strong></p>
+<p>【适用模式A和B1】。</p>
+<p>在【模式A】中，作为传递给 <code>page.mouse.click</code> 的 <code>button</code> 可选参数。 <strong>默认值</strong> <code>&quot;left&quot;</code>。</p>
+<p>在【模式B1】中，作为传递给 <code>Locator.click</code> 的 <code>button</code> 可选参数。 <strong>默认值</strong> <code>&quot;left&quot;</code>。</p>
+</blockquote>
+<blockquote>
+<p><strong>click_count</strong></p>
+<p>【适用模式A和B1】。</p>
+<p>在【模式A】中，传递给 <code>page.mouse.click</code> 的 <code>click_count</code> 可选参数。 <strong>默认值</strong> 1。</p>
+<p>在【模式B1】中，传递给 <code>Locator.click</code> 的 <code>click_count</code> 可选参数。 <strong>默认值</strong> 1。</p>
+</blockquote>
+</details>
+<div class="info custom-block"><p class="custom-block-title">示例</p>
+<div class="language-json vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">json</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0" v-pre=""><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"page_click"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "args"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">    ".closeIcon"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  ],</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "kwargs"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "timeout"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">2000</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"如果有广告弹窗则关闭"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "on_timeout_steps"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"continue"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br><span class="line-number">4</span><br><span class="line-number">5</span><br><span class="line-number">6</span><br><span class="line-number">7</span><br><span class="line-number">8</span><br><span class="line-number">9</span><br><span class="line-number">10</span><br><span class="line-number">11</span><br></div></div></div>
+</div></div><div><h4 id="page_type">page_type</h4><div><p>打字。</p>
+<table tabindex="0">
+<thead>
+<tr>
+<th>name</th>
+<th>require</th>
+<th>type</th>
+<th>example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arg[0]</td>
+<td>✔️</td>
+<td><em>string</em></td>
+<td><code>&quot;input[type=\&quot;search\&quot;]&quot;</code></td>
+</tr>
+<tr>
+<td>arg[1]</td>
+<td>✔️</td>
+<td><em>string</em></td>
+<td><code>&quot;羽绒服&quot;</code></td>
+</tr>
+<tr>
+<td>delay</td>
+<td></td>
+<td><em>number</em></td>
+<td></td>
+</tr>
+<tr>
+<td>timeout</td>
+<td></td>
+<td><em>number</em></td>
+<td></td>
+</tr>
+<tr>
+<td>no_wait_after</td>
+<td></td>
+<td><em>boolean</em></td>
+<td></td>
+</tr>
+<tr>
+<td>strict</td>
+<td></td>
+<td><em>boolean</em></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<details class="details custom-block"><summary>参数含义文档</summary>
+<blockquote>
+<p><strong>arg[0]</strong></p>
+<p>第一个参数是 selector。如果有多个元素满足选择器且 <code>strict</code> 不为 false，则使用第一个。</p>
+</blockquote>
+<blockquote>
+<p><strong>arg[1]</strong></p>
+<p>第二个参数是要输入的文本。</p>
+</blockquote>
+<blockquote>
+<p><strong>delay</strong></p>
+<p>打字按键间隙，单位为毫秒。 <strong>默认值</strong> 300。</p>
+</blockquote>
+<blockquote>
+<p><strong>timeout</strong></p>
+<p>超时时间，单位为毫秒。</p>
+</blockquote>
+<blockquote>
+<p><strong>no_wait_after</strong></p>
+<p>此参数已经被 playwright 弃用。</p>
+</blockquote>
+<blockquote>
+<p><strong>strict</strong></p>
+<p>如果为 true，则调用要求选择器解析为单个元素。如果给定的选择器解析为多个元素，则调用会引发异常。</p>
+</blockquote>
+</details>
+<div class="info custom-block"><p class="custom-block-title">示例</p>
+<div class="language-json vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">json</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0" v-pre=""><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"page_type"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "args"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">    "input[type=</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\"</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">search</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\"</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">]"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">    "羽绒服"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  ]</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br><span class="line-number">4</span><br><span class="line-number">5</span><br><span class="line-number">6</span><br><span class="line-number">7</span><br></div></div></div>
+</div></div><div><h4 id="page_scroll_down">page_scroll_down</h4><div><p>将页面向下滚动到底或最大高度。</p>
+<p>当滚到底部时，会上滚一下再下滚，反复多次后若高度不变（没有加载新玩意）则认为滚动完成。</p>
+<p>如果指定了 <code>page_click_if_found</code> 属性，则会在合适的时机点击每个符合选择器的元素，在点击之后还会运行 dump_page ，并可以指定 dump_page 前后运行指定的步骤。</p>
+<table tabindex="0">
+<thead>
+<tr>
+<th>name</th>
+<th>require</th>
+<th>type</th>
+<th>example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>max_height</td>
+<td></td>
+<td><em>number</em></td>
+<td><code>20000</code></td>
+</tr>
+<tr>
+<td>delta_y</td>
+<td></td>
+<td><em>number</em></td>
+<td><code>233</code></td>
+</tr>
+<tr>
+<td>interval</td>
+<td></td>
+<td><em>number</em></td>
+<td><code>0.5</code></td>
+</tr>
+<tr>
+<td>retry_scroll_down_limit</td>
+<td></td>
+<td><em>number</em></td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td>retry_scroll_up_limit</td>
+<td></td>
+<td><em>number</em></td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td>page_click_if_found</td>
+<td></td>
+<td><em>object</em></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<details class="details custom-block"><summary>参数含义文档</summary>
+<blockquote>
+<p><strong>max_height</strong></p>
+<p>向下滚动到最大高度后将会停止。 <strong>默认值</strong> <code>20000</code> 。如果你需要完整的网页截屏，请不要设置过高的值，因为 firefox 有个 <a href="https://www.google.com.hk/search?q=Cannot+take+screenshot+larger+than+32767" target="_blank" rel="noreferrer">老问题</a> ，设置过高的高度可能导致截屏失败。</p>
+</blockquote>
+<blockquote>
+<p><strong>delta_y</strong></p>
+<p>每次向下滚动的距离因子。实际向下滚动的距离为其的 0.3~1.6 倍。 <strong>默认值</strong> <code>233.0</code> 。建议不要修改，容易出 BUG。</p>
+</blockquote>
+<blockquote>
+<p><strong>interval</strong></p>
+<p>每次向下滚动事件之间的时间间隔因子。实际的间隔时间为它的 0.7~1.3 倍。 <strong>默认值</strong> <code>0.5</code>。建议不要修改，容易出 BUG。</p>
+</blockquote>
+<blockquote>
+<p><strong>retry_scroll_down_limit</strong></p>
+<p><strong>默认值</strong> 2 。当发现滚动后高度和上次一致时，再向下滚动此次数，若还是一致或高度缩短，则认为 没有发现新加载的内容。</p>
+</blockquote>
+<blockquote>
+<p><strong>retry_scroll_up_limit</strong></p>
+<p><strong>默认值</strong> 2 。当 没有发现新加载的内容 时，会 试图向上滚动再向下滚动检查 此次数。当该过程中发现了新加载的内容，清空此计数器并继续向下滚动；直到此计数器超过该值 或 超过高度上限 时，才会认为页面已经滚动到底。</p>
+</blockquote>
+<blockquote>
+<p><strong>page_click_if_found</strong></p>
+<details class="details custom-block"><summary>schema</summary>
+<div class="language-json vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">json</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0" v-pre=""><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "type"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"object"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"当指定此值时，将会在向下滚动的过程中不断的将 满足 `locator` 属性的选择器要求的元素 的位置收集入列表中。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">此列表会根据元素的 inner_text 与 inner_html 去重。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">仅当同时满足 元素可以被点击、元素出现在视口内、元素的长宽均超过5 时，将会使用 [【模式A】] （即传入XY）点击(#page_click) 此元素。如果没满足点击条件，则会保留在列表中，直到满足条件才被点击并移出列表。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">对于每个被点击的元素，点击元素并短暂的等待后: </span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">1. 先会执行一次 dump_page ;</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">2. 然后执行 `on_found_after_click_steps` 属性中的 StepsBlock（通常可以用作继续向下滚动）;</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">3. 再运行一次 dump_page;</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">4. 最后再执行 `on_found_after_click_steps` 属性中的 StepsBlock（通常可以用作回到主页）。 "</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "minProperties"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">1</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "required"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">    "locator"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  ],</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "properties"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "locator"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"string"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"选择器。"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "on_found_after_click_steps"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "$ref"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"#/definitions/StepsBlock"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "on_found_after_click_and_dump_steps"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "$ref"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"#/definitions/StepsBlock"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+</div></details>
+<p>当指定此值时，将会在向下滚动的过程中不断的将 满足 <code>locator</code> 属性的选择器要求的元素 的位置收集入列表中。</p>
+<p>此列表会根据元素的 inner_text 与 inner_html 去重。</p>
+<p>仅当同时满足 元素可以被点击、元素出现在视口内、元素的长宽均超过5 时，将会使用 [【模式A】] （即传入XY）点击(#page_click) 此元素。如果没满足点击条件，则会保留在列表中，直到满足条件才被点击并移出列表。</p>
+<p>对于每个被点击的元素，点击元素并短暂的等待后:</p>
+<ol>
+<li>
+<p>先会执行一次 dump_page ;</p>
+</li>
+<li>
+<p>然后执行 <code>on_found_after_click_steps</code> 属性中的 StepsBlock（通常可以用作继续向下滚动）;</p>
+</li>
+<li>
+<p>再运行一次 dump_page;</p>
+</li>
+<li>
+<p>最后再执行 <code>on_found_after_click_steps</code> 属性中的 StepsBlock（通常可以用作回到主页）。</p>
+</li>
+</ol>
+</blockquote>
+</details>
+<div class="info custom-block"><p class="custom-block-title">示例</p>
+<div class="language-json vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">json</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0" v-pre=""><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"page_scroll_down"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br></div></div></div>
+</div></div><!--]--><h3 id="ref" tabindex="-1">Ref <a class="header-anchor" href="#ref" aria-label="Permalink to &quot;Ref&quot;">​</a></h3><h4 id="stepsblock" tabindex="-1">StepsBlock <a class="header-anchor" href="#stepsblock" aria-label="Permalink to &quot;StepsBlock&quot;">​</a></h4><h4 id="xy" tabindex="-1">XY <a class="header-anchor" href="#xy" aria-label="Permalink to &quot;XY&quot;">​</a></h4><h4 id="locatorblock" tabindex="-1">LocatorBlock <a class="header-anchor" href="#locatorblock" aria-label="Permalink to &quot;LocatorBlock&quot;">​</a></h4></div></div></main><footer class="VPDocFooter" data-v-39a288b8 data-v-e257564d><!--[--><!--]--><div class="edit-info" data-v-e257564d><div class="edit-link" data-v-e257564d><a class="VPLink link vp-external-link-icon no-icon edit-link-button" href="https://github.com/Xpectuer/LibianCrawlers/blob/main/docs/develop%2Fcrawler%2Fsteps.md" target="_blank" rel="noreferrer" data-v-e257564d><!--[--><span class="vpi-square-pen edit-link-icon" data-v-e257564d></span> 去Github编辑<!--]--></a></div><div class="last-updated" data-v-e257564d><p class="VPLastUpdated" data-v-e257564d data-v-e98dd255>最后更新于 : <time datetime="2025-03-30T21:10:21.000Z" data-v-e98dd255></time></p></div></div><nav class="prev-next" aria-labelledby="doc-footer-aria-label" data-v-e257564d><span class="visually-hidden" id="doc-footer-aria-label" data-v-e257564d>Pager</span><div class="pager" data-v-e257564d><a class="VPLink link pager-link prev" href="/LibianCrawlers/develop/crawler/start-smart-crawl.html" data-v-e257564d><!--[--><span class="desc" data-v-e257564d>上一章</span><span class="title" data-v-e257564d>3-启动爬虫</span><!--]--></a></div><div class="pager" data-v-e257564d><a class="VPLink link pager-link next" href="/LibianCrawlers/develop/crawler/start-test.html" data-v-e257564d><!--[--><span class="desc" data-v-e257564d>下一章</span><span class="title" data-v-e257564d>运行测试</span><!--]--></a></div></nav></footer><!--[--><!--]--></div></div></div><!--[--><!--]--></div></div><!----><!--[--><!--]--></div></div>
+    <script>window.__VP_HASH_MAP__=JSON.parse("{\"develop_crawler_init-config.md\":\"DQWmKCSn\",\"develop_crawler_install.md\":\"CtFuuNYl\",\"develop_crawler_start-smart-crawl.md\":\"4yhBUHLf\",\"develop_crawler_start-test.md\":\"BAYWmmu7\",\"develop_crawler_steps.md\":\"PFCXSidh\",\"develop_data_cleaner_ci_init-config.md\":\"BA5SnUzh\",\"develop_data_cleaner_ci_install.md\":\"y_DCIDsi\",\"develop_data_cleaner_ci_start-code-gen.md\":\"CguKPUJ6\",\"develop_data_cleaner_ci_start-data-clean.md\":\"Dd0cMdty\",\"develop_datalake_deploy.md\":\"BitJQrEd\",\"develop_index.md\":\"DZ1oVPCs\",\"develop_roadmap.md\":\"B_q7rk-Y\",\"guide_index.md\":\"BuQ5QfDh\",\"guide_learn-about-libiancrawler.md\":\"DxlkG23n\",\"guide_when-data-clean.md\":\"D2LaO-yE\",\"guide_when-data-crawl.md\":\"Dlva9Xtr\",\"guide_when-data-protect.md\":\"4PVyYy9A\",\"guide_when-data-storage-and-visualization.md\":\"726tI_TH\",\"index.md\":\"rhs3X2Cm\"}");function deserializeFunctions(r){return Array.isArray(r)?r.map(deserializeFunctions):typeof r=="object"&&r!==null?Object.keys(r).reduce((t,n)=>(t[n]=deserializeFunctions(r[n]),t),{}):typeof r=="string"&&r.startsWith("_vp-fn_")?new Function(`return ${r.slice(7)}`)():r};window.__VP_SITE_DATA__=deserializeFunctions(JSON.parse("{\"lang\":\"zh-CN\",\"dir\":\"ltr\",\"title\":\"LibianCrawler Document\",\"description\":\"A VitePress site\",\"base\":\"/LibianCrawlers/\",\"head\":[],\"router\":{\"prefetchLinks\":true},\"appearance\":true,\"themeConfig\":{\"nav\":[{\"text\":\"Home\",\"link\":\"/\"}],\"socialLinks\":[{\"icon\":\"github\",\"link\":\"https://github.com/Xpectuer/LibianCrawlers\"}],\"editLink\":{\"pattern\":\"_vp-fn_(pagedata) => {\\n        return `https://github.com/Xpectuer/LibianCrawlers/blob/main/docs/${encodeURIComponent(\\n          pagedata.filePath\\n        )}`;\\n      }\",\"text\":\"去Github编辑\"},\"sidebar\":[{\"text\":\"1-使用指南\",\"link\":\"/guide/index.md\",\"items\":[{\"text\":\"1-了解 LibianCrawler\",\"link\":\"/guide/learn-about-libiancrawler\"},{\"text\":\"2-数据采集中的挑战与解决方案\",\"link\":\"/guide/when-data-crawl\"},{\"text\":\"3-数据清洗：确保数据质量与一致性\",\"link\":\"/guide/when-data-clean\"},{\"text\":\"4-数据存储和可视化\",\"link\":\"/guide/when-data-storage-and-visualization\"},{\"text\":\"5-私有数据保护\",\"link\":\"/guide/when-data-protect\"}],\"collapsed\":false},{\"text\":\"2-开发者指南\",\"link\":\"/develop/index.md\",\"items\":[{\"text\":\"crawler\",\"items\":[{\"text\":\"1-安装爬虫\",\"link\":\"/develop/crawler/install\"},{\"text\":\"2-在启动之前做好配置\",\"link\":\"/develop/crawler/init-config\"},{\"text\":\"3-启动爬虫\",\"link\":\"/develop/crawler/start-smart-crawl\"},{\"text\":\"Steps API\",\"link\":\"/develop/crawler/steps\"},{\"text\":\"运行测试\",\"link\":\"/develop/crawler/start-test\"}],\"collapsed\":true},{\"text\":\"data cleaner ci\",\"items\":[{\"text\":\"1-安装 Deno 和依赖\",\"link\":\"/develop/data_cleaner_ci/install\"},{\"text\":\"2-初始化配置文件\",\"link\":\"/develop/data_cleaner_ci/init-config\"},{\"text\":\"3-启动代码生成\",\"link\":\"/develop/data_cleaner_ci/start-code-gen\"},{\"text\":\"4-启动数据清洗-以 libian crawler 为例\",\"link\":\"/develop/data_cleaner_ci/start-data-clean\"}],\"collapsed\":true},{\"text\":\"datalake\",\"items\":[{\"text\":\"1-部署数据湖\",\"link\":\"/develop/datalake/deploy\"}],\"collapsed\":true},{\"text\":\"项目功能模块化设计与路线图\",\"link\":\"/develop/roadmap\"}],\"collapsed\":false}],\"search\":{\"provider\":\"local\"},\"lastUpdated\":{\"text\":\"最后更新于 \",\"formatOptions\":{\"dateStyle\":\"full\",\"timeStyle\":\"medium\"}},\"darkModeSwitchLabel\":\"暗色模式\",\"sidebarMenuLabel\":\"全部目录\",\"returnToTopLabel\":\"回到网页顶部\",\"langMenuLabel\":\"语言\",\"notFound\":{\"title\":\"页面不见了\",\"quote\":\"或许是文件发生了更改而导致链接失效...\",\"linkText\":\"返回首页\"},\"docFooter\":{\"next\":\"下一章\",\"prev\":\"上一章\"},\"outline\":{\"label\":\"跳转标题或顶部\",\"level\":\"deep\"}},\"locales\":{},\"scrollOffset\":134,\"cleanUrls\":false}"));</script>
     
   </body>
 </html>
