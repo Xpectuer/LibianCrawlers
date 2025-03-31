@@ -162,11 +162,11 @@ def _create_steps_api_functions(*,
             steps = kwargs.pop('steps')
         await asyncio.wait_for((await get_page()).mouse.move(*args, steps=steps, **kwargs), timeout=timeout)
 
-    async def page_go_back(*args, **kwargs):
+    async def page_go_back(**kwargs):
         page = await get_page()
         old_url = page.url
-        logger.debug('page go back , args={} , kwargs={} , current url is\n    {}',
-                     args, kwargs, old_url)
+        logger.debug('page go back , kwargs={} , current url is\n    {}',
+                     kwargs, old_url)
         if kwargs.get('timeout') is not None:
             timeout = kwargs.pop('timeout')
         else:
@@ -567,8 +567,8 @@ def _create_steps_api_functions(*,
 
     async def dump_page_for_each(*,
                                  dump_tag_prefix: str,
-                                 before_dump_steps: Optional[List[JSON]],
-                                 after_dump_steps: Optional[List[JSON]],
+                                 before_dump_steps: Optional[StepsBlock],
+                                 after_dump_steps: Optional[StepsBlock],
                                  before_dump_break_by_timeout: bool = False,
                                  after_dump_break_by_timeout: bool = False,
                                  ):
@@ -639,8 +639,8 @@ def _create_steps_api_functions(*,
         delay = kwargs.pop('delay', 300)
         return await (await get_page()).type(*args, delay=delay, **kwargs)
 
-    async def page_wait_for_selector(*args, **kwargs):
-        return await (await get_page()).wait_for_selector(*args, **kwargs)
+    # async def page_wait_for_selector(*args, **kwargs):
+    #     return await (await get_page()).wait_for_selector(*args, **kwargs)
 
     async def api_sleep(total: float):
         if total < 10:
@@ -664,7 +664,7 @@ def _create_steps_api_functions(*,
         'page_mouse_move': page_mouse_move,
         'page_type': page_type,
         'page_click': page_click,
-        'page_wait_for_selector': page_wait_for_selector,
+        # 'page_wait_for_selector': page_wait_for_selector,
         'page_wait_for_selector_in_any_frame': page_wait_for_selector_in_any_frame,
         'page_scroll_down': page_scroll_down,
         'page_go_back': page_go_back,
