@@ -9,11 +9,11 @@
     <link rel="preload stylesheet" href="/LibianCrawlers/assets/style.Dq18Ckhl.css" as="style">
     <link rel="preload stylesheet" href="/LibianCrawlers/vp-icons.css" as="style">
     
-    <script type="module" src="/LibianCrawlers/assets/app.DCF7P42U.js"></script>
+    <script type="module" src="/LibianCrawlers/assets/app.B3TcodeM.js"></script>
     <link rel="preload" href="/LibianCrawlers/assets/inter-roman-latin.Di8DUHzh.woff2" as="font" type="font/woff2" crossorigin="">
-    <link rel="modulepreload" href="/LibianCrawlers/assets/chunks/theme.BMcU7gwa.js">
+    <link rel="modulepreload" href="/LibianCrawlers/assets/chunks/theme.CksL7jde.js">
     <link rel="modulepreload" href="/LibianCrawlers/assets/chunks/framework.B3HI_LuJ.js">
-    <link rel="modulepreload" href="/LibianCrawlers/assets/develop_crawler_steps.md.CjBMo7sE.lean.js">
+    <link rel="modulepreload" href="/LibianCrawlers/assets/develop_crawler_steps.md.BLKcvvuZ.lean.js">
     <script id="check-dark-mode">(()=>{const e=localStorage.getItem("vitepress-theme-appearance")||"auto",a=window.matchMedia("(prefers-color-scheme: dark)").matches;(!e||e==="auto"?a:e==="dark")&&document.documentElement.classList.add("dark")})();</script>
     <script id="check-mac-os">document.documentElement.classList.toggle("mac",/Mac|iPhone|iPod|iPad/i.test(navigator.platform));</script>
   </head>
@@ -626,6 +626,56 @@
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "on_timeout_steps"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"continue"</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br><span class="line-number">4</span><br><span class="line-number">5</span><br><span class="line-number">6</span><br><span class="line-number">7</span><br><span class="line-number">8</span><br><span class="line-number">9</span><br><span class="line-number">10</span><br><span class="line-number">11</span><br></div></div></div>
+</div></div><div><h4 id="page_click_and_expect_element_destroy">page_click_and_expect_element_destroy</h4><div><p>点击页面上的某个按钮，并期望这个按钮消失。当有时抛出莫名其妙的超时异常时但按钮成功消失时，也会认为成功。</p>
+<table tabindex="0">
+<thead>
+<tr>
+<th>name</th>
+<th>require</th>
+<th>type</th>
+<th>example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arg[0]</td>
+<td>✔️</td>
+<td><em>string</em></td>
+<td></td>
+</tr>
+<tr>
+<td>on_exist_steps</td>
+<td></td>
+<td><em><a href="#stepsblock">StepsBlock</a></em></td>
+<td></td>
+</tr>
+<tr>
+<td>retry_limit</td>
+<td></td>
+<td><em>integer</em></td>
+<td><code>5</code></td>
+</tr>
+</tbody>
+</table>
+<details class="details custom-block"><summary>参数含义文档</summary>
+<blockquote>
+<p><strong>arg[0]</strong></p>
+<p>要点击的元素选择器。</p>
+</blockquote>
+<blockquote>
+<p><strong>on_exist_steps</strong></p>
+<p>当元素没有按照期望消失，并经过 <code>retry_count</code> 次重试还是继续存在时，执行此回调。</p>
+</blockquote>
+<blockquote>
+<p><strong>retry_limit</strong></p>
+<p>当元素没有按照期望消失时的重试次数。 <strong>默认值</strong> 5</p>
+</blockquote>
+</details>
+<div class="info custom-block"><p class="custom-block-title">示例</p>
+<div class="language-json vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">json</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0" v-pre=""><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"page_click_and_expect_element_destroy"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br></div></div></div>
 </div></div><div><h4 id="page_type">page_type</h4><div><p>打字。</p>
 <table tabindex="0">
 <thead>
@@ -787,41 +837,79 @@
 <details class="details custom-block"><summary>schema</summary>
 <div class="language-json vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">json</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0" v-pre=""><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">{</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "type"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"object"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
-<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"当指定此值时，将会在向下滚动的过程中不断的将 满足 `locator` 属性的选择器要求的元素 的位置收集入列表中。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">此列表会根据元素的 inner_text 与 inner_html 去重。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">仅当同时满足 元素可以被点击、元素出现在视口内、元素的长宽均超过5 时，将会使用 page_click 点击此元素。如果没满足点击条件，则会保留在列表中，直到满足条件才被点击并移出列表。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">对于每个被点击的元素，点击元素并短暂的等待后: </span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">1. 先会执行一次 dump_page ;</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">2. 然后执行 `on_found_after_click_steps` 属性中的 StepsBlock（通常可以设为继续向下滚动）;</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">3. 再运行一次 dump_page;</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">4. 最后再执行 `on_found_after_click_steps` 属性中的 StepsBlock（通常可以设为回到菜单页）。 "</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"当指定此值时，将会在向下滚动的过程中不断的将 满足 `locator` 属性的选择器要求的元素 的位置收集入列表中。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">仅当同时满足 元素可以被点击、元素出现在视口内、元素的长宽均超过10 时，将会点击此元素。如果没满足点击条件，则会保留在列表中，直到满足条件才被点击并移出列表，（或是因已经划过高度而跳过）。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">对于每个被点击的元素，会执行以下步骤: </span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">1. 执行 `on_before_click_steps` 回调。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">2. 点击元素。 </span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">3. 运行 `on_before_click_check_steps` 回调。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">4. 检查 `check_selector_exist_after_click` 所指定 selector 的元素是否存在。如果存在，则继续执行；如果不存在，则重新点击（回到步骤2）。 </span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">5. 先执行一次 dump_page ，以保留刚点击完之后页面的样子。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">6. 然后执行 `on_found_after_click_steps` 属性中的 StepsBlock（通常可以设为继续向下滚动）;</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">7. 再运行一次 dump_page ，以保留运行完自定义步骤后页面的样子。</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">\n\n</span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">8. 最后再执行 `on_found_after_click_and_dump_steps` 属性中的 StepsBlock（通常可以设为回到菜单页）。 "</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "minProperties"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">1</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "required"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
 <span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">    "locator"</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  ],</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "additionalProperties"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">false</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "properties"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "locator"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"string"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
-<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"选择器。"</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"要点击的元素的选择器。"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "on_before_click_steps"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "$ref"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"#/definitions/StepsBlock"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"点击前的回调。"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "check_selector_exist_after_click"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"string"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"点击后检查: 要求该元素存在，否则会重新点击。"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "on_before_click_check_steps"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "$ref"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"#/definitions/StepsBlock"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"点击后检查前的回调。"</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "on_found_after_click_steps"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
-<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "$ref"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"#/definitions/StepsBlock"</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "$ref"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"#/definitions/StepsBlock"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"检查后，第一次dump后，第二次dump前的回调。"</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "on_found_after_click_and_dump_steps"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
-<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "$ref"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"#/definitions/StepsBlock"</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "$ref"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"#/definitions/StepsBlock"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"第二次dump后的回调。"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "duplicated_only_text"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"boolean"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"如果为 **默认值** false，则会按照元素的 inner_text 与 inner_html 去重。如果为 true，则只使用 inner_text 去重。"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "detail_logd"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"boolean"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"是否输出更详细的日志，默认为 false。"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "not_clickable_top_margin"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "type"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"number"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">      "description"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"如果点击点离页面上方的距离小于此值，则视为无法点击。这通常可以在有粘滞顶栏的网页中避免点击被遮挡的元素。 **默认值** 100 。"</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 </div></details>
 <p>当指定此值时，将会在向下滚动的过程中不断的将 满足 <code>locator</code> 属性的选择器要求的元素 的位置收集入列表中。</p>
-<p>此列表会根据元素的 inner_text 与 inner_html 去重。</p>
-<p>仅当同时满足 元素可以被点击、元素出现在视口内、元素的长宽均超过5 时，将会使用 page_click 点击此元素。如果没满足点击条件，则会保留在列表中，直到满足条件才被点击并移出列表。</p>
-<p>对于每个被点击的元素，点击元素并短暂的等待后:</p>
+<p>仅当同时满足 元素可以被点击、元素出现在视口内、元素的长宽均超过10 时，将会点击此元素。如果没满足点击条件，则会保留在列表中，直到满足条件才被点击并移出列表，（或是因已经划过高度而跳过）。</p>
+<p>对于每个被点击的元素，会执行以下步骤:</p>
 <ol>
 <li>
-<p>先会执行一次 dump_page ;</p>
+<p>执行 <code>on_before_click_steps</code> 回调。</p>
+</li>
+<li>
+<p>点击元素。</p>
+</li>
+<li>
+<p>运行 <code>on_before_click_check_steps</code> 回调。</p>
+</li>
+<li>
+<p>检查 <code>check_selector_exist_after_click</code> 所指定 selector 的元素是否存在。如果存在，则继续执行；如果不存在，则重新点击（回到步骤2）。</p>
+</li>
+<li>
+<p>先执行一次 dump_page ，以保留刚点击完之后页面的样子。</p>
 </li>
 <li>
 <p>然后执行 <code>on_found_after_click_steps</code> 属性中的 StepsBlock（通常可以设为继续向下滚动）;</p>
 </li>
 <li>
-<p>再运行一次 dump_page;</p>
+<p>再运行一次 dump_page ，以保留运行完自定义步骤后页面的样子。</p>
 </li>
 <li>
-<p>最后再执行 <code>on_found_after_click_steps</code> 属性中的 StepsBlock（通常可以设为回到菜单页）。</p>
+<p>最后再执行 <code>on_found_after_click_and_dump_steps</code> 属性中的 StepsBlock（通常可以设为回到菜单页）。</p>
 </li>
 </ol>
 </blockquote>
@@ -867,7 +955,8 @@
 <span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"page_go_back"</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br></div></div></div>
-</div></div><div><h4 id="dump_page_for_each">dump_page_for_each</h4><div><table tabindex="0">
+</div></div><div><h4 id="dump_page_for_each">dump_page_for_each</h4><div><p>在循环中反复执行自定义代码，并保存页面。</p>
+<table tabindex="0">
 <thead>
 <tr>
 <th>name</th>
@@ -958,8 +1047,103 @@
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
 <div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br><span class="line-number">4</span><br><span class="line-number">5</span><br><span class="line-number">6</span><br><span class="line-number">7</span><br><span class="line-number">8</span><br><span class="line-number">9</span><br><span class="line-number">10</span><br><span class="line-number">11</span><br><span class="line-number">12</span><br><span class="line-number">13</span><br><span class="line-number">14</span><br><span class="line-number">15</span><br><span class="line-number">16</span><br><span class="line-number">17</span><br><span class="line-number">18</span><br><span class="line-number">19</span><br><span class="line-number">20</span><br><span class="line-number">21</span><br><span class="line-number">22</span><br><span class="line-number">23</span><br><span class="line-number">24</span><br><span class="line-number">25</span><br></div></div></details>
-</div></div><!--]--><h3 id="ref" tabindex="-1">Ref <a class="header-anchor" href="#ref" aria-label="Permalink to &quot;Ref&quot;">​</a></h3><h4 id="stepsblock" tabindex="-1">StepsBlock <a class="header-anchor" href="#stepsblock" aria-label="Permalink to &quot;StepsBlock&quot;">​</a></h4><h4 id="xy" tabindex="-1">XY <a class="header-anchor" href="#xy" aria-label="Permalink to &quot;XY&quot;">​</a></h4><h4 id="locatorblock" tabindex="-1">LocatorBlock <a class="header-anchor" href="#locatorblock" aria-label="Permalink to &quot;LocatorBlock&quot;">​</a></h4></div></div></main><footer class="VPDocFooter" data-v-39a288b8 data-v-e257564d><!--[--><!--]--><div class="edit-info" data-v-e257564d><div class="edit-link" data-v-e257564d><a class="VPLink link vp-external-link-icon no-icon edit-link-button" href="https://github.com/Xpectuer/LibianCrawlers/blob/main/docs/develop%2Fcrawler%2Fsteps.md" target="_blank" rel="noreferrer" data-v-e257564d><!--[--><span class="vpi-square-pen edit-link-icon" data-v-e257564d></span> 去Github编辑<!--]--></a></div><div class="last-updated" data-v-e257564d><p class="VPLastUpdated" data-v-e257564d data-v-e98dd255>最后更新于 : <time datetime="2025-03-31T16:33:51.000Z" data-v-e98dd255></time></p></div></div><nav class="prev-next" aria-labelledby="doc-footer-aria-label" data-v-e257564d><span class="visually-hidden" id="doc-footer-aria-label" data-v-e257564d>Pager</span><div class="pager" data-v-e257564d><a class="VPLink link pager-link prev" href="/LibianCrawlers/develop/crawler/start-smart-crawl.html" data-v-e257564d><!--[--><span class="desc" data-v-e257564d>上一章</span><span class="title" data-v-e257564d>3-启动爬虫</span><!--]--></a></div><div class="pager" data-v-e257564d><a class="VPLink link pager-link next" href="/LibianCrawlers/develop/crawler/start-test.html" data-v-e257564d><!--[--><span class="desc" data-v-e257564d>下一章</span><span class="title" data-v-e257564d>运行测试</span><!--]--></a></div></nav></footer><!--[--><!--]--></div></div></div><!--[--><!--]--></div></div><!----><!--[--><!--]--></div></div>
-    <script>window.__VP_HASH_MAP__=JSON.parse("{\"develop_crawler_init-config.md\":\"BGJTih7o\",\"develop_crawler_install.md\":\"BBdW6qR1\",\"develop_crawler_start-smart-crawl.md\":\"DhVXYW1D\",\"develop_crawler_start-test.md\":\"DFn1xBEK\",\"develop_crawler_steps.md\":\"CjBMo7sE\",\"develop_data_cleaner_ci_init-config.md\":\"_X9C06wT\",\"develop_data_cleaner_ci_install.md\":\"mxcjIRHI\",\"develop_data_cleaner_ci_start-code-gen.md\":\"DlwOZbRP\",\"develop_data_cleaner_ci_start-data-clean.md\":\"cfqEJv4Z\",\"develop_datalake_deploy.md\":\"vDq90BIN\",\"develop_index.md\":\"CbeuQ2oQ\",\"develop_roadmap.md\":\"MZ_yGDl6\",\"guide_index.md\":\"DOVYl9QP\",\"guide_learn-about-libiancrawler.md\":\"x0fbHggh\",\"guide_when-data-clean.md\":\"KZSGbLj8\",\"guide_when-data-crawl.md\":\"DPt42CZ9\",\"guide_when-data-protect.md\":\"L8LG39Jd\",\"guide_when-data-storage-and-visualization.md\":\"CQRwJAqV\",\"index.md\":\"DgIgrRpS\"}");function deserializeFunctions(r){return Array.isArray(r)?r.map(deserializeFunctions):typeof r=="object"&&r!==null?Object.keys(r).reduce((t,n)=>(t[n]=deserializeFunctions(r[n]),t),{}):typeof r=="string"&&r.startsWith("_vp-fn_")?new Function(`return ${r.slice(7)}`)():r};window.__VP_SITE_DATA__=deserializeFunctions(JSON.parse("{\"lang\":\"zh-CN\",\"dir\":\"ltr\",\"title\":\"LibianCrawler Document\",\"description\":\"A VitePress site\",\"base\":\"/LibianCrawlers/\",\"head\":[],\"router\":{\"prefetchLinks\":true},\"appearance\":true,\"themeConfig\":{\"nav\":[{\"text\":\"Home\",\"link\":\"/\"}],\"socialLinks\":[{\"icon\":\"github\",\"link\":\"https://github.com/Xpectuer/LibianCrawlers\"}],\"editLink\":{\"pattern\":\"_vp-fn_(pagedata) => {\\n        return `https://github.com/Xpectuer/LibianCrawlers/blob/main/docs/${encodeURIComponent(\\n          pagedata.filePath\\n        )}`;\\n      }\",\"text\":\"去Github编辑\"},\"sidebar\":[{\"text\":\"1-使用指南\",\"link\":\"/guide/index.md\",\"items\":[{\"text\":\"1-了解 LibianCrawler\",\"link\":\"/guide/learn-about-libiancrawler\"},{\"text\":\"2-数据采集中的挑战与解决方案\",\"link\":\"/guide/when-data-crawl\"},{\"text\":\"3-数据清洗：确保数据质量与一致性\",\"link\":\"/guide/when-data-clean\"},{\"text\":\"4-数据存储和可视化\",\"link\":\"/guide/when-data-storage-and-visualization\"},{\"text\":\"5-私有数据保护\",\"link\":\"/guide/when-data-protect\"}],\"collapsed\":false},{\"text\":\"2-开发者指南\",\"link\":\"/develop/index.md\",\"items\":[{\"text\":\"crawler\",\"items\":[{\"text\":\"1-安装爬虫\",\"link\":\"/develop/crawler/install\"},{\"text\":\"2-在启动之前做好配置\",\"link\":\"/develop/crawler/init-config\"},{\"text\":\"3-启动爬虫\",\"link\":\"/develop/crawler/start-smart-crawl\"},{\"text\":\"Steps API\",\"link\":\"/develop/crawler/steps\"},{\"text\":\"运行测试\",\"link\":\"/develop/crawler/start-test\"}],\"collapsed\":true},{\"text\":\"data cleaner ci\",\"items\":[{\"text\":\"1-安装 Deno 和依赖\",\"link\":\"/develop/data_cleaner_ci/install\"},{\"text\":\"2-初始化配置文件\",\"link\":\"/develop/data_cleaner_ci/init-config\"},{\"text\":\"3-启动代码生成\",\"link\":\"/develop/data_cleaner_ci/start-code-gen\"},{\"text\":\"4-启动数据清洗-以 libian crawler 为例\",\"link\":\"/develop/data_cleaner_ci/start-data-clean\"}],\"collapsed\":true},{\"text\":\"datalake\",\"items\":[{\"text\":\"1-部署数据湖\",\"link\":\"/develop/datalake/deploy\"}],\"collapsed\":true},{\"text\":\"项目功能模块化设计与路线图\",\"link\":\"/develop/roadmap\"}],\"collapsed\":false}],\"search\":{\"provider\":\"local\"},\"lastUpdated\":{\"text\":\"最后更新于 \",\"formatOptions\":{\"dateStyle\":\"full\",\"timeStyle\":\"medium\"}},\"darkModeSwitchLabel\":\"暗色模式\",\"sidebarMenuLabel\":\"全部目录\",\"returnToTopLabel\":\"回到网页顶部\",\"langMenuLabel\":\"语言\",\"notFound\":{\"title\":\"页面不见了\",\"quote\":\"或许是文件发生了更改而导致链接失效...\",\"linkText\":\"返回首页\"},\"docFooter\":{\"next\":\"下一章\",\"prev\":\"上一章\"},\"outline\":{\"label\":\"跳转标题或顶部\",\"level\":\"deep\"}},\"locales\":{},\"scrollOffset\":134,\"cleanUrls\":false}"));</script>
+</div></div><div><h4 id="if_url_is">if_url_is</h4><div><p>判断 url 是否在 args 中。</p>
+<table tabindex="0">
+<thead>
+<tr>
+<th>name</th>
+<th>require</th>
+<th>type</th>
+<th>example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>arg[0...]</td>
+<td></td>
+<td><em>string</em></td>
+<td></td>
+</tr>
+<tr>
+<td>run_steps</td>
+<td></td>
+<td><em><a href="#stepsblock">StepsBlock</a></em></td>
+<td></td>
+</tr>
+<tr>
+<td>else_steps</td>
+<td></td>
+<td><em><a href="#stepsblock">StepsBlock</a></em></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<details class="details custom-block"><summary>参数含义文档</summary>
+<blockquote>
+<p><strong>run_steps</strong></p>
+<p>如果 url 是 args 中的值，则执行此回调。</p>
+</blockquote>
+<blockquote>
+<p><strong>else_steps</strong></p>
+<p>如果 url 不是 args 中的值，则执行此回调。</p>
+</blockquote>
+</details>
+<details class="details custom-block"><summary>示例</summary>
+<div class="language-json vp-adaptive-theme line-numbers-mode"><button title="Copy Code" class="copy"></button><span class="lang">json</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0" v-pre=""><code><span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"if_url_is"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "args"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">    "https://www.xiaohongshu.com/explore"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  ],</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">  "kwargs"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "run_steps"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"logi"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "args"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">          "It seems like redirect to xiaohongshu home page , we go back"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">        ]</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      },</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"page_type"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "args"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">          "#search-input"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">          "&#x3C;&#x3C;&#x3C;&#x3C;!q!>>>>"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">        ]</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      },</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"sleep"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "args"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">          1000</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">        ]</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      },</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"page_click"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "args"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">          ".search-icon"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">        ],</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "kwargs"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">          "timeout"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">6000</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">        }</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      },</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"sleep"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "args"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">          1000</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">        ]</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      }</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    ],</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">    "else_steps"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      {</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "fn"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">"logd"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF">        "args"</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">: [</span></span>
+<span class="line"><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF">          "click success , no redirect to xiaohongshu home page"</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">        ]</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">      }</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">    ]</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<div class="line-numbers-wrapper" aria-hidden="true"><span class="line-number">1</span><br><span class="line-number">2</span><br><span class="line-number">3</span><br><span class="line-number">4</span><br><span class="line-number">5</span><br><span class="line-number">6</span><br><span class="line-number">7</span><br><span class="line-number">8</span><br><span class="line-number">9</span><br><span class="line-number">10</span><br><span class="line-number">11</span><br><span class="line-number">12</span><br><span class="line-number">13</span><br><span class="line-number">14</span><br><span class="line-number">15</span><br><span class="line-number">16</span><br><span class="line-number">17</span><br><span class="line-number">18</span><br><span class="line-number">19</span><br><span class="line-number">20</span><br><span class="line-number">21</span><br><span class="line-number">22</span><br><span class="line-number">23</span><br><span class="line-number">24</span><br><span class="line-number">25</span><br><span class="line-number">26</span><br><span class="line-number">27</span><br><span class="line-number">28</span><br><span class="line-number">29</span><br><span class="line-number">30</span><br><span class="line-number">31</span><br><span class="line-number">32</span><br><span class="line-number">33</span><br><span class="line-number">34</span><br><span class="line-number">35</span><br><span class="line-number">36</span><br><span class="line-number">37</span><br><span class="line-number">38</span><br><span class="line-number">39</span><br><span class="line-number">40</span><br><span class="line-number">41</span><br><span class="line-number">42</span><br><span class="line-number">43</span><br><span class="line-number">44</span><br><span class="line-number">45</span><br><span class="line-number">46</span><br><span class="line-number">47</span><br><span class="line-number">48</span><br><span class="line-number">49</span><br><span class="line-number">50</span><br><span class="line-number">51</span><br><span class="line-number">52</span><br></div></div></details>
+</div></div><!--]--><h3 id="ref" tabindex="-1">Ref <a class="header-anchor" href="#ref" aria-label="Permalink to &quot;Ref&quot;">​</a></h3><h4 id="stepsblock" tabindex="-1">StepsBlock <a class="header-anchor" href="#stepsblock" aria-label="Permalink to &quot;StepsBlock&quot;">​</a></h4><h4 id="xy" tabindex="-1">XY <a class="header-anchor" href="#xy" aria-label="Permalink to &quot;XY&quot;">​</a></h4><h4 id="locatorblock" tabindex="-1">LocatorBlock <a class="header-anchor" href="#locatorblock" aria-label="Permalink to &quot;LocatorBlock&quot;">​</a></h4></div></div></main><footer class="VPDocFooter" data-v-39a288b8 data-v-e257564d><!--[--><!--]--><div class="edit-info" data-v-e257564d><div class="edit-link" data-v-e257564d><a class="VPLink link vp-external-link-icon no-icon edit-link-button" href="https://github.com/Xpectuer/LibianCrawlers/blob/main/docs/develop%2Fcrawler%2Fsteps.md" target="_blank" rel="noreferrer" data-v-e257564d><!--[--><span class="vpi-square-pen edit-link-icon" data-v-e257564d></span> 去Github编辑<!--]--></a></div><div class="last-updated" data-v-e257564d><p class="VPLastUpdated" data-v-e257564d data-v-e98dd255>最后更新于 : <time datetime="2025-04-02T14:14:16.000Z" data-v-e98dd255></time></p></div></div><nav class="prev-next" aria-labelledby="doc-footer-aria-label" data-v-e257564d><span class="visually-hidden" id="doc-footer-aria-label" data-v-e257564d>Pager</span><div class="pager" data-v-e257564d><a class="VPLink link pager-link prev" href="/LibianCrawlers/develop/crawler/start-smart-crawl.html" data-v-e257564d><!--[--><span class="desc" data-v-e257564d>上一章</span><span class="title" data-v-e257564d>3-启动爬虫</span><!--]--></a></div><div class="pager" data-v-e257564d><a class="VPLink link pager-link next" href="/LibianCrawlers/develop/crawler/start-test.html" data-v-e257564d><!--[--><span class="desc" data-v-e257564d>下一章</span><span class="title" data-v-e257564d>运行测试</span><!--]--></a></div></nav></footer><!--[--><!--]--></div></div></div><!--[--><!--]--></div></div><!----><!--[--><!--]--></div></div>
+    <script>window.__VP_HASH_MAP__=JSON.parse("{\"develop_crawler_init-config.md\":\"BgtcOJlN\",\"develop_crawler_install.md\":\"B0z0hU9C\",\"develop_crawler_start-smart-crawl.md\":\"Cthyoavf\",\"develop_crawler_start-test.md\":\"Bl0_2U8A\",\"develop_crawler_steps.md\":\"BLKcvvuZ\",\"develop_data_cleaner_ci_init-config.md\":\"Df1UeiQW\",\"develop_data_cleaner_ci_install.md\":\"tpv-CjiO\",\"develop_data_cleaner_ci_start-code-gen.md\":\"1jq8RQhH\",\"develop_data_cleaner_ci_start-data-clean.md\":\"C0x8byw2\",\"develop_datalake_deploy.md\":\"CETMhhMP\",\"develop_index.md\":\"D09FibNo\",\"develop_roadmap.md\":\"BY1NAb7p\",\"guide_index.md\":\"vT6MW6HY\",\"guide_learn-about-libiancrawler.md\":\"C4eMohSW\",\"guide_when-data-clean.md\":\"B6w-ud2F\",\"guide_when-data-crawl.md\":\"Df6KTPBh\",\"guide_when-data-protect.md\":\"CUkGxrWS\",\"guide_when-data-storage-and-visualization.md\":\"B3y520Yh\",\"index.md\":\"DTThc2vG\"}");function deserializeFunctions(r){return Array.isArray(r)?r.map(deserializeFunctions):typeof r=="object"&&r!==null?Object.keys(r).reduce((t,n)=>(t[n]=deserializeFunctions(r[n]),t),{}):typeof r=="string"&&r.startsWith("_vp-fn_")?new Function(`return ${r.slice(7)}`)():r};window.__VP_SITE_DATA__=deserializeFunctions(JSON.parse("{\"lang\":\"zh-CN\",\"dir\":\"ltr\",\"title\":\"LibianCrawler Document\",\"description\":\"A VitePress site\",\"base\":\"/LibianCrawlers/\",\"head\":[],\"router\":{\"prefetchLinks\":true},\"appearance\":true,\"themeConfig\":{\"nav\":[{\"text\":\"Home\",\"link\":\"/\"}],\"socialLinks\":[{\"icon\":\"github\",\"link\":\"https://github.com/Xpectuer/LibianCrawlers\"}],\"editLink\":{\"pattern\":\"_vp-fn_(pagedata) => {\\n        return `https://github.com/Xpectuer/LibianCrawlers/blob/main/docs/${encodeURIComponent(\\n          pagedata.filePath\\n        )}`;\\n      }\",\"text\":\"去Github编辑\"},\"sidebar\":[{\"text\":\"1-使用指南\",\"link\":\"/guide/index.md\",\"items\":[{\"text\":\"1-了解 LibianCrawler\",\"link\":\"/guide/learn-about-libiancrawler\"},{\"text\":\"2-数据采集中的挑战与解决方案\",\"link\":\"/guide/when-data-crawl\"},{\"text\":\"3-数据清洗：确保数据质量与一致性\",\"link\":\"/guide/when-data-clean\"},{\"text\":\"4-数据存储和可视化\",\"link\":\"/guide/when-data-storage-and-visualization\"},{\"text\":\"5-私有数据保护\",\"link\":\"/guide/when-data-protect\"}],\"collapsed\":false},{\"text\":\"2-开发者指南\",\"link\":\"/develop/index.md\",\"items\":[{\"text\":\"crawler\",\"items\":[{\"text\":\"1-安装爬虫\",\"link\":\"/develop/crawler/install\"},{\"text\":\"2-在启动之前做好配置\",\"link\":\"/develop/crawler/init-config\"},{\"text\":\"3-启动爬虫\",\"link\":\"/develop/crawler/start-smart-crawl\"},{\"text\":\"Steps API\",\"link\":\"/develop/crawler/steps\"},{\"text\":\"运行测试\",\"link\":\"/develop/crawler/start-test\"}],\"collapsed\":true},{\"text\":\"data cleaner ci\",\"items\":[{\"text\":\"1-安装 Deno 和依赖\",\"link\":\"/develop/data_cleaner_ci/install\"},{\"text\":\"2-初始化配置文件\",\"link\":\"/develop/data_cleaner_ci/init-config\"},{\"text\":\"3-启动代码生成\",\"link\":\"/develop/data_cleaner_ci/start-code-gen\"},{\"text\":\"4-启动数据清洗-以 libian crawler 为例\",\"link\":\"/develop/data_cleaner_ci/start-data-clean\"}],\"collapsed\":true},{\"text\":\"datalake\",\"items\":[{\"text\":\"1-部署数据湖\",\"link\":\"/develop/datalake/deploy\"}],\"collapsed\":true},{\"text\":\"项目功能模块化设计与路线图\",\"link\":\"/develop/roadmap\"}],\"collapsed\":false}],\"search\":{\"provider\":\"local\"},\"lastUpdated\":{\"text\":\"最后更新于 \",\"formatOptions\":{\"dateStyle\":\"full\",\"timeStyle\":\"medium\"}},\"darkModeSwitchLabel\":\"暗色模式\",\"sidebarMenuLabel\":\"全部目录\",\"returnToTopLabel\":\"回到网页顶部\",\"langMenuLabel\":\"语言\",\"notFound\":{\"title\":\"页面不见了\",\"quote\":\"或许是文件发生了更改而导致链接失效...\",\"linkText\":\"返回首页\"},\"docFooter\":{\"next\":\"下一章\",\"prev\":\"上一章\"},\"outline\":{\"label\":\"跳转标题或顶部\",\"level\":\"deep\"}},\"locales\":{},\"scrollOffset\":134,\"cleanUrls\":false}"));</script>
     
   </body>
 </html>
