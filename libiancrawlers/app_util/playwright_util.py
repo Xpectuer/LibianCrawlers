@@ -12,7 +12,13 @@ from urllib.parse import urlparse, parse_qs
 import hashlib
 import aiofiles.os
 import aiofiles.ospath
+
+from libiancrawlers.app_util.networks.proxies import monkey_patch_hook_urllib
+
+monkey_patch_hook_urllib()
+
 import playwright.async_api
+
 # noinspection PyProtectedMember
 from camoufox import AsyncCamoufox
 from loguru import logger

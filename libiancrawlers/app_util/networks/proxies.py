@@ -183,5 +183,53 @@ async def update_proxies_for_win32(
             return 'ok', ret_data
 
 
+def monkey_patch_hook_urllib():
+    import urllib.request
+
+    logger.debug('[urllib hooking] start hook')
+    from opentelemetry.instrumentation.urllib import URLLibInstrumentor
+
+    loop = None
+
+    try:
+        logger.debug('[urllib hooking] new loop start')
+        import asyncio
+        loop = asyncio.new_event_loop()
+        logger.debug('[urllib hooking] new loop is {}', loop)
+        logger.debug('[urllib hooking] wait to update proxies')
+        loop.run_until_complete(update_proxies())
+        logger.debug('[urllib hooking] success to update proxies , current is {}', _current_schema_proxies)
+    finally:
+        if loop is not None:
+            logger.debug('[urllib hooking] close loop {}', loop)
+            loop.close()
+
+    # `request_obj` is an instance of urllib.request.Request
+    def request_hook(span, request_obj):
+        request_obj: urllib.request.Request = request_obj
+        logger.debug('[urllib hooking]\n    request is {}\n    has_proxy is {}',
+                     request_obj.full_url, request_obj.has_proxy())
+        if _current_schema_proxies is not None and not request_obj.has_proxy():
+            for schema, address in _current_schema_proxies.items():
+                logger.debug('[urllib hooking] set request proxy -- address {} , schema {}\n    request is {}',
+                             address, schema, request_obj.full_url)
+                request_obj.set_proxy(address, schema)
+
+    def response_hook(span, request_obj, response_obj):
+        request_obj: urllib.request.Request = request_obj
+        import http.client
+        response_obj: Optional[http.client.HTTPResponse] = response_obj
+        logger.debug('[urllib hooking]\n    response is {}\n    resp status is {}\n    request is {}',
+                     response_obj,
+                     response_obj.status if response_obj is not None else None,
+                     request_obj.full_url)
+
+    logger.debug('[urllib hooking] inject instrument')
+    URLLibInstrumentor().instrument(
+        request_hook=request_hook, response_hook=response_hook
+    )
+    logger.debug('[urllib hooking] hooked')
+
+
 if __name__ == '__main__':
     pass

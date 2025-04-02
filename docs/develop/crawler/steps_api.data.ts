@@ -162,26 +162,22 @@ export default {
                 //   md_desc += `* args 长度必须在 [${minItems},${maxItems}] 之间\n\n`;
                 // }
 
-                if (
-                  "items" in s.properties.args &&
-                  Array.isArray(s.properties.args.items)
-                  //  &&
-                  // "additionalItems" in s.properties.args &&
-                  // s.properties.args.additionalItems === false
-                ) {
+                if ("items" in s.properties.args) {
                   let i = 0;
-                  for (; i < s.properties.args.items.length; i++) {
-                    const item = s.properties.args.items[i];
+                  if (Array.isArray(s.properties.args.items)) {
+                    for (; i < s.properties.args.items.length; i++) {
+                      const item = s.properties.args.items[i];
 
-                    arg_table.push({
-                      name: `arg[${i}]`,
-                      require: i < minItems,
-                      type: parse_type(item),
-                      enum: item["enum"],
-                      example: item["examples"]?.at(0),
-                      description: item["description"],
-                      _rg: item,
-                    });
+                      arg_table.push({
+                        name: `arg[${i}]`,
+                        require: i < minItems,
+                        type: parse_type(item),
+                        enum: item["enum"],
+                        example: item["examples"]?.at(0),
+                        description: item["description"],
+                        _rg: item,
+                      });
+                    }
                   }
 
                   if (
@@ -193,7 +189,9 @@ export default {
                     arg_table.push({
                       name: `arg[${i}...${maxItems < 0 ? "" : maxItems}]`,
                       require: false,
-                      type: "unknown",
+                      type: Array.isArray(s.properties.args.items)
+                        ? "unknown"
+                        : parse_type(s.properties.args.items),
                       enum: null,
                       example: "",
                       description: "",

@@ -90,7 +90,7 @@
       ],
       "kwargs": {
         "has_text": "搜索",
-        "timeout": 4000,
+        "timeout": 6000,
         "on_locator": [
           {
             "fn": "get_by_text",
@@ -142,9 +142,11 @@
     {
       "fn": "page_scroll_down",
       "kwargs": {
-        "max_height": 10000,
+        "max_height": 20000,
         "page_click_if_found": {
-          "locator": "div[data-uniqid][style='width:1.86rem;margin-right:0.03rem;margin-bottom:0.03rem']",
+          "locator": "div[style=\"width: 1.86rem;\"]:has(span:has-text('¥')):has(img), div[style=\"width:1.86rem\"]:has(span:has-text('¥')):has(img)",
+          "check_selector_exist_after_click": ".goods-container-v2",
+          "duplicated_only_text": true,
           "on_found_after_click_steps": [
             {
               "fn": "page_scroll_down"

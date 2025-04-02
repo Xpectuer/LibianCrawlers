@@ -1,0 +1,225 @@
+{
+  "$schema": "./schemas/main.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start XiaoHongShu search"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_wait_for_selector_in_any_frame",
+      "args": [
+        ".login-container"
+      ],
+      "kwargs": {
+        "timeout": 6000
+      },
+      "on_timeout_steps": [
+        {
+          "fn": "logd",
+          "args": [
+            "已登录小红书, 无需手动登陆"
+          ]
+        }
+      ],
+      "on_success_steps": [
+        {
+          "fn": "logi",
+          "args": [
+            "未登录小红书, 需要手动登陆"
+          ]
+        },
+        {
+          "fn": "gui_confirm",
+          "kwargs": {
+            "title": "need login",
+            "message": "LibianCrawler 需要手动完成登陆小红书，请在浏览器窗口完成登陆后，点击此窗口的确认按钮"
+          }
+        }
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1500
+      ]
+    },
+    {
+      "fn": "page_type",
+      "args": [
+        "#search-input",
+        "<<<<!q!>>>>"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_click",
+      "args": [
+        ".search-icon"
+      ],
+      "kwargs": {
+        "timeout": 6000
+      }
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_scroll_down",
+      "kwargs": {
+        "max_height": 20000,
+        "page_click_if_found": {
+          "locator": ".note-item:has(a.cover)",
+          "check_selector_exist_after_click": ".interaction-container",
+          "duplicated_only_text": true,
+          "on_before_click_steps": [
+            {
+              "fn": "if_url_is",
+              "args": [
+                "https://www.xiaohongshu.com/explore"
+              ],
+              "kwargs": {
+                "run_steps": [
+                  {
+                    "fn": "logi",
+                    "args": [
+                      "It seems like redirect to xiaohongshu home page , we go back"
+                    ]
+                  },
+                  {
+                    "fn": "page_type",
+                    "args": [
+                      "#search-input",
+                      "<<<<!q!>>>>"
+                    ]
+                  },
+                  {
+                    "fn": "sleep",
+                    "args": [
+                      1000
+                    ]
+                  },
+                  {
+                    "fn": "page_click",
+                    "args": [
+                      ".search-icon"
+                    ],
+                    "kwargs": {
+                      "timeout": 6000
+                    }
+                  },
+                  {
+                    "fn": "sleep",
+                    "args": [
+                      1000
+                    ]
+                  }
+                ],
+                "else_steps": [
+                  {
+                    "fn": "logd",
+                    "args": [
+                      "click success , no redirect to xiaohongshu home page"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "on_before_click_check_steps": [
+            {
+              "fn": "page_wait_for_selector_in_any_frame",
+              "args": [
+                ".red-captcha-title"
+              ],
+              "kwargs": {
+                "timeout": 500
+              },
+              "on_success_steps": [
+                {
+                  "fn": "gui_confirm",
+                  "kwargs": {
+                    "title": "need bypass",
+                    "message": "LibianCrawler 需要手动通过验证码，请在浏览器窗口通过验证码后，点击此窗口的确认按钮。随后本爬虫将关闭，请自行重启。"
+                  }
+                },
+                "stop"
+              ],
+              "on_timeout_steps": "continue"
+            }
+          ],
+          "on_found_after_click_steps": [
+            {
+              "fn": "logd",
+              "args": [
+                "[in note] ---------------- before dump ----------------"
+              ]
+            }
+          ],
+          "on_found_after_click_and_dump_steps": [
+            {
+              "fn": "sleep",
+              "args": [
+                500
+              ]
+            },
+            {
+              "fn": "page_click_and_expect_element_destroy",
+              "args": [
+                ".close-circle"
+              ],
+              "kwargs": {
+                "on_exist_steps": [
+                  {
+                    "fn": "logw",
+                    "args": [
+                      "似乎没有成功关闭笔记详情，请手动把小红书的笔记详情页关闭，再确认此对话框。"
+                    ]
+                  },
+                  "debug"
+                ]
+              }
+            },
+            {
+              "fn": "sleep",
+              "args": [
+                500
+              ]
+            },
+            {
+              "fn": "logd",
+              "args": [
+                "[in note] ---------------- after dump ----------------"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

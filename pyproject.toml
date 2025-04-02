@@ -29,6 +29,7 @@ aiofiles = "^24.1.0"
 python-magic = "0.4.27"
 pypiwin32 = { version = "^223", platform = "win32" }
 miniopy-async = "^1.21.1"
+opentelemetry-instrumentation-urllib = "^0.52b1"
 
 [tool.poetry.group.dev]
 optional = true

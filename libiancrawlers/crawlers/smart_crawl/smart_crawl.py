@@ -1,9 +1,8 @@
 # -*- coding: UTF-8 -*-
 import datetime
+import itertools
 import json
 import os.path
-import itertools
-import sys
 import traceback
 from threading import Thread
 from typing import Literal, Optional, Any, TypedDict
@@ -18,7 +17,6 @@ from libiancrawlers.app_util.playwright_util import get_browser, response_to_dic
     page_info_to_dict, BlobOutput, url_parse_to_dict, frame_tree_to_dict, ResultOfPageInfoToDict
 from libiancrawlers.app_util.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException, JSON
-
 from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.fs import mkdirs, aios_listdir, filename_slugify
 
@@ -381,8 +379,9 @@ async def smart_crawl_v1(*,
                         await fn_map[_step['fn']](*_waited_args, **_waited_kwargs)
                         on_success_steps = _step.get('on_success_steps')
                         if on_success_steps is not None:
-                            logger.debug('process on success steps')
+                            logger.debug('start process on success steps')
                             await _process_steps(on_success_steps)
+                            logger.debug('finish process on success steps')
                     else:
                         logger.error(
                             'Invalid wait_step , not exist fn , please see libiancrawlers/crawlers/smart_crawl/wait_steps.py . Value of wait_step is {}',
@@ -392,8 +391,9 @@ async def smart_crawl_v1(*,
                     if is_timeout_error(err_timeout):
                         on_timeout_steps = _step.get('on_timeout_steps')
                         if on_timeout_steps is not None:
-                            logger.debug('process on timeout steps')
+                            logger.debug('start process on timeout steps')
                             await _process_steps(on_timeout_steps)
+                            logger.debug('finish process on timeout steps')
                             continue
                         else:
                             raise TimeoutError(f'timeout on step : {_step}') from err_timeout
