@@ -30,6 +30,21 @@
                 "window_raw_data_eval": $window_raw_data_eval
             };
             $m
+        ),
+        "baidu": (
+            $map_c_container := function($x) {(
+                $r := {
+                    "datatools": $json_parse($x.**[attrs.`data-tools`].attrs.`data-tools`),
+                    "rows": $join($x.**[bs4_type="<class 'bs4.element.Tag'>"][str].str)
+                };
+
+                $r
+            )};
+            $results := $tags["c-container" in attrs.class].$map_c_container($);
+            $m := {
+                "results": $distinct($results) 
+            };
+            $m
         )
     }
 )

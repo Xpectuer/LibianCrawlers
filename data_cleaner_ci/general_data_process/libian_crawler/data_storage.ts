@@ -5,6 +5,7 @@ import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 import { DataMerge, Jsons } from "../../util.ts";
 import { PostgresColumnType } from "../../pg.ts";
+import dns from "node:dns/promises";
 
 export const _libian_crawler_cleaned = "libian_crawler_cleaned" as const;
 
@@ -145,12 +146,58 @@ export async function create_and_init_libian_srawler_database_scope<R>(
 ) {
   const { data_storage } = config.libian_crawler;
   const { connect_param, migration } = data_storage;
+  if (connect_param.ssl) {
+    const { host, port } = connect_param;
+    const test_connect = async () => {
+      console.log("Current DNS server", dns.getServers());
+      console.log(`Try connect to host use Deno.connect`, { host, port });
+      const conn1 = await Deno.connect({
+        hostname: host,
+        port,
+        transport: "tcp",
+      });
+      console.log("Result of connect to host", {
+        conn1,
+        removeAddr: conn1.remoteAddr,
+        localAddr: conn1.localAddr,
+      });
+      conn1.close();
+      console.log("dns.lookup start");
+      const lookup_res = await dns.lookup(host);
+      console.log("dns.lookup result is", lookup_res);
+      console.log("dns.resolve resolve");
+      const resolve_res = await dns.resolve(host);
+      console.log("dns.resolve result is", resolve_res);
+    };
+
+    if (!("path" in connect_param)) {
+      await Promise.any([test_connect()]);
+    }
+  }
+  const ssl = connect_param.ssl;
+  if (
+    (typeof ssl === "string" &&
+      ssl !== "require" &&
+      ssl !== "allow" &&
+      ssl !== "prefer" &&
+      ssl !== "verify-full") ||
+    (typeof ssl !== "boolean" &&
+      typeof ssl !== "object" &&
+      typeof ssl !== "undefined")
+  ) {
+    throw new Error(`Invalid connect_param.ssl : ${ssl}`);
+  }
+
+  const sql = postgres({
+    database: connect_param.dbname,
+    ...connect_param,
+    ssl,
+  });
+  // https://github.com/porsager/postgres/issues/778#issuecomment-2154846646
+  console.debug("Test SELECT 1", (await sql.unsafe("SELECT 1")).columns);
   const db = new Kysely<LibianCrawlerDatabase>({
     dialect: new PostgresJSDialect({
-      postgres: postgres({
-        database: connect_param.dbname,
-        ...connect_param,
-      }),
+      postgres: sql,
     }),
   });
   try {

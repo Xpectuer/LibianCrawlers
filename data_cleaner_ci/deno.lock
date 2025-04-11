@@ -24,6 +24,7 @@
     "npm:@types/jsdom@*": "21.1.7",
     "npm:@types/node@*": "22.5.4",
     "npm:collection-utils@^1.0.1": "1.0.1",
+    "npm:dns2@^2.1.0": "2.1.0",
     "npm:encoding@~0.1.13": "0.1.13",
     "npm:english2number@^1.0.8": "1.0.8",
     "npm:filesize@^10.1.6": "10.1.6",
@@ -199,6 +200,9 @@
         "es-errors",
         "gopd"
       ]
+    },
+    "dns2@2.1.0": {
+      "integrity": "sha512-m27K11aQalRbmUs7RLaz6aPyceLjAoqjPRNTdE7qUouQpl+PC8Bi67O+i9SuJUPbQC8dxFrczAxfmTPuTKHNkw=="
     },
     "dunder-proto@1.0.1": {
       "integrity": "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==",
@@ -647,6 +651,7 @@
       "jsr:@std/async@^1.0.10",
       "jsr:@std/datetime@~0.225.3",
       "npm:collection-utils@^1.0.1",
+      "npm:dns2@^2.1.0",
       "npm:encoding@~0.1.13",
       "npm:english2number@^1.0.8",
       "npm:filesize@^10.1.6",

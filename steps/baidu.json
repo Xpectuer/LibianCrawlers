@@ -1,0 +1,87 @@
+{
+  "$schema": "./schemas/main.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start baidu search"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_type",
+      "args": [
+        "#kw",
+        "<<<<!q!>>>>"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        500
+      ]
+    },
+    {
+      "fn": "page_click",
+      "args": [
+        "#su"
+      ],
+      "on_timeout_steps": "continue"
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_wait_for_selector_in_any_frame",
+      "args": [
+        "a.n"
+      ],
+      "kwargs": {
+        "timeout": 30000
+      }
+    },
+    {
+      "description": "一直重复 “滚到页底然后 dump_page，再点击下一页” 操作，直到无法点击下一页按钮时停止。",
+      "fn": "dump_page_for_each",
+      "kwargs": {
+        "dump_tag_prefix": "search_pages",
+        "before_dump_steps": [
+          {
+            "fn": "page_scroll_down"
+          }
+        ],
+        "after_dump_steps": [
+          {
+            "fn": "page_click",
+            "args": [
+              "a.n"
+            ],
+            "kwargs": {
+              "has_text": "下一页",
+              "timeout": 20000
+            }
+          }
+        ],
+        "after_dump_break_by_timeout": true
+      }
+    }
+  ]
+}

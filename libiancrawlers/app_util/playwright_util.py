@@ -33,6 +33,10 @@ from libiancrawlers.app_util.networks.iputil import MyPublicIpInfo
 from libiancrawlers.app_util.types import LibianCrawlerInitConfDisabled, LaunchBrowserParam
 from libiancrawlers.util.fs import filename_slugify, get_file_hash_sha1
 
+if True:
+    # noinspection PyUnresolvedReferences
+    import aiohttp
+
 PLAYWRIGHT_LOCK = asyncio.Lock()
 PLAYWRIGHT_CONTEXT: Optional[PlaywrightContextManager] = None
 

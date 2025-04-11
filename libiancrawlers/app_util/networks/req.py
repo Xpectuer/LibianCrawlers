@@ -1,15 +1,10 @@
 # -*- coding: UTF-8 -*-
+import asyncio
 from io import BytesIO
-from typing import Literal, Dict, Optional, Union, List, Tuple, Callable, Awaitable, Any
-import asyncio
+from typing import Dict, Optional, Union, List, Tuple, Any
 
-import asyncio
-
-import aiohttp
 import curl_cffi.requests
-from curl_cffi.requests import ProxySpec, HttpMethod, Response
-
-from libiancrawlers.util.dicts import find_first_value_not_null
+from curl_cffi.requests import HttpMethod, Response
 
 
 async def request(

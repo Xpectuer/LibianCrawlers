@@ -1347,8 +1347,12 @@ export namespace DataClean {
 
       return v2;
     };
-    for (const detail of content_text_detail_uncleaned_timeline) {
-      const _value_cleand = clean_text(detail.value);
+    for (const content_text of [
+      ...(content_text_detail_uncleaned_timeline.length > 0
+        ? content_text_detail_uncleaned_timeline
+        : content_text_summary_uncleaned_timeline),
+    ]) {
+      const _value_cleand = clean_text(content_text.value);
       if (_value_cleand === null) {
         continue;
       }
@@ -1360,7 +1364,7 @@ export namespace DataClean {
               text: _value_cleand,
               is_summary: false,
             },
-            time: detail.time,
+            time: content_text.time,
           },
         ],
       });
@@ -2073,6 +2077,25 @@ export namespace Jsonatas {
             stdout_str,
             stdout_json,
           };
+        },
+        "<s:o>"
+      );
+      jsonata_exp.registerFunction(
+        "json_parse",
+        (str: string) => {
+          try {
+            return {
+              result: JSON5.parse(str),
+              success: true,
+              error: null,
+            };
+          } catch (err) {
+            return {
+              result: null,
+              success: false,
+              error: `${err} <<< source is : ${str}`,
+            };
+          }
         },
         "<s:o>"
       );

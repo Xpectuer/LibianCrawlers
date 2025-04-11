@@ -90,6 +90,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
     tag_texts: Set<string>;
     content_text_summary_uncleaned_timeline: DataMerge.Timeline<string>;
     content_text_detail_uncleaned_timeline: DataMerge.Timeline<string>;
+    content_text_latest: string;
   };
 
   export type ShopGoodMerged = Omit<ShopGood, never>;
@@ -539,6 +540,74 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             yield res;
             continue;
           }
+          if (
+            template_parse_html_tree.baidu &&
+            "results" in template_parse_html_tree.baidu &&
+            template_parse_html_tree.baidu.results
+          ) {
+            for (const bdres of template_parse_html_tree.baidu.results) {
+              if (!bdres.datatools.result) {
+                continue;
+              }
+              const { title, url } = bdres.datatools.result;
+              const content_link_url = DataClean.url_use_https_noempty(url);
+              let platform_duplicate_id: string;
+              if (
+                Strs.startswith(
+                  content_link_url,
+                  "https://www.baidu.com/link?url="
+                )
+              ) {
+                platform_duplicate_id = Strs.remove_prefix(
+                  content_link_url,
+                  "https://www.baidu.com/link?url="
+                );
+              } else {
+                console.warn(
+                  "content link url prefix not match , it is :",
+                  content_link_url
+                );
+                continue;
+              }
+              const res: MediaContent = {
+                last_crawl_time: Times.parse_text_to_instant(
+                  smart_crawl.g_create_time
+                ),
+                title,
+                content_text_summary: bdres.rows,
+                content_text_detail: null,
+                content_link_url,
+                authors: [],
+                platform: PlatformEnum.百度搜索,
+                platform_duplicate_id,
+                count_read: null,
+                count_like: null,
+                from_search_context: (() => {
+                  const { query_dict } =
+                    smart_crawl.g_content.dump_page_info?.frame_tree.url ?? {};
+                  if (query_dict && "wd" in query_dict) {
+                    return [{ question: query_dict.wd }];
+                  } else {
+                    return [];
+                  }
+                })(),
+                create_time: null,
+                update_time: null,
+                tags: null,
+                ip_location: null,
+                cover_url: null,
+                count_share: null,
+                count_star: null,
+                video_total_count_danmaku: null,
+                video_total_duration_sec: null,
+                count_comment: null,
+                platform_rank_score: null,
+                videos: null,
+              };
+              yield res;
+              continue;
+            }
+          }
         }
       } catch (err) {
         // console.warn('',{garbage})
@@ -749,7 +818,11 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               .array_wrap_nonnull()
               .map((it) => to_timeline_item(it)),
           });
-
+        const content_text_latest =
+          DataMerge.merge_and_sort_timeline({
+            old: content_text_summary_uncleaned_timeline,
+            timeline: content_text_detail_uncleaned_timeline,
+          }).findLast((it) => it.value)?.value ?? null;
         return {
           platform: cur.platform,
           platform_duplicate_id: cur.platform_duplicate_id,
@@ -774,6 +847,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           tag_texts,
           content_text_summary_uncleaned_timeline,
           content_text_detail_uncleaned_timeline,
+          content_text_latest: content_text_latest ? content_text_latest : "",
         };
       },
     });
@@ -1216,8 +1290,14 @@ export namespace LibianCrawlerCleanAndMergeUtil {
   }
 }
 
-async function _main() {
+async function _main_in_scope() {
   await ProcessBar.create_scope({ title: "LibianCrawler" }, async (bars) => {
+    console.debug("try connect to cleaned db");
+    // deno-lint-ignore require-await
+    await create_and_init_libian_srawler_database_scope(async (db) => {
+      console.debug("success connect to cleaned db", db);
+    });
+
     const reader =
       LibianCrawlerCleanAndMergeUtil.read_garbage_for_libian_crawler();
 
@@ -1359,6 +1439,10 @@ async function _main() {
       }
     });
   });
+}
+
+async function _main() {
+  return await _main_in_scope();
 }
 
 // ```

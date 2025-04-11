@@ -30,6 +30,10 @@ python-magic = "0.4.27"
 pypiwin32 = { version = "^223", platform = "win32" }
 miniopy-async = "^1.21.1"
 opentelemetry-instrumentation-urllib = "^0.52b1"
+fastapi = { extras = ["standard"], version = "^0.115.12" }
+pywebview = "^5.4"
+aiohttp = "^3.11"
+
 
 [tool.poetry.group.dev]
 optional = true
@@ -40,6 +44,13 @@ setuptools = "^75.8.0"
 [tool.poetry.group.test]
 optional = true
 
+[tool.poetry.group.apicrawler-bilibili]
+optional = true
+
+[tool.poetry.group.apicrawler-bilibili.dependencies]
+bilibili-api-python = "^17.1.4"
+
+
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
@@ -48,35 +59,22 @@ asyncio_default_fixture_loop_scope = "function"
 pytest-randomly = "^3.15.0"
 pytest = "^8.2.0"
 
-[tool.poetry.group.crawler-apilib-xiaohongshu]
-optional = true
 
-[tool.poetry.group.crawler-apilib-xiaohongshu.dependencies]
-xhs = "^0.2.13"
 
-[tool.poetry.group.crawler-apilib-bilibili]
-optional = true
 
-[tool.poetry.group.crawler-apilib-bilibili.dependencies]
-bilibili-api-dev = "^16.2.0b1"
 
-[tool.poetry.group.crawler-apilib-zhihu]
-optional = true
-
-[tool.poetry.group.crawler-apilib-zhihu.dependencies]
-pyexecjs = "^1.5.1"
-
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 camoufox-to-check-leak-website = "libiancrawlers.app_util.camoufox_util.camoufox_tests:to_check_leak_website"
 camoufox-to-check-go-back-button-available = "libiancrawlers.app_util.camoufox_util.camoufox_tests:to_check_go_back_button_available"
 smart-crawl = "libiancrawlers.crawlers.smart_crawl.smart_crawl:cli"
+start-worker-ui = "libiancrawlers.worker.ui:cli"
 
 [[tool.poetry.source]]
 name = "tsinghua"
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 priority = "primary"
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
