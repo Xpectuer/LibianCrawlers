@@ -1,36 +1,52 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { ref, shallowRef } from "vue";
+import { useAsyncState } from "@vueuse/core";
+import { useNodesStore } from "./stores/app";
+
+const api = shallowRef(pywebview.api);
+const nodesState = useNodesStore();
+
+const app_bar_items = ref([
+  {
+    label: "概览",
+    to: "/",
+  },
+  {
+    label: "任务",
+    to: "/tasks",
+  },
+  {
+    label: "节点",
+    to: "/nodes",
+  },
+  {
+    label: "设置",
+    to: "/setting",
+  },
+  {
+    label: "关于",
+    to: "/about",
+  },
+]);
+</script>
 
 <template>
-  <!-- app top bar -->
-  <div class="sticky top-0">
-    <div class="flex flex-row-reverse">
-      <Button
-        icon="pi pi-times"
-        severity="danger"
-        variant="text"
-        aria-label="Close"
-      />
-      <Button
-        icon="pi pi-minus"
-        severity="contrast"
-        variant="text"
-        aria-label="Minimize"
-      />
-      <Button
-        icon="pi pi-thumbtack"
-        severity="contrast"
-        variant="text"
-        aria-label="Pin"
-      />
+  <div v-if="nodesState.myIdentities" class="flex flex-col h-full">
+    <!-- app top bar -->
+    <div class="px-4">
+      <n-tabs type="line">
+        <n-tab :name="app_bar_item.label" v-for="app_bar_item in app_bar_items">
+          <router-link :to="app_bar_item.to">{{
+            app_bar_item.label
+          }}</router-link>
+        </n-tab>
+      </n-tabs>
     </div>
+    <RouterView />
   </div>
-  <!-- app side bar -->
-  <div class="flex flex-row h-full">
-    <!-- app side bar -->
-    <div class="flex flex-col min-w-1/5 h-full">aaaa</div>
-    <!-- app router view -->
-    <div class="flex flex-col grow h-full">
-      <RouterView />
+  <div v-else class="flex h-screen">
+    <div class="m-auto">
+      <p>在启动之前，需要设定本节点的身份。身份会</p>
     </div>
   </div>
 </template>

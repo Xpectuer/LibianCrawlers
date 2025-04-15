@@ -147,12 +147,16 @@ Deno.test(async function progress_bar_template_case() {
         { completed: completed2, total, text: "file2" },
       ]);
 
-      await delay(50);
+      await delay(20);
     }
   }
 
   await download();
 });
+
+// Deno.test(async function bar_out_of_range_test(){
+
+// })
 
 Deno.test(function is_deep_equal_test() {
   assert(!is_deep_equal(new Date(10000), new Date(200000)));

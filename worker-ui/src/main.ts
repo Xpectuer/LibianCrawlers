@@ -1,7 +1,5 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-import PrimeVue from "primevue/config";
-import Aura from "@primeuix/themes/aura";
 
 import App from "./App.vue";
 import router from "./router";
@@ -10,12 +8,6 @@ const app = createApp(App);
 
 app.use(createPinia());
 app.use(router);
-app.use(PrimeVue, {
-  theme: {
-    preset: Aura,
-  },
-});
-app.mount("#app");
 
 function check_or_init_app_context(
   resolve: () => void,
@@ -39,7 +31,7 @@ function check_or_init_app_context(
       );
     }
     try_init();
-  }, 2000);
+  }, 500);
 
   function try_init() {
     try {
@@ -90,7 +82,7 @@ function check_or_init_app_context(
 }
 
 await Promise.all([
-  import("primeicons/primeicons.css"),
+  import("vfonts/FiraCode.css"),
   import("./assets/main.css"),
   new Promise<void>((rs, rj) => {
     try {
@@ -102,3 +94,5 @@ await Promise.all([
 ]);
 
 console.info("All resource inited , main.ts finish");
+
+app.mount("#app");

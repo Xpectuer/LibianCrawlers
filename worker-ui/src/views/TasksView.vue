@@ -1,3 +1,6 @@
+<script setup lang="ts">
+
+</script>
 <template>
-  <div>sss</div>
+  <div class="flex flex-col gap-2 m-2"></div>
 </template>

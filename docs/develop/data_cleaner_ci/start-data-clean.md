@@ -5,13 +5,13 @@
 然后检查一下类型系统和测试用例有没有报错，如果报错的话可能是因为数仓的数据类型发生了变化、也可能是初始化后缺配置，需要手动调整。
 
 ```shell
-deno task prerun:check
+deno task step:check
 ```
 
 没问题的话就运行。
 
 ```shell
-deno task run:clean:libian_crawler
+deno task run:libian_crawler
 ```
 
 `clean_and_merge.ts` 脚本会先运行数据库迁移（在 `general_data_process/libian_crawler/migrations/` 目录下），

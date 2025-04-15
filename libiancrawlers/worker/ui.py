@@ -38,18 +38,18 @@ def _backend_thread(pass_args: dict):
         logger.debug('backend thread finish')
 
 
-def start_worker_ui(*, debug=False, vite_server_port=5173, no_frameless=False):
+def start_worker_ui(*, debug=False, vite_server_port=5173):
     logger.info('Start worker ui ...')
     jsapi = JsApi()
     window = webview.create_window(
-        title='LibianCrawlerWorkerUI',
+        title='LibianCrawler工作台',
         url=f'http://localhost:{vite_server_port}',
         width=750,
         height=750,
-        min_size=(380, 380),
-        frameless=not no_frameless,
+        # min_size=(380, 380),
+        frameless=False,
         text_select=True,
-        # easy_drag=False,
+        easy_drag=True,
         # shadow=True,
         # on_top=False,
         # transparent=False,

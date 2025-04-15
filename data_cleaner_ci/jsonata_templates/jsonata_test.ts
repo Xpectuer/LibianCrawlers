@@ -3,7 +3,12 @@ import path from "node:path";
 import { Jsonatas, Jsons, name_function, write_file } from "../util.ts";
 
 async function run_tests() {
-  for (const func_name of ["test_xhs", "test_yangkeduo", "test_baidu"]) {
+  for (const func_name of [
+    "test_xhs",
+    // "test_yangkeduo",
+    // "test_baidu",
+    "test_xhs2",
+  ]) {
     let target_file: string;
     const func_config_file = path.join(
       "user_code",
@@ -30,12 +35,15 @@ async function run_tests() {
     } catch (_err) {
       // not exist
       if (_err instanceof Deno.errors.NotFound) {
-        const _target_file = prompt(`
-🍒 请输入用于测试 ${func_name} 的示例文件相对路径（将会保存在 ${func_config_file} 下）。
-    (例如: data_cleaner_ci_generated/.cache_by_id/MyPGLibianCrawlerGarbage/1637.json )
-          `);
-        if (_target_file === null) {
-          throw new Error("stdin is not interactive");
+        let _target_file: string | null = "";
+        while (_target_file.trim() === "") {
+          _target_file = prompt(`
+            🍒 请输入用于测试 ${func_name} 的示例文件相对路径（将会保存在 ${func_config_file} 下）。
+                (例如: data_cleaner_ci_generated/.cache_by_id/MyPGLibianCrawlerGarbage/1637.json )
+                      `);
+          if (_target_file === null) {
+            throw new Error("stdin is not interactive");
+          }
         }
         target_file = _target_file;
         await write_file({

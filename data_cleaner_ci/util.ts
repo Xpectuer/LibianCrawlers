@@ -1672,7 +1672,20 @@ export namespace ProcessBar {
       console.debug("--- Process bar scope enter ---");
       const res = await scope({
         render: async (render_param) => {
-          await bars.render(render_param);
+          const arr = Jsons.copy(render_param);
+          for (let i = 0; i < arr.length; i++) {
+            const item = arr[i];
+            if (item.completed < 0) {
+              item.completed = 0;
+            }
+            if (item.total < 0) {
+              item.total = 0;
+            }
+            if (item.completed > item.total) {
+              item.total = item.completed;
+            }
+          }
+          await bars.render(arr);
         },
       });
       // await delay(1000);

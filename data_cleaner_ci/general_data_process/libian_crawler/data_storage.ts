@@ -3,9 +3,11 @@ import config from "../../config.ts";
 import { MediaContent, PlatformEnum } from "../media.ts";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
+import type { Options as PostgresOptions } from "postgres";
 import { DataMerge, Jsons } from "../../util.ts";
 import { PostgresColumnType } from "../../pg.ts";
 import dns from "node:dns/promises";
+import net from "node:net";
 
 export const _libian_crawler_cleaned = "libian_crawler_cleaned" as const;
 
@@ -181,18 +183,23 @@ export async function create_and_init_libian_srawler_database_scope<R>(
       ssl !== "allow" &&
       ssl !== "prefer" &&
       ssl !== "verify-full") ||
-    (typeof ssl !== "boolean" &&
+    (typeof ssl !== "string" &&
+      typeof ssl !== "boolean" &&
       typeof ssl !== "object" &&
       typeof ssl !== "undefined")
   ) {
     throw new Error(`Invalid connect_param.ssl : ${ssl}`);
   }
-
-  const sql = postgres({
+  // deno-lint-ignore ban-types
+  const postgres_options: PostgresOptions<{}> = {
     database: connect_param.dbname,
     ...connect_param,
     ssl,
-  });
+  };
+  // deno-lint-ignore no-explicit-any
+  // (postgr
+  
+  const sql = postgres(postgres_options);
   // https://github.com/porsager/postgres/issues/778#issuecomment-2154846646
   console.debug("Test SELECT 1", (await sql.unsafe("SELECT 1")).columns);
   const db = new Kysely<LibianCrawlerDatabase>({

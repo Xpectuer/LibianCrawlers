@@ -29,6 +29,7 @@ import {
   MediaVideo,
   PlatformEnum,
   MediaRelatedSearches,
+  MediaContentAuthor,
 } from "../media.ts";
 import { Paragraphs } from "../paragraph_analysis.ts";
 import { ShopGood } from "../shop_good.ts";
@@ -582,10 +583,14 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 platform_duplicate_id,
                 count_read: null,
                 count_like: null,
-                from_search_context: (() => {
+                from_search_context: ((): MediaSearchContext[] => {
                   const { query_dict } =
                     smart_crawl.g_content.dump_page_info?.frame_tree.url ?? {};
-                  if (query_dict && "wd" in query_dict) {
+                  if (
+                    query_dict &&
+                    "wd" in query_dict &&
+                    typeof query_dict.wd === "string"
+                  ) {
                     return [{ question: query_dict.wd }];
                   } else {
                     return [];
@@ -607,6 +612,160 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               yield res;
               continue;
             }
+          }
+          if (
+            template_parse_html_tree.xhs &&
+            "title" in template_parse_html_tree.xhs &&
+            typeof template_parse_html_tree.xhs.title === "string" &&
+            "author_username" in template_parse_html_tree.xhs &&
+            typeof template_parse_html_tree.xhs.author_username === "string"
+          ) {
+            const { xhs } = template_parse_html_tree;
+            const content_link_url_props =
+              smart_crawl.g_content.dump_page_info?.page_info_smart_wait.url;
+            if (typeof content_link_url_props?.url !== "string") {
+              console.warn("Why content_link_url_props?.url not string ?", {
+                content_link_url_props,
+                xhs,
+              });
+              continue;
+            }
+            const content_link_url = DataClean.url_use_https_noempty(
+              content_link_url_props.url
+            );
+            let platform_duplicate_id: string;
+            if (
+              Strs.startswith(
+                content_link_url,
+                "https://www.xiaohongshu.com/explore/"
+              )
+            ) {
+              const match_res =
+                /^https:\/\/www.xiaohongshu.com\/explore\/(.*)([?](.*))?$/g.exec(
+                  content_link_url
+                );
+              if (match_res && match_res[1]) {
+                platform_duplicate_id = match_res[1];
+              } else {
+                console.warn("Why match_res failed", {
+                  content_link_url_props,
+                  match_res,
+                  xhs,
+                });
+                continue;
+              }
+            } else {
+              console.warn("Why content_link_url not prefixed", {
+                content_link_url_props,
+                xhs,
+              });
+              continue;
+            }
+            let content_text_detail: string | null;
+            if ("desc" in xhs && typeof xhs.desc === "string") {
+              content_text_detail = xhs.desc;
+            } else {
+              content_text_detail = null;
+            }
+            let author: MediaContentAuthor | null = null;
+            if (xhs.author_username && xhs.author_link) {
+              const home_link_url = Arrays.first_or_null(
+                xhs.author_link.map((it) => {
+                  let u: string = it;
+                  if (!Strs.startswith(u, "https://")) {
+                    u = ["https://xiaohongshu.com", u]
+                      .map((it) => Strs.remove_prefix_suffix_recursion(it, "/"))
+                      .join("/");
+                  }
+                  return DataClean.url_use_https_noempty(u);
+                })
+              );
+              if (!home_link_url) {
+                continue;
+              }
+              let platform_user_id: string | undefined;
+              if (
+                Strs.startswith(
+                  home_link_url,
+                  "https://xiaohongshu.com/user/profile/"
+                )
+              ) {
+                platform_user_id = Strs.remove_prefix(
+                  home_link_url,
+                  "https://xiaohongshu.com/user/profile/"
+                )
+                  .split(/[\/\?]/g)
+                  .at(0);
+              } else {
+                console.warn(
+                  "Why home link url not startwith xhs user profile ?",
+                  { home_link_url, xhs }
+                );
+                continue;
+              }
+              if (!platform_user_id) {
+                console.warn("Why platform_user_id invalid ?", {
+                  platform_user_id,
+                  xhs,
+                });
+                continue;
+              }
+              author = {
+                nickname: xhs.author_username,
+                avater_url: DataClean.url_use_https_emptyable(
+                  xhs.author_avater
+                ),
+                home_link_url,
+                platform_user_id,
+              };
+            }
+            const res: MediaContent = {
+              last_crawl_time: Times.parse_text_to_instant(
+                smart_crawl.g_create_time
+              ),
+              title: xhs.title ?? "",
+              content_text_summary: null,
+              content_text_detail,
+              content_link_url,
+              authors: [...(author === null ? [] : [author])],
+              platform: PlatformEnum.小红书,
+              platform_duplicate_id,
+              count_read: null,
+              count_like: xhs.like
+                ? xhs.like === "点赞"
+                  ? BigInt(0)
+                  : DataClean.cast_and_must_be_natural_number(
+                      DataClean.parse_number(xhs.like, "raise")
+                    )
+                : null,
+              from_search_context: [],
+              create_time: null,
+              update_time: null,
+              tags: null,
+              ip_location: null,
+              cover_url: null,
+              count_share: null,
+              count_star: xhs.collect
+                ? xhs.collect === "收藏"
+                  ? BigInt(0)
+                  : DataClean.cast_and_must_be_natural_number(
+                      DataClean.parse_number(xhs.collect, "raise")
+                    )
+                : null,
+              video_total_count_danmaku: null,
+              video_total_duration_sec: null,
+              count_comment: xhs.comment
+                ? xhs.comment === "评论"
+                  ? BigInt(0)
+                  : DataClean.cast_and_must_be_natural_number(
+                      DataClean.parse_number(xhs.comment, "raise")
+                    )
+                : null,
+              platform_rank_score: null,
+              videos: null,
+            };
+            yield res;
+            continue;
           }
         }
       } catch (err) {
@@ -1290,7 +1449,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
   }
 }
 
-async function _main_in_scope() {
+async function _main() {
   await ProcessBar.create_scope({ title: "LibianCrawler" }, async (bars) => {
     console.debug("try connect to cleaned db");
     // deno-lint-ignore require-await
@@ -1439,10 +1598,6 @@ async function _main_in_scope() {
       }
     });
   });
-}
-
-async function _main() {
-  return await _main_in_scope();
 }
 
 // ```

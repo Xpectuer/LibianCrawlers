@@ -139,7 +139,13 @@ def _create_steps_api_functions(*,
         box = await _get_bounding_box(_page.locator('body'), timeout=1500)
         window_box = await get_window_inner_box()
         if box is None:
-            raise ValueError("Can't get body bounding box")
+            logger.warning("Can't get body bounding box")
+            box = {
+                'x': 0,
+                'y': 0,
+                'width': window_box['width'],
+                'height': window_box['height']
+            }
         logger.debug('on mouse random move , box is {} , window_box is {}', box, window_box)
         try:
             await page_mouse_move(
@@ -184,10 +190,6 @@ def _create_steps_api_functions(*,
         else:
             timeout = 4000
         res = await page.go_back(timeout=timeout, **kwargs)
-        logger.debug('page go back finish .' +
-                     '\n    from {}' +
-                     '\n    to {}',
-                     old_url, page.url, )
         return res
 
     @aioify
@@ -404,6 +406,50 @@ def _create_steps_api_functions(*,
                 detail_logd = page_click_if_found.get('detail_logd', False)
                 on_found_after_click_and_dump_steps = page_click_if_found.get('on_found_after_click_and_dump_steps')
                 on_before_click_steps = page_click_if_found.get('on_before_click_steps')
+
+                async def _get_key_txt_ctx_from_element_locator(*,
+                                                                _element_idx: Union[int, Literal['on update']],
+                                                                _element_locator: Locator):
+                    if not await _element_locator.is_visible():
+                        if detail_logd:
+                            logger.debug('skip nth {} because it not visible', _element_idx)
+                        return 'continue'
+                    _box = await _get_bounding_box(_element_locator)
+                    if _box is None:
+                        if detail_logd:
+                            logger.debug('skip nth {} because it box invalid', _element_idx)
+                        return 'continue'
+                    ___element_inner_text: str = await _element_locator.inner_text()
+                    while True:
+                        _old = ___element_inner_text
+                        ___element_inner_text = ___element_inner_text.replace(' ', '')
+                        ___element_inner_text = ___element_inner_text.replace('\n', '')
+                        ___element_inner_text = ___element_inner_text.replace('\t', '')
+                        if _old == ___element_inner_text:
+                            break
+                    if len(___element_inner_text) > 30:
+                        ___element_inner_text = ___element_inner_text[0:30]
+                    if duplicated_only_text:
+                        ___element_key = ___element_inner_text
+                    else:
+                        _element_hash = hashlib.md5(
+                            f'{await _element_locator.inner_html()}'.encode('utf-8')).hexdigest()
+                        ___element_key = f'{___element_inner_text}_{_element_hash}'
+                    if _box['width'] < 10 or _box['height'] < 10:
+                        if detail_logd:
+                            logger.warning(
+                                'why element box too small (and visible) , i will not click : _box={} , inner_html={}',
+                                _box, await _element_locator.inner_html())
+                        return 'continue'
+                    ___ctx = {
+                        'x': _box['x'],
+                        'y': _box['y'],
+                        'width': _box['width'],
+                        'height': _box['height'],
+                        'locator': _element_locator,
+                    }
+                    return ___element_key, ___element_inner_text, ___ctx
+
                 if window_box is not None:
                     async def _collect_elements():
                         logger.debug('start collect elements')
@@ -421,44 +467,12 @@ def _create_steps_api_functions(*,
                                             logger.warning('Not found element by selector {}', __locator)
                                     break
                                 _element_locator = _element_list_locator.nth(_element_idx)
-                                if not await _element_locator.is_visible():
-                                    if detail_logd:
-                                        logger.debug('skip nth {} because it not visible', _element_idx)
+                                __ctx_result = await _get_key_txt_ctx_from_element_locator(
+                                    _element_locator=_element_locator,
+                                    _element_idx=_element_idx)
+                                if __ctx_result == 'continue':
                                     continue
-                                _box = await _get_bounding_box(_element_locator)
-                                if _box is None:
-                                    if detail_logd:
-                                        logger.debug('skip nth {} because it box invalid', _element_idx)
-                                    continue
-                                _element_inner_text: str = await _element_locator.inner_text()
-                                while True:
-                                    _old = _element_inner_text
-                                    _element_inner_text = _element_inner_text.replace(' ', '')
-                                    _element_inner_text = _element_inner_text.replace('\n', '')
-                                    _element_inner_text = _element_inner_text.replace('\t', '')
-                                    if _old == _element_inner_text:
-                                        break
-                                if len(_element_inner_text) > 30:
-                                    _element_inner_text = _element_inner_text[0:30]
-                                if duplicated_only_text:
-                                    __element_key = _element_inner_text
-                                else:
-                                    _element_hash = hashlib.md5(
-                                        f'{await _element_locator.inner_html()}'.encode('utf-8')).hexdigest()
-                                    __element_key = f'{_element_inner_text}_{_element_hash}'
-                                if _box['width'] < 10 or _box['height'] < 10:
-                                    if detail_logd:
-                                        logger.warning(
-                                            'why element box too small (and visible) , i will not click : _box={} , inner_html={}',
-                                            _box, await _element_locator.inner_html())
-                                    continue
-                                __ctx = {
-                                    'x': _box['x'],
-                                    'y': _box['y'],
-                                    'width': _box['width'],
-                                    'height': _box['height'],
-                                    'locator': _element_locator,
-                                }
+                                __element_key, _element_inner_text, __ctx = __ctx_result
                                 if detail_logd:
                                     logger.debug(
                                         'found element:\n    _element_key is {}\n    inner text is {}\n    _ctx={}',
@@ -501,6 +515,22 @@ def _create_steps_api_functions(*,
                             break
                         try:
                             _element_key, _ctx = _element_info
+                            __ctx_result_on_update = await _get_key_txt_ctx_from_element_locator(
+                                _element_locator=_ctx['locator'],
+                                _element_idx='on update'
+                            )
+                            if __ctx_result_on_update != 'continue' and __ctx_result_on_update[0] != _element_key:
+                                logger.debug(
+                                    '这看起来像是个长虚拟列表 —— 会重复使用之前脱离视口的 DOM 节点去渲染，因此当使用 inner text 来做 element_key 时会发生问题。')
+                                logger.debug(
+                                    'This looks like a long virtual list - it will reuse DOM nodes that were previously out of the viewport for rendering,' +
+                                    'which will cause problems when using inner text as element_key:\n    _element_info={}\n    __ctx_result_on_update={}',
+                                    _element_info,
+                                    __ctx_result_on_update,
+                                )
+                                _element_key = __ctx_result_on_update[0]
+                                _ctx = __ctx_result_on_update[2]
+
                             if detail_logd:
                                 logger.debug('start process element {} ...', _element_key)
                             if _element_key in _elements_existed_keys:
