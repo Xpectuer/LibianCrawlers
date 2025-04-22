@@ -24,4 +24,9 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  server: {
+    port: 7007,
+    strictPort: true,
+    open: process.platform === "win32",
+  },
 });

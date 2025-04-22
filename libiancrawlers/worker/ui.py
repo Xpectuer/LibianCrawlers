@@ -38,7 +38,7 @@ def _backend_thread(pass_args: dict):
         logger.debug('backend thread finish')
 
 
-def start_worker_ui(*, debug=False, vite_server_port=5173):
+def start_worker_ui(*, debug=False, vite_server_port=7007):
     logger.info('Start worker ui ...')
     jsapi = JsApi()
     window = webview.create_window(
@@ -54,7 +54,7 @@ def start_worker_ui(*, debug=False, vite_server_port=5173):
         # on_top=False,
         # transparent=False,
         confirm_close=True,
-        js_api=jsapi
+        js_api=jsapi,
     )
     webview_variables_ref['window'] = window
     logger.debug('webview create window : {}', window)

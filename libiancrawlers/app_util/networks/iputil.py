@@ -1,8 +1,9 @@
 # -*- coding: UTF-8 -*-
 import asyncio
+import binascii
 import ipaddress
 from collections import Counter
-from typing import TypedDict, Optional
+from typing import TypedDict, Optional, Union
 
 from loguru import logger
 
@@ -79,6 +80,20 @@ async def get_my_public_ip_info() -> MyPublicIpInfo:
         'public_ip_v4': public_ip_v4,
         'public_ip_v6': public_ip_v6,
     }
+
+
+def get_ipaddr_prop(addr: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]):
+    return dict(
+        version=addr.version,
+        max_prefixlen=addr.max_prefixlen,
+        is_global=addr.is_global,
+        is_link_local=addr.is_link_local,
+        is_private=addr.is_private,
+        is_multicast=addr.is_multicast,
+        is_loopback=addr.is_loopback,
+        is_unspecified=addr.is_unspecified,
+        hex=binascii.hexlify(addr.packed)
+    )
 
 
 if __name__ == '__main__':

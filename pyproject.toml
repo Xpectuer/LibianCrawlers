@@ -34,6 +34,9 @@ fastapi = { extras = ["standard"], version = "^0.115.12" }
 pywebview = "^5.4"
 aiohttp = "^3.11"
 cryptography = "^44.0.2"
+aioquic = "^1.2.0"
+aioudp = "^2.0.0"
+multiaddr = "^0.0.9"
 
 
 [tool.poetry.group.dev]
@@ -57,6 +60,11 @@ asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 
 
+
+
+
+
+
 [tool.poetry.group.test.dependencies]
 pytest-randomly = "^3.15.0"
 pytest = "^8.2.0"
@@ -74,6 +82,7 @@ camoufox-to-check-leak-website = "libiancrawlers.app_util.camoufox_util.camoufox
 camoufox-to-check-go-back-button-available = "libiancrawlers.app_util.camoufox_util.camoufox_tests:to_check_go_back_button_available"
 smart-crawl = "libiancrawlers.crawlers.smart_crawl.smart_crawl:cli"
 start-worker-ui = "libiancrawlers.worker.ui:cli"
+start-worker-core = "libiancrawlers.worker.core:cli"
 
 [[tool.poetry.source]]
 name = "tsinghua"

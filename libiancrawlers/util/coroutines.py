@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import asyncio
 import functools
-import sys
+from threading import Condition
 from datetime import datetime
 from typing import TypeVar, Any, Coroutine, Callable, Optional, Awaitable, List
 from typing_extensions import ParamSpec
@@ -60,7 +60,7 @@ def blocking_func(
     return deco
 
 
-async def sleep(total: float, *, interval: float = 3, checker: Optional[Callable[[], Awaitable[bool]]] = None):
+async def sleep(total: float, *, interval: float = 0.5, checker: Optional[Callable[[], Awaitable[bool]]] = None):
     start = datetime.utcnow().timestamp()
     end = start + total
     now = start
@@ -76,6 +76,39 @@ async def sleep(total: float, *, interval: float = 3, checker: Optional[Callable
 
 # async def promise_any(promises: List[Awaitable[T]]):
 #     return await asyncio.gather(*promises)
+
+class CountDownLaunch:
+    def __init__(self, count: int):
+        self._count = count
+        self._condition = Condition()
+
+    def wait_sync(self, timeout: Optional[float] = None):
+        start = datetime.utcnow().timestamp()
+        self._condition.acquire()
+        try:
+            while True:
+                if timeout is not None and timeout > 0 and datetime.utcnow().timestamp() > start + timeout:
+                    return False
+                if self._count > 0:
+                    self._condition.wait(timeout=timeout / 10.0 if timeout is not None else None)  # wakeup by notifyAll
+                if self._count <= 0:
+                    return True
+        finally:
+            self._condition.release()
+
+    async def wait_async(self, loop: asyncio.AbstractEventLoop, timeout: Optional[float] = None):
+        return await loop.run_in_executor(None, self.wait_sync, timeout)
+
+    def count_down_sync(self):
+        self._condition.acquire()
+        try:
+            self._count -= 1
+            self._condition.notify_all()
+        finally:
+            self._condition.release()
+
+    async def count_down_async(self, loop: asyncio.AbstractEventLoop):
+        return await loop.run_in_executor(None, self.count_down_sync)
 
 
 if __name__ == '__main__':
