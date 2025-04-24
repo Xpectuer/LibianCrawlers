@@ -4,6 +4,7 @@ export enum PlatformEnum {
   哔哩哔哩 = "bilibili.com",
   拼多多h5yangkeduo = "mobile.yangkeduo.com",
   百度搜索 = "www.baidu.com",
+  知网 = "cnki.net",
 }
 
 export type MediaContentTag = {
@@ -127,6 +128,23 @@ export type MediaContent = {
    * 视频列表
    */
   videos: MediaVideo[] | null;
+  /**
+   * 文献相关
+   */
+  literatures: Literature[] | null;
+};
+
+export type Literature = {
+  journal: string | null;
+  doi: string | null;
+  category: string | null;
+  level_of_evidence: string | null;
+  // album: string | null;
+  // theme: string | null;
+  // funds: string[] | null;
+  // author_organizations:
+  //   | { nickname: string; webpages: string[] | null }[]
+  //   | null;
 };
 
 export type MediaVideo = {

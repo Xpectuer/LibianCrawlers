@@ -15,9 +15,11 @@ async def search(*,
                  fetch_all_content: bool = False,
                  fetch_all_comment: bool = False,
                  retry: int = 0,
+                 save_file_json_indent: int = 2,
                  ):
-    from libiancrawlers.app_util.crawlers_util import on_before_retry_default
-    from libiancrawlers.app_util.search import SearchByKeywordContext, SearchByKeywordResult, abstract_search
+    from libiancrawlers.app_util.apicrawler_util import on_before_retry_default
+    from libiancrawlers.app_util.apicrawler_util.search import SearchByKeywordContext, SearchByKeywordResult, \
+        abstract_search
 
     search_type_allow = [e.value for e in SearchObjectType]
     if search_type not in search_type_allow:
@@ -28,7 +30,7 @@ async def search(*,
                 keyword=keyword,
                 page=page,
                 search_type=SearchObjectType(search_type),
-                debug_param_func=lambda it: logger.debug('Debug in bilibili_api.search.search_by_type : {}', it)
+                # debug_param_func=lambda it: logger.debug('Debug in bilibili_api.search.search_by_type : {}', it)
             )
 
         # search_sync = async_to_sync.function(search_async)

@@ -14,6 +14,7 @@ import {
   DataMerge,
   Errors,
   is_nullish,
+  Jsons,
   Mappings,
   Nums,
   ProcessBar,
@@ -39,6 +40,7 @@ import {
   ShopGoodTable,
 } from "./data_storage.ts";
 import { pg_dto_equal } from "../../pg.ts";
+import { it } from "node:test";
 
 // deno-lint-ignore no-namespace
 export namespace LibianCrawlerCleanAndMergeUtil {
@@ -231,6 +233,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                   ]
                 : []),
             ],
+            literatures: null,
           };
           yield res;
         } else if (garbage.group__xiaohongshu_search_result__lib_xhs) {
@@ -295,6 +298,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 count_read: null,
                 video_total_count_danmaku: null,
                 video_total_duration_sec: null,
+                literatures: null,
               };
               yield res;
             }
@@ -433,6 +437,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               ip_location: null,
               count_share: null,
               count_comment: null,
+              literatures: null,
             };
             yield res;
           }
@@ -608,6 +613,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 count_comment: null,
                 platform_rank_score: null,
                 videos: null,
+                literatures: null,
               };
               yield res;
               continue;
@@ -763,9 +769,106 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 : null,
               platform_rank_score: null,
               videos: null,
+              literatures: null,
             };
             yield res;
             continue;
+          }
+          if (
+            template_parse_html_tree.cnki &&
+            "summary" in template_parse_html_tree.cnki &&
+            template_parse_html_tree.cnki.summary
+          ) {
+            const cnki = template_parse_html_tree.cnki;
+            const url =
+              smart_crawl.g_content.dump_page_info?.page_info_smart_wait.url
+                .url;
+            const { title } = cnki;
+            if (!url || !title) {
+              continue;
+            }
+            const content_link_url = DataClean.url_use_https_noempty(url);
+            const authors =
+              typeof cnki.authors === "undefined"
+                ? []
+                : Array.isArray(cnki.authors)
+                ? cnki.authors
+                : [cnki.authors];
+            const page_info_smart_wait =
+              smart_crawl.g_content.dump_page_info?.page_info_smart_wait;
+            let search_keyword: string | null = null;
+            if (smart_crawl.g_content.cmd_param_json.steps) {
+              const { searchParams } =
+                URL.parse(smart_crawl.g_content.cmd_param_json.steps) ?? {};
+              if (searchParams && searchParams.get("q")) {
+                search_keyword = searchParams.get("q");
+              }
+            }
+            const res: MediaContent = {
+              last_crawl_time: Times.parse_text_to_instant(
+                smart_crawl.g_create_time
+              ),
+              title,
+              content_text_summary: cnki.summary ?? "",
+              content_text_detail: null,
+              content_link_url,
+              authors: authors.map((it) => ({
+                platform_user_id: `PersonName---${it.name}`,
+                nickname: it.name,
+                avater_url: null,
+                home_link_url: DataClean.url_use_https_noempty(it.href),
+              })),
+              platform: PlatformEnum.知网,
+              platform_duplicate_id: `TitleAuthors---${title}---${authors
+                .map((it) => it.name)
+                .join(";")}`,
+              count_read: null,
+              count_like: null,
+              from_search_context: !search_keyword
+                ? []
+                : [
+                    {
+                      question: search_keyword,
+                    },
+                  ],
+              create_time: !cnki.public_time
+                ? null
+                : Times.parse_text_to_instant(cnki.public_time.split("（")[0]),
+              update_time: null,
+              tags: cnki.keywords?.map((it) => ({ text: it })) ?? null,
+              ip_location: null,
+              cover_url:
+                typeof page_info_smart_wait === "object" &&
+                "files" in page_info_smart_wait &&
+                typeof page_info_smart_wait.files === "object" &&
+                "public_url" in page_info_smart_wait.files &&
+                page_info_smart_wait.files.public_url
+                  ? DataClean.url_use_https_noempty(
+                      page_info_smart_wait.files.public_url
+                    )
+                  : null,
+              count_share: null,
+              count_star: null,
+              video_total_count_danmaku: null,
+              video_total_duration_sec: null,
+              count_comment: null,
+              platform_rank_score: null,
+              videos: null,
+              literatures: [
+                {
+                  journal: cnki.journal
+                    ? Strs.remove_prefix_suffix_recursion(
+                        cnki.journal,
+                        "."
+                      ).trim()
+                    : null,
+                  doi: cnki.doi ? cnki.doi.trim() : null,
+                  category: null,
+                  level_of_evidence: null,
+                },
+              ],
+            };
+            yield res;
           }
         }
       } catch (err) {
@@ -982,6 +1085,24 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             old: content_text_summary_uncleaned_timeline,
             timeline: content_text_detail_uncleaned_timeline,
           }).findLast((it) => it.value)?.value ?? null;
+        let literatures: MediaContent["literatures"] = prev?.literatures ?? [];
+        if (cur.literatures && cur.literatures.length >= 1) {
+          literatures.push(...cur.literatures);
+        }
+        literatures = literatures.filter(
+          (it) =>
+            Mappings.object_entries(it).filter((e) => {
+              const v = e[1];
+              return (
+                v !== null &&
+                v !== undefined &&
+                (typeof v !== "string" || v.length > 0)
+              );
+            }).length > 0
+        );
+        if (literatures.length <= 0) {
+          literatures = null;
+        }
         return {
           platform: cur.platform,
           platform_duplicate_id: cur.platform_duplicate_id,
@@ -1007,6 +1128,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           content_text_summary_uncleaned_timeline,
           content_text_detail_uncleaned_timeline,
           content_text_latest: content_text_latest ? content_text_latest : "",
+          literatures,
         };
       },
     });
@@ -1197,6 +1319,10 @@ export namespace LibianCrawlerCleanAndMergeUtil {
       const author_first_platform_user_id = chain(() => author_first?.[0])
         .map((it) => (it === null ? null : `${it}`))
         .get_value();
+      const literature_first =
+        value.literatures === null || value.literatures === undefined
+          ? null
+          : Arrays.first_or_null(value.literatures);
       const {
         content_text_timeline_count,
         context_text_latest_str_length,
@@ -1284,6 +1410,27 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         context_text_latest_lines_count:
           context_text_latest?.split("\n").length?.toString() ?? null,
         last_crawl_time: Times.instant_to_date(value.last_crawl_time),
+        authors_names: chain(() =>
+          value.authors
+            .values()
+            .map((it) => Arrays.last_or_null(it)?.value?.nickname)
+            .toArray()
+            .filter((it) => typeof it === "string")
+            .filter((it) => it.length > 0)
+            .join(",")
+        )
+          .map((it) => (it ? it : null))
+          .get_value(),
+        from_search_question_texts: chain(() =>
+          value.from_search_questions.values().toArray().join(",")
+        )
+          .map((it) => (it ? it : null))
+          .get_value(),
+        literature_first_journal: literature_first?.journal ?? null,
+        literature_first_doi: literature_first?.doi ?? null,
+        literature_first_category: literature_first?.category ?? null,
+        literature_first_level_of_evidence:
+          literature_first?.level_of_evidence ?? null,
       } satisfies Omit<
         Parameters<ReturnType<typeof db.insertInto<typeof table>>["values"]>[0],
         "id"

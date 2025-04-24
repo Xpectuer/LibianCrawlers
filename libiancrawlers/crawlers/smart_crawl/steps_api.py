@@ -47,13 +47,11 @@ def _create_steps_api_functions(*,
                                 _process_steps: Callable[
                                     [StepsBlock],
                                     Awaitable,
-                                ]
+                                ],
+                                _page_ref_lock: asyncio.locks.Lock,
+                                _page_ref: PageRef
                                 ):
-    from asyncio import locks
     from libiancrawlers.app_util.gui_util import gui_confirm
-
-    _page_ref_lock = locks.Lock()
-    _page_ref: PageRef = {'value': b_page}
 
     async def get_window_inner_box():
         _page = await get_page()
@@ -81,33 +79,46 @@ def _create_steps_api_functions(*,
         logger.debug('set page to {}', v)
 
     async def switch_page(to: Union[int, Literal['default'], Page]):
-        await sleep(1)
-        if to == 'default':
-            res = b_page
-        elif isinstance(to, int):
-            logger.debug('all pages : {}', browser_context.pages)
-            res = browser_context.pages[to]
-        elif isinstance(to, Page):
-            res = to
-        else:
-            raise ValueError(f'Invalid param {to}')
-        _old_page = await get_page()
-        from_title = await _old_page.title()
-        to_title_prev = await res.title()
-        logger.debug('Start switch page {} : from {} , to title on create {}',
-                     to,
-                     from_title,
-                     to_title_prev,
-                     )
-        await page_wait_loaded(page=res)
-        to_title_cur = await res.title()
-        await set_page(res)
-        logger.debug('Finish switch page {} : from {} , to title ( {} >>> {} )',
-                     to,
-                     from_title,
-                     to_title_prev,
-                     to_title_cur)
-        await sleep(1)
+        try:
+            await sleep(1)
+            if to == 'default':
+                res = b_page
+            elif isinstance(to, int):
+                logger.debug('all pages : {}', browser_context.pages)
+                len_all_pages = browser_context.pages.__len__()
+                res = browser_context.pages[
+                    len_all_pages - 1 if to > 0 and to >= len_all_pages else -1
+                    if to < 0 and abs(to) > len_all_pages else to
+                ]
+            elif isinstance(to, Page):
+                res = to
+            else:
+                raise ValueError(f'Invalid param {to}')
+            _old_page = await get_page()
+            from_title = await _old_page.title()
+            to_title_prev = await res.title()
+            logger.debug('Start switch page {} : from {} , to title on create {}',
+                         to,
+                         from_title,
+                         to_title_prev,
+                         )
+            await page_wait_loaded(page=res)
+            to_title_cur = await res.title()
+            await set_page(res)
+            logger.debug('Finish switch page {} : from {} , to title ( {} >>> {} )',
+                         to,
+                         from_title,
+                         to_title_prev,
+                         to_title_cur)
+            await sleep(1)
+            while (await get_page()).url != res.url:
+                logger.warning('It seems like ref not change , recall again')
+                await switch_page(to)
+        except BaseException as err:
+            if is_timeout_error(err):
+                logger.debug('switch page timeout ? maybe system blocking ? we will retry')
+                await switch_page(to)
+            raise
 
     async def page_wait_loaded(*, page: Page = None):
         if page is None:
@@ -584,6 +595,8 @@ def _create_steps_api_functions(*,
                                                 return False
                                             else:
                                                 raise _err
+                                    else:
+                                        return True
 
                                 try:
                                     await page_click(
@@ -598,7 +611,9 @@ def _create_steps_api_functions(*,
                                     else:
                                         logger.warning(
                                             'Timeout on page_click , please set `check_selector_exist_after_click` to avoid it')
+
                                 if not await _check_steps():
+                                    logger.debug('check steps return False , continue to next element')
                                     continue
 
                                 await sleep(0.5)
@@ -920,6 +935,14 @@ def _create_steps_api_functions(*,
             else:
                 logger.debug('url is {} , it not in {} , please set `else_steps`', _page.url, args)
 
+    async def page_close():
+        _cur_page = await get_page()
+        await switch_page(-2)
+        await sleep(0.5)
+        await _cur_page.close()
+        await sleep(0.5)
+        await switch_page(-1)
+
     fn_map = {
         'sleep': api_sleep,
         'logd': logd,
@@ -929,7 +952,7 @@ def _create_steps_api_functions(*,
         # 'dump_page': dump_page,
         'dump_page_for_each': dump_page_for_each,
         'gui_confirm': gui_confirm,
-        # 'switch_page': switch_page,
+        'switch_page': switch_page,
         'page_random_mouse_move': page_random_mouse_move,
         'page_wait_loaded': page_wait_loaded,
         # 'page_bring_to_front': page_bring_to_front,
@@ -943,6 +966,7 @@ def _create_steps_api_functions(*,
         'page_go_back': page_go_back,
         'page_click_and_expect_element_destroy': page_click_and_expect_element_destroy,
         'if_url_is': if_url_is,
+        'page_close': page_close,
     }
 
     return fn_map

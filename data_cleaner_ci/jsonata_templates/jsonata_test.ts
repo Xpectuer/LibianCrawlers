@@ -4,10 +4,11 @@ import { Jsonatas, Jsons, name_function, write_file } from "../util.ts";
 
 async function run_tests() {
   for (const func_name of [
-    "test_xhs",
+    // "test_xhs",
     // "test_yangkeduo",
     // "test_baidu",
-    "test_xhs2",
+    // "test_xhs2",
+    "test_cnki"
   ]) {
     let target_file: string;
     const func_config_file = path.join(

@@ -37,6 +37,10 @@ cryptography = "^44.0.2"
 aioquic = "^1.2.0"
 aioudp = "^2.0.0"
 multiaddr = "^0.0.9"
+python-dateutil = "^2.9.0.post0"
+typing-extensions = "^4.13.2"
+pydantic = "^2.11.3"
+urllib3 = "^2.4.0"
 
 
 [tool.poetry.group.dev]
@@ -48,12 +52,18 @@ setuptools = "^75.8.0"
 [tool.poetry.group.test]
 optional = true
 
+[tool.poetry.group.apicrawler-entrezapi]
+optional = true
+
+[tool.poetry.group.apicrawler-entrezapi.dependencies]
+biopython = "^1.85"
+
+
 [tool.poetry.group.apicrawler-bilibili]
 optional = true
 
 [tool.poetry.group.apicrawler-bilibili.dependencies]
 bilibili-api-python = "^17.1.4"
-
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
@@ -61,17 +71,9 @@ asyncio_default_fixture_loop_scope = "function"
 
 
 
-
-
-
-
 [tool.poetry.group.test.dependencies]
 pytest-randomly = "^3.15.0"
 pytest = "^8.2.0"
-
-
-
-
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -83,6 +85,7 @@ camoufox-to-check-go-back-button-available = "libiancrawlers.app_util.camoufox_u
 smart-crawl = "libiancrawlers.crawlers.smart_crawl.smart_crawl:cli"
 start-worker-ui = "libiancrawlers.worker.ui:cli"
 start-worker-core = "libiancrawlers.worker.core:cli"
+api-crawl-entrezapi-search = "libiancrawlers.crawlers.apilib.entrezapi.search:cli"
 
 [[tool.poetry.source]]
 name = "tsinghua"

@@ -1,12 +1,16 @@
 # -*- coding: UTF-8 -*-
-from typing import Union, Tuple, Callable, TypedDict, Optional, Awaitable
+import datetime
+import json
+import os
+from typing import Union, Tuple, Callable, TypedDict, Optional, Awaitable, Literal
 
+import aiofiles.os
 from loguru import logger
 
-from libiancrawlers.app_util.crawlers_util import log_debug_which_object_maybe_very_length
 from libiancrawlers.app_util.config import read_config
 from libiancrawlers.app_util.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.app_util.types import JSON
+from libiancrawlers.util.fs import filename_slugify, mkdirs
 
 
 class UnknownReasonContinuousFailed(Exception):
@@ -23,22 +27,39 @@ SearchByKeywordResult = TypedDict('SearchByKeywordResult', {
     'has_more': bool,
 })
 
+_valid_api_crawl_mode = ['insert_to_db', 'save_file', 'save_file_and_insert_to_db']
+ApiCrawlMode = Literal['all', 'insert_to_db', 'save_file', 'save_file_and_insert_to_db']
+
 
 async def abstract_search(*,
+                          mode: ApiCrawlMode,
+                          output_dir: Optional[str],
                           keywords: Union[str, Tuple[str]],
                           page_max: Optional[int],
                           page_size: Optional[int],
-                          fetch_all_content: bool = False,
-                          fetch_all_comment: bool = False,
-                          retry_max: int = 0,
+                          page_size_ignore=False,
+                          fetch_all_content: bool,
+                          fetch_all_comment: bool,
+                          retry_max: int,
                           platform_id: str,
                           crawler_tag: JSON,
                           on_init: Callable[[], Awaitable[None]],
                           # on_get_content: Callable[[], None],
                           on_search_by_keyword: Callable[[SearchByKeywordContext], Awaitable[SearchByKeywordResult]],
                           on_before_retry: Callable[[int], Awaitable[bool]],
-                          page_size_ignore=False,
                           ):
+    from libiancrawlers.app_util.apicrawler_util import log_debug_which_object_maybe_very_length
+
+    if mode == 'all':
+        mode = 'save_file_and_insert_to_db'
+    if mode not in _valid_api_crawl_mode:
+        raise ValueError(f'Invalid mode {mode} , valid value should in {_valid_api_crawl_mode}')
+    is_save_file = mode == 'save_file' or mode == 'save_file_and_insert_to_db'
+    is_insert_to_db = mode == 'insert_to_db' or mode == 'save_file_and_insert_to_db'
+
+    if output_dir is None:
+        output_dir = os.path.join('.data', 'apilib', filename_slugify(platform_id, allow_unicode=True), 'search')
+
     if isinstance(keywords, str):
         keywords = keywords.split(',')
 
@@ -113,7 +134,7 @@ async def abstract_search(*,
                                                              obj=res,
                                                              max_output_length=200)
 
-                    await insert_to_garbage_table(
+                    _output = dict(
                         g_type=f'{platform_id}_search_result',
                         g_content=dict(
                             result=res.get('search_result'),
@@ -125,8 +146,21 @@ async def abstract_search(*,
                         ),
                         g_search_key=keyword,
                     )
+                    if is_insert_to_db:
+                        await insert_to_garbage_table(**_output)
+                    if is_save_file:
+                        await mkdirs(output_dir)
+                        async with aiofiles.open(
+                                os.path.join(
+                                    output_dir,
+                                    f'{filename_slugify(int(datetime.datetime.utcnow().timestamp() * 1000), allow_unicode=True)}.json'
+                                ),
+                                mode='wt',
+                                encoding='utf-8') as f:
+                            await f.write(json.dumps(_output, ensure_ascii=False, indent=2))
 
                     if not res.get('has_more'):
+                        logger.debug('continue to fetch page because has_more = {}', res.get('has_more'))
                         break
 
             logger.info('Finish search {} from {}', keywords, platform_id)

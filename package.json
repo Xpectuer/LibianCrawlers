@@ -2,11 +2,14 @@
   "scripts": {
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "openapi:gen:entrez": "npx @openapitools/openapi-generator-cli generate -i https://www.ncbi.nlm.nih.gov/datasets/docs/v2/openapi3/openapi3.docs.yaml -g python -o .data/openapigen-temp/entrezapi --package-name \"openapigen.ncbi.datasets\" --additional-properties=pythonAttrNoneIfUnset=true && shx cp -r .data/openapigen-temp/entrezapi/openapigen/ncbi ./openapigen/"
   },
   "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.19.1",
     "@types/node": "^22.13.13",
     "markdown-it-checkbox": "^1.1.0",
+    "shx": "^0.4.0",
     "vitepress": "^1.6.3",
     "vitepress-sidebar": "^1.31.0"
   }

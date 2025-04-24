@@ -1209,6 +1209,86 @@
               "type": "string"
             }
           }
+        },
+        {
+          "description": "关闭当前页面。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_close"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "additionalItems": false,
+              "minItems": 0,
+              "maxItems": 0
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 0,
+              "maxProperties": 0
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "切换当前页面指针。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "switch_page"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "additionalItems": false,
+              "minItems": 1,
+              "maxItems": 1,
+              "items": [
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 0,
+              "maxProperties": 0
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
         }
       ]
     },

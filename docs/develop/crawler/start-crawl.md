@@ -1,8 +1,10 @@
-# 3-从命令行启动爬虫
+# 3-启动爬虫
 
 ## 爬虫功能模块完成进度
 
 以下是爬虫模块完成进度表。
+
+### SmartCrawl
 
 | 平台  | 爬取搜索菜单 | 清洗搜索菜单 | 爬取搜索结果的商品/帖子详情 | 清洗搜索结果的商品/帖子详情 | 爬取评论区 | 清洗评论区 |
 |-----|--------|--------|----------------|----------------|-------|-------|
@@ -10,6 +12,9 @@
 | 拼多多 | ✔️     |        | ✔️             | ✔️             | todo  | todo  |
 | 小红书 | ✔️     | todo   | ✔️             | todo           | todo  | todo  |
 | 百度  | ✔️     | ✔️     | todo           | todo           |       |       |
+| 知网  |
+
+### ApiCrawl
 
 ## 命令参数
 
@@ -41,4 +46,10 @@ poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --s
 
 ```shell
 poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --steps jsonfile:steps/baidu.json?q=吹风机
+```
+
+### 知网搜索
+
+```shell
+poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --steps jsonfile:steps/cnki-search.json?q=肺动脉高压
 ```

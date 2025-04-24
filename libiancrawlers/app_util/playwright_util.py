@@ -2,6 +2,7 @@
 import asyncio
 import base64
 import pathlib
+import typing
 from datetime import datetime
 import json
 import os.path
@@ -14,6 +15,7 @@ import aiofiles.os
 import aiofiles.ospath
 
 from libiancrawlers.app_util.networks.proxies import monkey_patch_hook_urllib
+from libiancrawlers.util.exceptions import is_timeout_error
 
 monkey_patch_hook_urllib()
 
@@ -36,6 +38,8 @@ from libiancrawlers.util.fs import filename_slugify, get_file_hash_sha1
 if True:
     # noinspection PyUnresolvedReferences
     import aiohttp
+
+T = typing.TypeVar('T')
 
 PLAYWRIGHT_LOCK = asyncio.Lock()
 PLAYWRIGHT_CONTEXT: Optional[PlaywrightContextManager] = None
@@ -149,21 +153,78 @@ def url_parse_to_dict(url: Optional[str]) -> Optional[ResultOfUrlParseToDict]:
     return _res
 
 
+async def _should_not_timeout_async(*,
+                                    func: Callable[[Any], typing.Coroutine[Any, Any, T]],
+                                    args: Optional[List[Any]] = None,
+                                    kwargs: Optional[Dict[str, Any]] = None,
+                                    timeout=5,
+                                    none_on_timeout=False
+                                    ) -> T:
+    if args is None:
+        args = []
+    if kwargs is None:
+        kwargs = dict()
+
+    future = func(*args, **kwargs)
+    try:
+        return await asyncio.wait_for(future, timeout=timeout)
+    except BaseException as err:
+        if is_timeout_error(err):
+            logger.warning('Why func {} timeout {}s ? args is {} , kwargs is {}',
+                           func, timeout, args, kwargs)
+            if none_on_timeout:
+                return None
+            return await _should_not_timeout_async(func=func, args=args, kwargs=kwargs, timeout=timeout,
+                                                   none_on_timeout=none_on_timeout)
+        else:
+            raise
+
+
+async def _should_not_timeout_sync(*,
+                                   func: Callable[[Any], T],
+                                   args: Optional[List[Any]] = None,
+                                   kwargs: Optional[Dict[str, Any]] = None,
+                                   timeout=5,
+                                   none_on_timeout=False) -> T:
+    if args is None:
+        args = []
+    if kwargs is None:
+        kwargs = dict()
+
+    def run():
+        return func(*args, **kwargs)
+
+    future = asyncio.get_event_loop().run_in_executor(None, run)
+    try:
+        return await asyncio.wait_for(future, timeout=timeout)
+    except BaseException as err:
+        if is_timeout_error(err):
+            logger.warning('Why func {} timeout {}s ? arg is {} , kwargs is {}',
+                           func, timeout, args, kwargs)
+            if none_on_timeout:
+                return None
+            return await _should_not_timeout_sync(func=func, args=args, kwargs=kwargs, timeout=timeout,
+                                                  none_on_timeout=none_on_timeout)
+        else:
+            raise
+
+
 async def response_to_dict(resp: Optional[playwright.async_api.Response]):
     if resp is None:
         return None
+
     return dict(
         url=url_parse_to_dict(resp.url),
-        ok=resp.ok,
-        status=resp.status,
-        status_text=resp.status_text,
-        headers=resp.headers,
-        from_service_worker=resp.from_service_worker,
-        request=await request_info_to_dict(resp.request),
-        all_headers=await resp.all_headers(),
-        headers_array=await resp.headers_array(),
-        server_addr=await resp.server_addr(),
-        security_details=await resp.security_details(),
+        ok=await _should_not_timeout_sync(func=lambda: resp.ok),
+        status=await _should_not_timeout_sync(func=lambda: resp.status),
+        status_text=await _should_not_timeout_sync(func=lambda: resp.status_text),
+        headers=await _should_not_timeout_sync(func=lambda: resp.headers),
+        from_service_worker=await _should_not_timeout_sync(func=lambda: resp.from_service_worker),
+        request=await _should_not_timeout_async(func=request_info_to_dict, args=[resp.request], timeout=20),
+        all_headers=await _should_not_timeout_async(func=resp.all_headers),
+        headers_array=await _should_not_timeout_async(func=resp.headers_array),
+        server_addr=await _should_not_timeout_async(func=resp.server_addr),
+        security_details=await _should_not_timeout_async(func=resp.security_details),
     )
 
 
@@ -171,19 +232,28 @@ async def request_info_to_dict(req: Optional[playwright.async_api.Request]):
     if req is None:
         return None
     return dict(
-        url=url_parse_to_dict(req.url),
-        resource_type=req.resource_type,
-        method=req.method,
-        post_data_buffer=req.post_data_buffer,
-        redirected_from=await request_info_to_dict(req.redirected_from),
-        # redirected_to=await request_info_to_dict(req.redirected_to),
-        failure=req.failure,
-        timing=req.timing,
-        headers=req.headers,
-        sizes=await req.sizes(),
-        is_navigation_request=req.is_navigation_request(),
-        all_headers=await req.all_headers(),
-        headers_array=await req.headers_array(),
+        url=await _should_not_timeout_sync(func=lambda: url_parse_to_dict(req.url)),
+        resource_type=await _should_not_timeout_sync(func=lambda: req.resource_type),
+        method=await _should_not_timeout_sync(func=lambda: req.method),
+        post_data_buffer=await _should_not_timeout_sync(func=lambda: req.post_data_buffer),
+
+        # 在知网爬虫中此步骤经常超时。
+        redirected_from=await _should_not_timeout_async(func=request_info_to_dict,
+                                                        args=[req.redirected_from],
+                                                        timeout=10,
+                                                        none_on_timeout=True),
+
+        failure=await _should_not_timeout_sync(func=lambda: req.failure),
+        timing=await _should_not_timeout_sync(func=lambda: req.timing),
+        headers=await _should_not_timeout_sync(func=lambda: req.headers),
+
+        # 在知网爬虫中此步骤偶尔超时。
+        sizes=await _should_not_timeout_async(func=req.sizes,
+                                              timeout=15,
+                                              none_on_timeout=True),
+        is_navigation_request=await _should_not_timeout_sync(func=lambda: req.is_navigation_request()),
+        all_headers=await _should_not_timeout_async(func=req.all_headers),
+        headers_array=await _should_not_timeout_async(func=req.headers_array),
     )
 
 

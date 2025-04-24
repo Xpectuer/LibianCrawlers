@@ -185,7 +185,7 @@ export async function* read_postgres_table(
           memory_limit_guess = [];
           gid_list = [];
           if (preventOOM) {
-            await delay(200);
+            await delay(50);
           }
         }
         completed.value += 1;

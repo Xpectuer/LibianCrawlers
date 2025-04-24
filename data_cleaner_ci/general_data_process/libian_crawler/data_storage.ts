@@ -85,6 +85,12 @@ export interface MediaPostTable {
   >;
   context_text_latest_lines_count: PostgresColumnType.Numeric | null;
   last_crawl_time: Date;
+  authors_names: string | null;
+  from_search_question_texts: string | null;
+  literature_first_journal: string | null;
+  literature_first_doi: string | null;
+  literature_first_category: string | null;
+  literature_first_level_of_evidence: string | null;
 }
 
 export interface ShopGoodTable {
@@ -198,7 +204,7 @@ export async function create_and_init_libian_srawler_database_scope<R>(
   };
   // deno-lint-ignore no-explicit-any
   // (postgr
-  
+
   const sql = postgres(postgres_options);
   // https://github.com/porsager/postgres/issues/778#issuecomment-2154846646
   console.debug("Test SELECT 1", (await sql.unsafe("SELECT 1")).columns);

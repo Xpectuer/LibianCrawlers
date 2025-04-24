@@ -19,8 +19,9 @@ from libiancrawlers.app_util.postgres import require_init_table, insert_to_garba
 from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException, JSON
 from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.fs import mkdirs, aios_listdir, filename_slugify
+from libiancrawlers.util.plat import PreventTheScreenSaver
 
-_valid_smart_extract_mode = ['insert_to_db', 'save_file', 'save_file_and_insert_to_db']
+_valid_smart_crawl_mode = ['insert_to_db', 'save_file', 'save_file_and_insert_to_db']
 
 Locale = Literal['zh-CN']
 
@@ -98,9 +99,8 @@ async def smart_crawl_v1(*,
 
     if mode == 'all':
         mode = 'save_file_and_insert_to_db'
-    if mode not in _valid_smart_extract_mode:
-        raise ValueError(f'Invalid mode {mode} , valid value should in {_valid_smart_extract_mode}')
-
+    if mode not in _valid_smart_crawl_mode:
+        raise ValueError(f'Invalid mode {mode} , valid value should in {_valid_smart_crawl_mode}')
     is_save_file = mode == 'save_file' or mode == 'save_file_and_insert_to_db'
     is_insert_to_db = mode == 'insert_to_db' or mode == 'save_file_and_insert_to_db'
 
@@ -338,6 +338,10 @@ async def smart_crawl_v1(*,
                 _devtool_status['thread'] = _devtool_thread
             return
 
+        from libiancrawlers.crawlers.smart_crawl.steps_api import PageRef
+        _page_ref: PageRef = {'value': b_page}
+        _page_ref_lock = locks.Lock()
+
         async def _process_steps(_steps):
             if not (isinstance(_steps, tuple) or isinstance(_steps, list) or isinstance(_steps, set)):
                 _steps = [_steps]
@@ -375,6 +379,8 @@ async def smart_crawl_v1(*,
                             browser_context=browser_context,
                             _dump_page=_dump_page,
                             _process_steps=_process_steps,
+                            _page_ref_lock=_page_ref_lock,
+                            _page_ref=_page_ref,
                         )
                         await fn_map[_step['fn']](*_waited_args, **_waited_kwargs)
                         on_success_steps = _step.get('on_success_steps')
@@ -490,8 +496,9 @@ def _get_tag_version_when_insert_to_db(tag_version: Optional[str]):
 
 
 def cli():
-    from fire import Fire
-    Fire(smart_crawl_v1)
+    with PreventTheScreenSaver():
+        from fire import Fire
+        Fire(smart_crawl_v1)
 
 
 if __name__ == '__main__':

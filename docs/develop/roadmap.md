@@ -39,4 +39,4 @@
 
 ## 爬虫功能模块
 
-参考: [爬虫功能模块完成进度](./crawler/start-smart-crawl.md#爬虫功能模块完成进度)
+参考: [爬虫功能模块完成进度](./crawler/start-crawl.md#爬虫功能模块完成进度)

@@ -1,0 +1,191 @@
+{
+  "$schema": "./schemas/main.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start CNKI (https://www.cnki.net/) search"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_type",
+      "args": [
+        "input#txt_SearchText",
+        "<<<<!q!>>>>"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_click",
+      "args": [
+        ".search-btn"
+      ],
+      "kwargs": {
+        "timeout": 6000
+      }
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_wait_for_selector_in_any_frame",
+      "args": [
+        "table.result-table-list"
+      ],
+      "kwargs": {
+        "timeout": 6000
+      }
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "wait to start foreach table , now you can jump page before foreach :)"
+      ]
+    },
+    "debug",
+    {
+      "description": "一直重复 “滚到页底然后 dump_page，再点击下一页” 操作，直到无法点击下一页按钮时停止。",
+      "fn": "dump_page_for_each",
+      "kwargs": {
+        "dump_tag_prefix": "search_pages",
+        "before_dump_steps": [
+          {
+            "fn": "page_scroll_down",
+            "kwargs": {
+              "max_height": 20000,
+              "page_click_if_found": {
+                "locator": "td.name > a",
+                "duplicated_only_text": true,
+                "check_selector_exist_after_click": "#authorpart",
+                "on_before_click_check_steps": [
+                  {
+                    "fn": "sleep",
+                    "args": [
+                      500
+                    ]
+                  },
+                  {
+                    "fn": "switch_page",
+                    "args": [
+                      -1
+                    ]
+                  }
+                ],
+                "on_found_after_click_steps": [
+                  {
+                    "fn": "switch_page",
+                    "args": [
+                      -1
+                    ]
+                  },
+                  {
+                    "fn": "page_scroll_down",
+                    "kwargs": {
+                      "page_click_if_found": {
+                        "locator": "#ChDivSummaryMore"
+                      }
+                    }
+                  },
+                  {
+                    "fn": "sleep",
+                    "args": [
+                      1000
+                    ]
+                  }
+                ],
+                "on_found_after_click_and_dump_steps": [
+                  {
+                    "fn": "page_close"
+                  },
+                  {
+                    "fn": "sleep",
+                    "args": [
+                      1000
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "after_dump_steps": [
+          {
+            "fn": "page_click",
+            "args": [
+              "#PageNext"
+            ],
+            "kwargs": {
+              "timeout": 10000
+            },
+            "on_timeout_steps": [
+              {
+                "fn": "logw",
+                "args": [
+                  "Timeout on page click next page , retry !"
+                ]
+              },
+              {
+                "fn": "page_click",
+                "args": [
+                  "#PageNext"
+                ],
+                "kwargs": {
+                  "timeout": 10000
+                },
+                "on_timeout_steps": [
+                  {
+                    "fn": "logw",
+                    "args": [
+                      "Timeout on page click next page , maybe it is end ? Close debug box will continue"
+                    ]
+                  },
+                  "debug",
+                  {
+                    "fn": "sleep",
+                    "args": [
+                      1000
+                    ]
+                  },
+                  {
+                    "fn": "page_click",
+                    "args": [
+                      "#PageNext"
+                    ],
+                    "kwargs": {
+                      "timeout": 10000
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "after_dump_break_by_timeout": true
+      }
+    }
+  ]
+}
