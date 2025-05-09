@@ -62,7 +62,7 @@ export async function generate_repository_api(
                 : typeof table.batch_size.code_gen === "number" &&
                   table.batch_size.code_gen > 0
                 ? table.batch_size.code_gen
-                : 10;
+                : 200;
             const rows_gen = read_postgres_table({
               ...repository.param,
               ...table,
