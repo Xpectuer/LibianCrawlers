@@ -65,6 +65,8 @@ Deno.test(function parseNumberTest() {
     ["1919-8-10", NaN],
     ["one", 1],
     ["one hundred", 100],
+    ["two hundred", 200],
+    ["three thousand five hundred", 3500],
     ["1 hundred", NaN],
   ]) {
     assertEquals(
@@ -447,7 +449,7 @@ Deno.test(async function parse_process_bar_bind_each_test() {
   await _test_func(1, [1000]);
 });
 
-Deno.test(async function backpressure_test() {
+Deno.test(async function queue_cached_test() {
   const reader = async function* () {
     for (let i = 0; i < 100; i++) {
       await delay(50);
@@ -455,7 +457,7 @@ Deno.test(async function backpressure_test() {
       yield i;
     }
   };
-  const writer = Streams.backpressure({
+  const writer = Streams.queue_cached({
     gen: reader(),
     queue_size: 20,
     writer_delay_ms: () => Math.floor(300 * Math.random()),

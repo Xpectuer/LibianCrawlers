@@ -2,11 +2,7 @@ import {
   type LibianCrawlerGarbage,
   read_LibianCrawlerGarbage,
 } from "../../user_code/LibianCrawlerGarbage.ts";
-import {
-  type UpdateResult,
-  type InsertResult,
-  type InsertObject,
-} from "kysely";
+import { type UpdateResult, type InsertResult } from "kysely";
 import {
   Arrays,
   chain,
@@ -14,7 +10,7 @@ import {
   DataMerge,
   Errors,
   is_nullish,
-  Jsons,
+  Jsonatas,
   Mappings,
   Nums,
   ProcessBar,
@@ -40,7 +36,6 @@ import {
   ShopGoodTable,
 } from "./data_storage.ts";
 import { pg_dto_equal } from "../../pg.ts";
-import { it } from "node:test";
 
 // deno-lint-ignore no-namespace
 export namespace LibianCrawlerCleanAndMergeUtil {
@@ -116,20 +111,31 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           const {
             title,
             desc,
-            ip_location,
             time,
             interact_info,
             tag_list,
             image_list,
-            video,
             user,
             last_update_time,
           } = note;
+          const ip_location =
+            "ip_location" in note
+              ? note.ip_location
+                ? note.ip_location
+                : null
+              : null;
+          const video =
+            "video" in note ? (note.video ? note.video : null) : null;
           const xsec_token = g_content.xsec_token ?? note.xsec_token;
           const { share_count, liked_count, comment_count, collected_count } =
             interact_info;
+          const first_frame_fileid = video?.image
+            ? "first_frame_fileid" in video.image
+              ? video.image.first_frame_fileid
+              : null
+            : null;
           const cover_fileid = [
-            video?.image.first_frame_fileid,
+            first_frame_fileid,
             video?.image.thumbnail_fileid,
           ].find((it) => !!it);
           let cover_image: (typeof image_list)[number] | null = null;
@@ -247,7 +253,9 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           const g_create_time: string =
             garbage.group__xiaohongshu_search_result__lib_xhs.g_create_time;
           for (const item of items) {
-            const { id, xsec_token, note_card, rec_query, hot_query } = item;
+            const { id, xsec_token, note_card } = item;
+            const rec_query = "rec_query" in item ? item.rec_query : null;
+            const hot_query = "hot_query" in item ? item.hot_query : null;
             if (note_card) {
               const { display_title, interact_info, user } = note_card;
               const res: MediaContent = {
@@ -309,7 +317,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                   ({
                     name: it.name,
                     cover_url: DataClean.url_use_https_emptyable(
-                      it.cover ?? null
+                      "cover" in it ? it.cover ?? null : null
                     ),
                     search_word: it.search_word,
                   } satisfies MediaRelatedSearches["related_questions"][number])
@@ -331,6 +339,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             }
           }
         } else if (
+          "group__bilibili_search_result__lib_bilibili-api-python" in garbage &&
           garbage["group__bilibili_search_result__lib_bilibili-api-python"]
         ) {
           const { g_content, g_search_key } =
@@ -590,7 +599,10 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 count_like: null,
                 from_search_context: ((): MediaSearchContext[] => {
                   const { query_dict } =
-                    smart_crawl.g_content.dump_page_info?.frame_tree.url ?? {};
+                    "dump_page_info" in smart_crawl.g_content
+                      ? smart_crawl.g_content.dump_page_info?.frame_tree.url ??
+                        {}
+                      : {};
                   if (
                     query_dict &&
                     "wd" in query_dict &&
@@ -628,7 +640,9 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           ) {
             const { xhs } = template_parse_html_tree;
             const content_link_url_props =
-              smart_crawl.g_content.dump_page_info?.page_info_smart_wait.url;
+              "dump_page_info" in smart_crawl.g_content
+                ? smart_crawl.g_content.dump_page_info?.page_info_smart_wait.url
+                : null;
             if (typeof content_link_url_props?.url !== "string") {
               console.warn("Why content_link_url_props?.url not string ?", {
                 content_link_url_props,
@@ -781,8 +795,10 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           ) {
             const cnki = template_parse_html_tree.cnki;
             const url =
-              smart_crawl.g_content.dump_page_info?.page_info_smart_wait.url
-                .url;
+              "dump_page_info" in smart_crawl.g_content
+                ? smart_crawl.g_content.dump_page_info?.page_info_smart_wait.url
+                    .url
+                : null;
             const { title } = cnki;
             if (!url || !title) {
               continue;
@@ -795,9 +811,16 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 ? cnki.authors
                 : [cnki.authors];
             const page_info_smart_wait =
-              smart_crawl.g_content.dump_page_info?.page_info_smart_wait;
+              "dump_page_info" in smart_crawl.g_content
+                ? smart_crawl.g_content.dump_page_info?.page_info_smart_wait
+                : null;
             let search_keyword: string | null = null;
-            if (smart_crawl.g_content.cmd_param_json.steps) {
+            if (
+              "cmd_param_json" in smart_crawl.g_content &&
+              smart_crawl.g_content.cmd_param_json &&
+              "steps" in smart_crawl.g_content.cmd_param_json &&
+              smart_crawl.g_content.cmd_param_json.steps
+            ) {
               const { searchParams } =
                 URL.parse(smart_crawl.g_content.cmd_param_json.steps) ?? {};
               if (searchParams && searchParams.get("q")) {
@@ -812,12 +835,18 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               content_text_summary: cnki.summary ?? "",
               content_text_detail: null,
               content_link_url,
-              authors: authors.map((it) => ({
-                platform_user_id: `PersonName---${it.name}`,
-                nickname: it.name,
-                avater_url: null,
-                home_link_url: DataClean.url_use_https_noempty(it.href),
-              })),
+              authors: authors.map((it) => {
+                if ("href" in it && it.href && it.name) {
+                  return {
+                    platform_user_id: `PersonName---${it.name}`,
+                    nickname: it.name,
+                    avater_url: null,
+                    home_link_url: DataClean.url_use_https_noempty(it.href),
+                  };
+                }
+                console.error("invalid user , it is", it);
+                throw new Error("invalid user");
+              }),
               platform: PlatformEnum.知网,
               platform_duplicate_id: `TitleAuthors---${title}---${authors
                 .map((it) => it.name)
@@ -839,6 +868,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               ip_location: null,
               cover_url:
                 typeof page_info_smart_wait === "object" &&
+                page_info_smart_wait &&
                 "files" in page_info_smart_wait &&
                 typeof page_info_smart_wait.files === "object" &&
                 "public_url" in page_info_smart_wait.files &&
@@ -1751,5 +1781,9 @@ async function _main() {
 // deno run --allow-env=PG* general_data_process/libian_crawler/clean_and_merge.ts
 // ```
 if (import.meta.main) {
-  await _main();
+  try {
+    await _main();
+  } finally {
+    await Jsonatas.shutdown_all_workers();
+  }
 }

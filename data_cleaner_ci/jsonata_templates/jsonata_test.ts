@@ -8,7 +8,7 @@ async function run_tests() {
     // "test_yangkeduo",
     // "test_baidu",
     // "test_xhs2",
-    "test_cnki"
+    "test_cnki",
   ]) {
     let target_file: string;
     const func_config_file = path.join(
@@ -69,12 +69,10 @@ async function run_tests() {
       name_function(func_name, async () => {
         console.debug(`${func_name} from ${target_file}`);
         const content = Jsons.load(await Deno.readTextFile(target_file));
-        const exp1 = jsonata(
-          await Deno.readTextFile(
-            path.join("jsonata_templates", "parse_html_tree.jsonata")
-          )
+        const exp1 = await Jsonatas.read_jsonata_template_exp(
+          "parse_html_tree",
+          { no_cache: true }
         );
-        Jsonatas.register_common_function_on_exp(exp1);
         const result = await exp1.evaluate(content);
         const result_content = Jsons.dump(result, { indent: 2 });
         console.debug("result content is ", result_content);

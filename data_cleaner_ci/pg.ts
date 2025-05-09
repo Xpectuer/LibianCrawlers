@@ -6,6 +6,7 @@ import {
   is_deep_equal,
   Jsonatas,
   Jsons,
+  SizeOf,
   Streams,
   Strs,
   Times,
@@ -15,7 +16,6 @@ import { data_cleaner_ci_generated } from "./consts.ts";
 import path from "node:path";
 import { Nums } from "./util.ts";
 import { delay } from "@std/async/delay";
-// import { filesize } from "filesize";
 
 export type PostgresConnectionParam = {
   dbname: string;
@@ -45,6 +45,10 @@ export async function* read_postgres_table(
         typename: string;
         enable: boolean;
       };
+      network: boolean;
+      debugopt_logtime: boolean;
+      prevent_oom_batch_mem_size: number;
+      on_total?: (total: number) => Promise<"continue" | "return">;
     }
 ) {
   console.debug("Start read postgres table :", params);
@@ -61,17 +65,28 @@ export async function* read_postgres_table(
     idle_timeout,
     on_bar,
     cache_by_id,
+    network,
+    debugopt_logtime,
+    prevent_oom_batch_mem_size,
+    on_total,
   } = params;
-  const sql = postgres({
-    host,
-    port,
-    user,
-    password,
-    database: dbname,
-    ssl,
-    debug: true,
-    idle_timeout: idle_timeout ?? 5,
-  });
+  // deno-lint-ignore ban-types
+  let sql: postgres.Sql<{}>;
+  if (network) {
+    sql = postgres({
+      host,
+      port,
+      user,
+      password,
+      database: dbname,
+      ssl,
+      debug: true,
+      idle_timeout: idle_timeout ?? 5,
+    });
+  } else {
+    // deno-lint-ignore no-explicit-any
+    sql = "Disable on no-network" as any;
+  }
   const { typename } = cache_by_id;
   const batch_size_final = batch_size ?? 1;
   const cached_ids: Array<number> = [];
@@ -94,8 +109,8 @@ export async function* read_postgres_table(
   };
   let cache_dir_exist: boolean;
   try {
-    const e = await Deno.stat(cache_dir);
-    cache_dir_exist = e.isDirectory;
+    const cache_dir_file_info = await Deno.stat(cache_dir);
+    cache_dir_exist = cache_dir_file_info.isDirectory;
   } catch (_err) {
     cache_dir_exist = false;
   }
@@ -116,14 +131,26 @@ export async function* read_postgres_table(
     }
   }
   console.info("cached_ids.length is", cached_ids.length);
-  const total = parseInt(
-    Object.values(
-      (await sql`SELECT count(*) FROM ${sql(schema)}.${sql(tablename)}`)[0]
-    )[0]
-  );
+  let total: number;
+  if (network) {
+    total = parseInt(
+      Object.values(
+        (await sql`SELECT count(*) FROM ${sql(schema)}.${sql(tablename)}`)[0]
+      )[0]
+    );
+  } else {
+    total = cached_ids.length;
+  }
   console.debug("total=", total);
-  if (isNaN(total)) {
+  if (Nums.is_invalid(total)) {
     throw new Error("Count(*) return NAN");
+  }
+  if (on_total) {
+    switch (await on_total(total)) {
+      case "return":
+        return;
+      case "continue":
+    }
   }
   const completed = {
     value: 0,
@@ -141,10 +168,22 @@ export async function* read_postgres_table(
           }
           const cache_file_name = cache_file.name;
           const cache_file_path = path.join(cache_dir, cache_file_name);
+          const start_at = new Date().getTime();
           const [cache_file_stat, bytes] = await Promise.all([
             Deno.stat(cache_file_path),
             Deno.readFile(cache_file_path),
           ]);
+          const end_at = new Date().getTime();
+          if (end_at - start_at > 1000) {
+            if (debugopt_logtime || end_at - start_at > 5000) {
+              console.debug("WARN: read cache file too slow", {
+                cast_time: `${(end_at - start_at) / 1000} s`,
+                cache_file_name,
+              });
+              console.debug("");
+            }
+          }
+
           yield {
             g_id,
             cache_file_name,
@@ -154,10 +193,22 @@ export async function* read_postgres_table(
           };
         }
       })();
-      for await (const cache_file of Streams.backpressure({
-        gen: gen,
-        queue_size: 10,
-      })()) {
+
+      //   Streams.backpressure({
+      //   gen: gen,
+      //   queue_size: 10,
+      // })()
+      // Streams.backpressure({
+      //   gen: gen,
+      //   queue_size: 1,
+      // before_event: (ev) => {
+      //   if (ev === "reader_delay_queue_full") {
+      //     console.debug("read postgres table queue full");
+      //   }
+      // },
+      // })()
+
+      for await (const cache_file of gen) {
         const value = Jsons.load(Strs.parse_utf8(cache_file.bytes));
         if (value && typeof value === "object" && !Array.isArray(value)) {
           buffer.push(value);
@@ -169,7 +220,8 @@ export async function* read_postgres_table(
           );
         }
         const preventOOM =
-          memory_limit_guess.reduce((p, c) => p + c) >= 50 * 1024 * 1024;
+          memory_limit_guess.reduce((p, c) => p + c) >=
+          prevent_oom_batch_mem_size;
         if (preventOOM || buffer.length >= batch_size_final) {
           if (preventOOM) {
             // console.debug(
@@ -185,7 +237,7 @@ export async function* read_postgres_table(
           memory_limit_guess = [];
           gid_list = [];
           if (preventOOM) {
-            await delay(50);
+            // await delay(4);
           }
         }
         completed.value += 1;
@@ -206,47 +258,63 @@ export async function* read_postgres_table(
     //   "Select SQL statement :",
     //   (await create_select_sql()).statement
     // );
-    const cursor = create_select_sql().cursor(batch_size_final); //
-    for await (const rows of cursor) {
-      completed.value += rows.length;
-      if (on_bar) {
-        await on_bar({ completed: completed.value, total });
-      }
-      // console.debug("cursor next rows , completed is ", completed.value);
-      const write_cache_promise = (async () => {
-        if (cache_by_id.enable) {
-          await Promise.all(
-            rows.map(async (row) => {
-              const g_id = row["g_id"];
-              if (Nums.is_int(g_id)) {
-                await write_file({
-                  file_path: path.join(cache_dir, `${g_id}.json`),
-                  creator: {
-                    mode: "text",
-                    // deno-lint-ignore require-await
-                    content: async () => Jsons.dump(row, { indent: 2 }),
-                  },
-                  log_tag: "no",
-                });
-              } else {
-                throw new Error(
-                  `g_id is not number , rows[0] is ${JSON.stringify(rows[0])}`
-                );
-              }
-            })
-          );
+    if (network) {
+      const cursor = create_select_sql().cursor(batch_size_final); //
+      for await (const rows of cursor) {
+        completed.value += rows.length;
+        if (on_bar) {
+          await on_bar({ completed: completed.value, total });
         }
-      })();
-      yield rows;
-      await write_cache_promise;
+        // console.debug("cursor next rows , completed is ", completed.value);
+        const write_cache_promise = (async () => {
+          if (cache_by_id.enable) {
+            await Promise.all(
+              rows.map(async (row) => {
+                const g_id = row["g_id"];
+                if (Nums.is_int(g_id)) {
+                  await write_file({
+                    file_path: path.join(cache_dir, `${g_id}.json`),
+                    creator: {
+                      mode: "text",
+                      // deno-lint-ignore require-await
+                      content: async () => Jsons.dump(row, { indent: 2 }),
+                    },
+                    log_tag: "no",
+                  });
+                } else {
+                  throw new Error(
+                    `g_id is not number , rows[0] is ${JSON.stringify(rows[0])}`
+                  );
+                }
+              })
+            );
+          }
+        })();
+        yield rows;
+        await write_cache_promise;
+      }
     }
   };
   const start_at = new Date().getTime();
+  let batch_cached_start_at = new Date().getTime();
   for await (const existed of existed_writer()) {
+    if (debugopt_logtime) {
+      console.debug("batch cached yield status :", {
+        cast_time: `${(new Date().getTime() - batch_cached_start_at) / 1000} s`,
+        batch_size: existed.length,
+      });
+    }
     yield existed;
+    batch_cached_start_at = new Date().getTime();
   }
+
   console.debug(
-    "\n\nCast time of foreach rows iterator from postgres (unit is s):",
+    `\n\nCast time of foreach rows iterator from ${[
+      ...(network ? ["postgres"] : []),
+      ...(cache_by_id.enable
+        ? [`./${data_cleaner_ci_generated}/cache_by_id/${cache_by_id.typename}`]
+        : []),
+    ].join(" and ")}(unit is s):`,
     (new Date().getTime() - start_at) / 1000.0
   );
 }
@@ -254,15 +322,42 @@ export async function* read_postgres_table(
 export type JsonataTemplate = string;
 
 export async function* read_postgres_table_type_wrap<T>(param: {
-  jsonata_exp?: null | ReturnType<typeof jsonata>;
+  jsonata_exp?: null | string;
   rows_gen: AsyncGenerator<postgres.Row[], void>;
   cache_by_id: { typename: string; enable: boolean };
   with_jsonata_template: JsonataTemplate[] | null | undefined;
+  debugopt_logtime: boolean;
+  high_water_mark: number;
 }) {
-  const { jsonata_exp, rows_gen, with_jsonata_template } = param;
-  Jsonatas.register_common_function_on_exp(jsonata_exp);
-  for await (const rows of rows_gen) {
-    yield await Promise.all(
+  const {
+    jsonata_exp,
+    rows_gen,
+    with_jsonata_template,
+    debugopt_logtime,
+    high_water_mark,
+  } = param;
+
+  const rows_gen_queued =
+    high_water_mark <= 0
+      ? rows_gen
+      : Streams.queue_cached({
+          gen: rows_gen,
+          queue_size: high_water_mark,
+          before_event(ev) {
+            if (debugopt_logtime) {
+              if (ev === "reader_delay_queue_full") {
+                console.debug("read_postgres_table_type_wrap queue full");
+              }
+              if (ev === "write_pop") {
+                console.debug("read_postgres_table_type_wrap queue consume");
+              }
+            }
+          },
+        })();
+
+  for await (const rows of rows_gen_queued) {
+    const typing_wrap_start_at = new Date().getTime();
+    const typing_wrap_result = await Promise.all(
       rows.map(async (it) => {
         const _after_jsonata_template = await (async () => {
           if (!with_jsonata_template) {
@@ -270,24 +365,25 @@ export async function* read_postgres_table_type_wrap<T>(param: {
           }
           const res = { ...it };
           for (const template_name of with_jsonata_template) {
-            const jsonata_template_exp = jsonata(
-              await Deno.readTextFile(
-                path.join("jsonata_templates", `${template_name}.jsonata`)
-              )
-            );
-            Jsonatas.register_common_function_on_exp(jsonata_template_exp);
             res[`template_${template_name}`] =
-              await jsonata_template_exp.evaluate(it);
+              await Jsonatas.evaluate_in_worker({
+                script: { template_name },
+                data: it,
+                debugopt_logtime_for_jsonata_evalute_too_slow: -1,
+              });
           }
           return res;
         })();
 
         const _after_jsonate_group = await (async () => {
-          if (jsonata_exp !== null && jsonata_exp !== undefined) {
+          if (jsonata_exp) {
             return {
               obj: _after_jsonata_template,
-              [`group__${await jsonata_exp.evaluate(it)}` as const]:
-                _after_jsonata_template,
+              [`group__${await Jsonatas.evaluate_in_worker({
+                script: { content: jsonata_exp },
+                data: it,
+                debugopt_logtime_for_jsonata_evalute_too_slow: -1,
+              })}` as const]: _after_jsonata_template,
             };
           } else {
             return {
@@ -299,6 +395,13 @@ export async function* read_postgres_table_type_wrap<T>(param: {
         return _after_jsonate_group as T;
       })
     );
+    if (debugopt_logtime) {
+      console.debug("batch typing wrap status", {
+        cast_time: `${(new Date().getTime() - typing_wrap_start_at) / 1000} s`,
+        typing_wrap_batch_size: typing_wrap_result.length,
+      });
+    }
+    yield typing_wrap_result;
   }
 }
 

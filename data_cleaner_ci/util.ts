@@ -7,13 +7,20 @@ import { PlatformEnum } from "./general_data_process/media.ts";
 import { Paragraphs } from "./general_data_process/paragraph_analysis.ts";
 import JSON5 from "json5";
 import NumberParser from "intl-number-parser";
-import english2number from "english2number";
 import { delay } from "@std/async/delay";
 import { equal } from "@std/assert/equal";
 import jsonata from "jsonata";
 import { encodeHex } from "jsr:@std/encoding/hex";
-import * as datetime from "jsr:@std/datetime";
 import { isDate } from "node:util/types";
+import { Buffer } from "node:buffer";
+import { createStringifyStream } from "big-json";
+import { safeDestr } from "destr";
+import * as Comlink from "comlink";
+import { type EvaluateJsonataExp } from "./workers/evaluate_jsonata_exp.ts";
+import AsyncLock from "async-lock";
+import { JsonStreamStringify } from "json-stream-stringify";
+import { Writable } from "node:stream";
+import { JSONParser } from "@streamparser/json";
 
 export function is_nullish(obj: any): obj is null | undefined {
   return obj === null || obj === undefined;
@@ -286,6 +293,9 @@ export namespace Typings {
 
   export type Concrete<T> = { [P in keyof T]-?: T[P] };
 
+  /**
+   * https://stackoverflow.com/a/49402091/21185704
+   */
   export type AvailableKeys<T> = Exclude<
     T extends T ? keyof T : never,
     keyof unknown[]
@@ -298,6 +308,38 @@ export namespace Typings {
     | { str?: "bb" }
     | { name: "a" }
     | { name?: "b" }
+  >;
+
+  /**
+   * https://stackoverflow.com/a/79613705/21185704
+   */
+  export type ReduceUnionMapping<
+    A,
+    P = Record<never, never>,
+    C = LastOf<A>,
+    Stop = [A] extends [never] ? true : false
+  > = true extends Stop
+    ? P
+    : ReduceUnionMapping<
+        Exclude<A, C>,
+        {
+          [K in keyof C | keyof P]: K extends keyof C
+            ? K extends keyof P
+              ? C[K] | P[K]
+              : C[K]
+            : K extends keyof P
+            ? P[K]
+            : never;
+        }
+      >;
+
+  type _Test_UnionReduceMap = ReduceUnionMapping<
+    | { id: 1; xxx: 1 }
+    | { id: 2; xxx: 2 }
+    | { str?: "aa"; xxx: 3 }
+    | { str?: "bb"; xxx: 4 }
+    | { name: "a"; xxx: 5 }
+    | { name?: "b"; xxx: 6 }
   >;
 
   export type RemovePrefixRecursion<
@@ -320,6 +362,13 @@ export namespace Typings {
   type _Test_RemovePrefixSuffixRecursion = RemovePrefixSuffixRecursion<
     "aaaaa114514aaaaa",
     "aa"
+  >;
+
+  export type PickStringProps<Source extends object> = Pick<
+    Source,
+    {
+      [Key in keyof Source]: Source[Key] extends string ? Key : never;
+    }[keyof Source]
   >;
 }
 
@@ -718,7 +767,16 @@ export namespace Jsons {
       option = {};
     }
     const replacer = (_k: string, v: any) => {
-      return typeof v === "bigint" ? Number(v) : v;
+      if (typeof v === "bigint") {
+        if (
+          v > BigInt(Number.MAX_SAFE_INTEGER) ||
+          v < BigInt(Number.MIN_SAFE_INTEGER)
+        ) {
+          throw new Error(`BigInt out of safe number range : ${v}`);
+        }
+        return Number(v);
+      }
+      return v;
     };
     if (option.mode === undefined || option.mode === "JSON") {
       return JSON.stringify(obj, replacer, option.indent) as any;
@@ -733,6 +791,30 @@ export namespace Jsons {
 
   export function copy<T extends JSONValue>(obj: T) {
     return JSON.parse(Jsons.dump(obj)) as T;
+  }
+
+  export async function dump_to(param: {
+    obj: unknown;
+    output: {
+      writer: Awaited<ReturnType<typeof Deno.open>>["writable"];
+    };
+    spaces?: number | string;
+    buf_size?: number;
+  }) {
+    const { obj, output, buf_size, spaces } = param;
+    const jsonStream = new JsonStreamStringify(
+      obj,
+      undefined,
+      spaces,
+      false,
+      buf_size
+    );
+    return await Promise.resolve(
+      jsonStream.pipe(Writable.fromWeb(output.writer))
+    );
+    // const stream = nodeReader(jsonStream, "utf-8");
+    // const writer_node = nodeWriter(Writable.fromWeb(output.writer));
+    // await stream.pipe(writer_node);
   }
 
   export type ParseJsonValue<T extends string> = T extends `true`
@@ -751,8 +833,88 @@ export namespace Jsons {
     ? boolean
     : JSONValue;
 
-  export function load<T extends string>(s: T): ParseJsonValue<T> {
-    return JSON5.parse(s);
+  export function load<T extends string>(
+    s: T,
+    opt?: { parse_json5?: boolean }
+  ): ParseJsonValue<T> {
+    const start_jsons_load_at = new Date().getTime();
+    let value: any;
+    try {
+      value = (() => {
+        if (opt?.parse_json5) {
+          return JSON5.parse(s);
+        }
+        // It is very fast and save memory ! Cooooooooooooooooool !
+        return safeDestr<any>(s);
+      })();
+    } finally {
+      const end_jsons_load_at = new Date().getTime();
+      if (end_jsons_load_at - start_jsons_load_at > 1000) {
+        setTimeout(async () => {
+          console.warn("WARN: jsons load too slow", {
+            cast_time: `${(end_jsons_load_at - start_jsons_load_at) / 1000} s`,
+            // cache_file_name: cache_file.cache_file_name,
+            str_size: `${(
+              (await Promise.resolve(SizeOf.sizeof(s))) /
+              1024 /
+              1024
+            ).toFixed(2)} MB`,
+            object_size: `${(
+              (await Promise.resolve(SizeOf.sizeof(value))) /
+              1024 /
+              1024
+            ).toFixed(2)} MB`,
+          });
+        }, 10);
+      }
+    }
+    return value;
+  }
+
+  class JSONParserTransformer extends JSONParser {
+    private controller: any;
+
+    constructor(opts: any) {
+      super(opts);
+      this.onValue = (value) => this.controller.enqueue(value); //  Don't copy
+      this.onError = (err) => this.controller.error(err);
+      this.onEnd = () => this.controller.terminate();
+    }
+    start(controller: any) {
+      this.controller = controller;
+    }
+    transform(chunk: any) {
+      this.write(chunk);
+    }
+    flush() {
+      this.end();
+    }
+  }
+
+  class MyJsonStreamParser extends TransformStream {
+    constructor() {
+      const transformer = new JSONParserTransformer(undefined);
+      super(transformer);
+    }
+  }
+
+  export async function load_stream(param: {
+    input_stream: ReadableStream<Uint8Array<ArrayBuffer>>;
+    // input_stream: Awaited<ReturnType<typeof Deno.open>>["readable"];
+  }) {
+    const { input_stream } = param;
+    const parser = new MyJsonStreamParser();
+    const reader = input_stream.pipeThrough(parser).getReader();
+    let root_value: unknown = undefined;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      else root_value = value.value;
+    }
+    if (typeof root_value === "undefined") {
+      throw new Error("Why undefined ?");
+    }
+    return root_value;
   }
 
   /**
@@ -923,8 +1085,8 @@ export namespace Mappings {
 
   export const object_keys = <T extends Record<string, any>>(
     obj: T
-  ): (string & keyof T)[] => {
-    return Object.keys(obj);
+  ): (string & Typings.AvailableKeys<T>)[] => {
+    return Object.keys(obj) as any;
   };
 
   export const find_entry_which_defined_value_and_key_startswith = <
@@ -938,11 +1100,11 @@ export namespace Mappings {
       object_keys(obj)
         .map((key) => {
           if (Strs.startswith(key, prefix)) {
-            const k: `${P}${string}` & keyof T = key;
+            const k: keyof Typings.ReduceUnionMapping<T> = key as any;
             if (k === undefined) {
               return null;
             }
-            const o: T & Record<typeof k, unknown> = obj;
+            const o: Typings.ReduceUnionMapping<T> = obj as any;
             const v = o[k];
             if (v === undefined) {
               return null;
@@ -1152,6 +1314,113 @@ export namespace DataClean {
       return Nums.is_invalid(n) ? null : n;
     }
   }
+
+  /**
+   * npm package english2number
+   */
+  const english2number = (function () {
+    // deno-lint-ignore prefer-const
+    let large: any, small: any;
+
+    small = {
+      zero: 0,
+      one: 1,
+      two: 2,
+      three: 3,
+      four: 4,
+      five: 5,
+      six: 6,
+      seven: 7,
+      eight: 8,
+      nine: 9,
+      ten: 10,
+      eleven: 11,
+      twelve: 12,
+      thirteen: 13,
+      fourteen: 14,
+      fifteen: 15,
+      sixteen: 16,
+      seventeen: 17,
+      eighteen: 18,
+      nineteen: 19,
+      twenty: 20,
+      thirty: 30,
+      forty: 40,
+      fifty: 50,
+      sixty: 60,
+      seventy: 70,
+      eighty: 80,
+      ninety: 90,
+    };
+
+    large = {
+      thousand: 1000,
+      million: 1000000,
+      billion: 1000000000,
+      trillion: 1000000000000,
+      // quadrillion: 1000000000000000,
+      // quintillion: 1000000000000000000,
+      // sextillion: 1000000000000000000000,
+      // septillion: 1000000000000000000000000,
+      // octillion: 1000000000000000000000000000,
+      // nonillion: 1000000000000000000000000000000,
+      // decillion: 1000000000000000000000000000000000,
+    };
+
+    const english2Number = function (english: string) {
+      let current, exponent, i, int, len, product, total, word, words, negative;
+      if (!isNaN((int = parseInt(english, 10)))) {
+        return int;
+      }
+      negative =
+        english.indexOf("negative") === 0 || english.indexOf("-") === 0;
+      words = english
+        .replace(/\sand\s/g, " ")
+        .replace(/^negative\s/, "")
+        .replace(/^-\s/, "")
+        .replace(/^a\s/, "one ")
+        .replace(/,\s/g, " ")
+        .replace(/first/g, "one")
+        .replace(/second/g, "two")
+        .replace(/third/g, "three")
+        .replace(/fourth/g, "four")
+        .replace(/fifth/g, "five")
+        .replace(/eighth/g, "eight")
+        .replace(/ninth/g, "nine")
+        .replace(/twelfth/g, "twelve")
+        .replace(/twentieth/g, "twenty")
+        .replace(/fiftieth/g, "fifty")
+        .replace(/seventieth/g, "seventy")
+        .replace(/ninetieth/g, "ninety")
+        .replace(/(i|ie)?th(\b|-|$)/g, "")
+        .split(/[\s-]+/);
+      total = 0;
+      current = 0;
+      for (i = 0, len = words.length; i < len; i++) {
+        word = words[i];
+        product = small[word];
+        if (product !== undefined) {
+          current += product;
+        } else if (word === "hundred" && current !== 0) {
+          current *= 100;
+        } else {
+          exponent = large[word];
+          if (exponent) {
+            total += current * exponent;
+            current = 0;
+          } else {
+            throw new Error("Unknown number: " + word);
+          }
+        }
+      }
+      const output = total + current;
+      if (negative) {
+        return output * -1;
+      }
+      return output;
+    };
+    return english2Number;
+  })();
 
   export function parse_number<R extends number>(
     value: string | number,
@@ -1941,7 +2210,7 @@ export namespace Streams {
     return res;
   }
 
-  export function backpressure<T>(_param: {
+  export function queue_cached<T>(_param: {
     gen: AsyncGenerator<T, void, undefined>;
     queue_size: number;
     reader_delay_ms?: () => number;
@@ -1971,16 +2240,27 @@ export namespace Streams {
         value: false,
       };
       setTimeout(async () => {
-        for await (const item of gen) {
-          while (queue.length > queue_size) {
-            before("reader_delay_queue_full");
-            await delay(get_delay(33, reader_delay_ms));
+        try {
+          let last_queue_full = false;
+          for await (const item of gen) {
+            while (queue.length >= queue_size) {
+              if (!last_queue_full) {
+                before("reader_delay_queue_full");
+              }
+              await delay(get_delay(66, reader_delay_ms));
+              last_queue_full = true;
+            }
+            before("reader_inqueue");
+            queue.push(item);
+            last_queue_full = false;
           }
-          before("reader_inqueue");
-          queue.push(item);
+        } catch (err) {
+          console.error("Error on backpressure stream :", err);
+          throw err;
+        } finally {
+          before("reader_end");
+          is_end.value = true;
         }
-        before("reader_end");
-        is_end.value = true;
       }, 10);
       while (true) {
         const popped = queue.splice(0, 1)[0];
@@ -1993,7 +2273,7 @@ export namespace Streams {
           break;
         } else {
           before("writer_delay_queue_empty");
-          const ms = get_delay(33, writer_delay_ms);
+          const ms = get_delay(66, writer_delay_ms);
           await delay(ms);
         }
       }
@@ -2018,9 +2298,9 @@ export namespace Jsonatas {
       jsonata_exp.registerFunction(
         "deno_eval",
         async (str: string) => {
-          let script_filename: string;
+          let script_filepath: string;
           while (true) {
-            script_filename = path.join(
+            script_filepath = path.join(
               "user_code",
               ".tmp",
               "jsonata_deno_eval_scripts",
@@ -2037,10 +2317,12 @@ export namespace Jsonatas {
               )}.js`
             );
             try {
-              await Deno.stat(script_filename);
+              await Deno.stat(script_filepath);
               await delay(1000);
+              // if found existed , wait it delete by other thread
             } catch (err) {
               if (err instanceof Deno.errors.NotFound) {
+                // if not found , create and run script
                 break;
               } else {
                 throw err;
@@ -2048,7 +2330,7 @@ export namespace Jsonatas {
             }
           }
           await write_file({
-            file_path: script_filename,
+            file_path: script_filepath,
             creator: {
               mode: "text",
               // deno-lint-ignore require-await
@@ -2059,7 +2341,7 @@ export namespace Jsonatas {
           const command = new Deno.Command("deno", {
             args: [
               "run",
-              script_filename,
+              script_filepath,
               "--check",
               "--no-config",
               "--no-lock",
@@ -2079,7 +2361,9 @@ export namespace Jsonatas {
           const stdout_str = new TextDecoder("utf-8").decode(o.stdout);
           let stdout_json: Jsons.JSONValue;
           try {
-            stdout_json = Jsons.load(stdout_str);
+            stdout_json = Jsons.load(stdout_str, {
+              parse_json5: true,
+            });
           } catch (err) {
             stdout_json = null;
           }
@@ -2098,7 +2382,7 @@ export namespace Jsonatas {
         (str: string) => {
           try {
             return {
-              result: JSON5.parse(str),
+              result: Jsons.load(str, { parse_json5: true }),
               success: true,
               error: null,
             };
@@ -2106,13 +2390,375 @@ export namespace Jsonatas {
             return {
               result: null,
               success: false,
-              error: `${err} <<< source is : ${str}`,
+              error: `${err}`,
+              source: str,
             };
           }
         },
         "<s:o>"
       );
     }
+  }
+
+  const _cache_jsonata_template_exp = new Map<string, jsonata.Expression>();
+
+  export async function read_jsonata_template_exp(
+    template_name: string,
+    opt?: { no_cache?: boolean }
+  ) {
+    if (opt?.no_cache !== true) {
+      const _cached = _cache_jsonata_template_exp.get(template_name);
+      if (_cached) {
+        return _cached;
+      }
+    }
+    const jsonata_template_exp = jsonata(
+      await Deno.readTextFile(
+        path.join("jsonata_templates", `${template_name}.jsonata`)
+      )
+    );
+    if (opt?.no_cache !== true) {
+      Jsonatas.register_common_function_on_exp(jsonata_template_exp);
+    }
+    _cache_jsonata_template_exp.set(template_name, jsonata_template_exp);
+    return jsonata_template_exp;
+  }
+
+  const _EvaluateJsonataExp_handler: {
+    instances: null | EvaluateJsonataExp[];
+  } = {
+    instances: null,
+  };
+  const evaluate_workers: Worker[] = [];
+  const evaluate_in_worker_init_lock = new AsyncLock();
+
+  export async function evaluate_in_worker(param: {
+    script: Parameters<EvaluateJsonataExp["evaluate"]>[0];
+    data: Parameters<EvaluateJsonataExp["evaluate"]>[1];
+    debugopt_logtime_for_jsonata_evalute_too_slow: number | null;
+  }) {
+    const { script, data, debugopt_logtime_for_jsonata_evalute_too_slow } =
+      param;
+    let instances: (typeof _EvaluateJsonataExp_handler)["instances"];
+    while ((instances = _EvaluateJsonataExp_handler.instances) === null) {
+      await new Promise((rs, rj) => {
+        evaluate_in_worker_init_lock.acquire(
+          "evaluate_in_worker_init",
+          async (done: (err?: Error | null, ret?: any) => void) => {
+            const done2: typeof done = (err, ret) => {
+              if (err) {
+                done(err);
+                rj(err);
+              } else {
+                done(null, ret);
+                rs(ret);
+              }
+            };
+            try {
+              if (
+                (instances = _EvaluateJsonataExp_handler.instances) === null
+              ) {
+                console.debug("Creating instance of evaluate jsonata exp", {
+                  hardwareConcurrency: navigator.hardwareConcurrency ?? 4,
+                });
+                const arr: NonNullable<
+                  (typeof _EvaluateJsonataExp_handler)["instances"]
+                > = [];
+                for (let i = 0; i < navigator.hardwareConcurrency * 4; i++) {
+                  const worker = new Worker(
+                    new URL(
+                      "./workers/evaluate_jsonata_exp.ts",
+                      import.meta.url
+                    ).href,
+                    {
+                      type: "module",
+                      name: "evaluate_jsonata_exp_worker",
+                    }
+                  );
+                  evaluate_workers.push(worker);
+                  const _EvaluateJsonataExp: any =
+                    Comlink.wrap<EvaluateJsonataExp>(worker);
+                  arr.push(await new _EvaluateJsonataExp());
+                }
+                _EvaluateJsonataExp_handler["instances"] = arr;
+                console.debug(
+                  "_EvaluateJsonataExp_handler['instance']?.length = ",
+                  `${_EvaluateJsonataExp_handler["instances"]?.length}`
+                );
+              }
+              done2(null);
+            } catch (err) {
+              done2(err as any);
+            }
+          }
+        );
+      });
+    }
+    const start_at = new Date().getTime();
+    const random_idx = Math.floor(Math.random() * instances.length);
+    if (random_idx < 0 || random_idx >= instances.length) {
+      throw new Error(
+        `random index out of range : ${random_idx} , instances is ${instances}`
+      );
+    }
+    const instance = instances[random_idx];
+    const res = await instance.evaluate(script, data);
+    const end_at = new Date().getTime();
+    if (
+      debugopt_logtime_for_jsonata_evalute_too_slow &&
+      debugopt_logtime_for_jsonata_evalute_too_slow > 0
+    ) {
+      if (end_at - start_at > debugopt_logtime_for_jsonata_evalute_too_slow) {
+        const data_object_size = await Promise.resolve(SizeOf.sizeof(data));
+        console.debug("WARN: script evalute too slow", {
+          script,
+          cast_time: `${(end_at - start_at) / 1000} s`,
+          data_object_size: `${(data_object_size / 1024 / 1024).toFixed(2)} MB`,
+          data,
+        });
+      }
+    }
+    return res;
+  }
+
+  export async function shutdown_all_workers() {
+    await new Promise((rs, rj) => {
+      evaluate_in_worker_init_lock.acquire(
+        "evaluate_in_worker_init",
+        // deno-lint-ignore require-await
+        async (done: (err?: Error | null, ret?: any) => void) => {
+          const done2: typeof done = (err, ret) => {
+            if (err) {
+              done(err);
+              rj(err);
+            } else {
+              done(null, ret);
+              rs(ret);
+            }
+          };
+          try {
+            console.info("shutdown all jsonatas worker");
+            evaluate_workers
+              .splice(0, evaluate_workers.length)
+              .forEach((it) => it.terminate());
+            _EvaluateJsonataExp_handler.instances = null;
+            done2(null);
+          } catch (err) {
+            done2(err as any);
+          }
+        }
+      );
+    });
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace SizeOf {
+  const ECMA_SIZES = {
+    STRING: 2,
+    BOOLEAN: 4,
+    BYTES: 4,
+    NUMBER: 8,
+    Int8Array: 1,
+    Uint8Array: 1,
+    Uint8ClampedArray: 1,
+    Int16Array: 2,
+    Uint16Array: 2,
+    Int32Array: 4,
+    Uint32Array: 4,
+    Float32Array: 4,
+    Float64Array: 8,
+  } as const;
+
+  /**
+   * Precisely calculate size of string in node
+   * Based on https://stackoverflow.com/questions/68789144/how-much-memory-do-v8-take-to-store-a-string/68791382#68791382
+   * @param {} str
+   */
+  function preciseStringSizeNode(str: string) {
+    return 12 + 4 * Math.ceil(str.length / 4);
+  }
+
+  /**
+   * In the browser environment, window and document are defined as global objects
+   * @returns true if its a Node.js env, false if it is a browser
+   */
+  function isNodeEnvironment() {
+    return true as const;
+  }
+
+  function getSizeOfTypedArray(typedArray: any) {
+    if (typedArray.BYTES_PER_ELEMENT) {
+      return typedArray.length * typedArray.BYTES_PER_ELEMENT;
+    }
+    throw new Error("Unknown typed array size");
+    // return -1; // error indication
+  }
+
+  /**
+   * Size in bytes for complex objects
+   * @param {*} obj
+   * @returns size in bytes, or -1 if JSON.stringify threw an exception
+   */
+  function objectSizeComplex(obj: object) {
+    // handle typed arrays
+    if (ArrayBuffer.isView(obj)) {
+      return getSizeOfTypedArray(obj);
+    }
+
+    // convert Map and Set to an object representation
+    let convertedObj = obj;
+    if (obj instanceof Map) {
+      convertedObj = Object.fromEntries(obj);
+    } else if (obj instanceof Set) {
+      convertedObj = Array.from(obj);
+    }
+    const stringifyStream = createStringifyStream({
+      body: convertedObj,
+    });
+
+    let totalSize = 0;
+
+    return new Promise<number>((rs, rj) => {
+      try {
+        stringifyStream.on("data", function (strChunk: string) {
+          // console.debug(strChunk);
+          totalSize = totalSize + strChunk.length;
+        });
+
+        stringifyStream.on("end", function () {
+          try {
+            // console.debug("total size is :", totalSize);
+            rs(totalSize);
+          } catch (ex) {
+            console.warn("Error on object size complex big-json inner:", ex);
+            rj(ex);
+          }
+        });
+      } catch (ex) {
+        console.warn("Error on object size complex big-json outer:", ex);
+        rj(ex);
+      }
+    });
+  }
+
+  /**
+   * Size in bytes for primitive types
+   * @param {*} obj
+   * @returns size in bytes
+   */
+  function objectSizeSimple(obj: unknown) {
+    if (typeof obj === "object") {
+      throw new Error(`assert not object but : ${obj}`);
+    }
+
+    const objectList = [];
+    const stack = [obj];
+    let bytes = 0;
+    if (typeof obj === "undefined" || obj === null) {
+      return bytes;
+    }
+
+    while (stack.length) {
+      const value = stack.pop();
+
+      if (typeof value === "boolean") {
+        bytes += ECMA_SIZES.BYTES;
+      } else if (typeof value === "string") {
+        if (isNodeEnvironment()) {
+          bytes += preciseStringSizeNode(value);
+        } else {
+          bytes += value.length * ECMA_SIZES.STRING;
+        }
+      } else if (typeof value === "number") {
+        bytes += ECMA_SIZES.NUMBER;
+      } else if (typeof value === "symbol") {
+        const isGlobalSymbol = Symbol.keyFor && Symbol.keyFor(obj as any);
+        if (isGlobalSymbol) {
+          bytes +=
+            (Symbol.keyFor(obj as any) as any).length * ECMA_SIZES.STRING;
+        } else {
+          bytes += (obj.toString().length - 8) * ECMA_SIZES.STRING;
+        }
+      } else if (typeof value === "bigint") {
+        bytes += Buffer.from(value.toString()).byteLength;
+      } else if (typeof value === "function") {
+        bytes += value.toString().length;
+      } else if (
+        typeof value === "object" &&
+        objectList.indexOf(value) === -1
+      ) {
+        objectList.push(value);
+
+        for (const i in value) {
+          stack.push((value as any)[i]);
+        }
+      }
+    }
+    if (isNaN(bytes)) {
+      throw new Error(`Why NAN ? obj is ${obj}`);
+    }
+    return bytes;
+  }
+
+  export function sizeof(obj: unknown) {
+    return _size_of_in_main_thread(obj);
+  }
+
+  function _size_of_in_main_thread(obj: unknown) {
+    if (obj !== null && typeof obj === "object") {
+      return objectSizeComplex(obj);
+    } else {
+      return objectSizeSimple(obj);
+    }
+  }
+
+  export const get_deno_mem_loginfo = () => {
+    const to_human_read_mem_size = (x: number) =>
+      `${(x / 1024 / 1024).toFixed(2)} MB` as const;
+    const deno_mem = Deno.memoryUsage();
+    return {
+      external: to_human_read_mem_size(deno_mem.external),
+      heapTotal: to_human_read_mem_size(deno_mem.heapTotal),
+      heapUsed: to_human_read_mem_size(deno_mem.heapUsed),
+      rss: to_human_read_mem_size(deno_mem.rss),
+    };
+  };
+}
+
+// deno-lint-ignore no-namespace
+export namespace MonkeyPatch {
+  // Copy from:
+  // https://www.npmjs.com/package/monkeypatch
+  export function monkey_patch(
+    obj: any,
+    method: string,
+    handler: (original: any) => any,
+    context?: any
+  ) {
+    let original = obj[method];
+
+    // Unpatch first if already patched.
+    if (original.unpatch) {
+      original = original.unpatch();
+    }
+
+    // Patch the function.
+    obj[method] = function () {
+      const ctx = context || this;
+      const args: any = [].slice.call(arguments);
+      args.unshift(original.bind(ctx));
+      return handler.apply(ctx, args);
+    };
+
+    // Provide "unpatch" function.
+    obj[method].unpatch = function () {
+      obj[method] = original;
+      return original;
+    };
+
+    // Return the original.
+    return original;
   }
 }
 
