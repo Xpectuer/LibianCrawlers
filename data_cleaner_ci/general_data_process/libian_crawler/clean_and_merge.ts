@@ -11,6 +11,7 @@ import {
   Errors,
   is_nullish,
   Jsonatas,
+  Jsons,
   Mappings,
   Nums,
   ProcessBar,
@@ -103,7 +104,10 @@ export namespace LibianCrawlerCleanAndMergeUtil {
     while (1) {
       const garbage: LibianCrawlerGarbage = yield;
       try {
-        if (garbage.group__xiaohongshu_note__) {
+        if (
+          "group__xiaohongshu_note__" in garbage &&
+          garbage.group__xiaohongshu_note__
+        ) {
           const { g_content, g_search_key } = garbage.group__xiaohongshu_note__;
           const g_create_time: string =
             garbage.group__xiaohongshu_note__.g_create_time;
@@ -164,7 +168,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             tags: tag_list.map((tag) => ({ text: tag.name })),
             authors: [
               {
-                nickname: user.nickname ?? user.nick_name,
+                nickname: user.nickname,
                 platform_user_id: user.user_id,
                 avater_url: DataClean.url_use_https_noempty(user.avatar),
                 home_link_url:
@@ -240,9 +244,13 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 : []),
             ],
             literatures: null,
+            language: null,
           };
           yield res;
-        } else if (garbage.group__xiaohongshu_search_result__lib_xhs) {
+        } else if (
+          "group__xiaohongshu_search_result__lib_xhs" in garbage &&
+          garbage.group__xiaohongshu_search_result__lib_xhs
+        ) {
           const { g_content, g_search_key } =
             garbage.group__xiaohongshu_search_result__lib_xhs;
           const { result } = g_content;
@@ -307,6 +315,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 video_total_count_danmaku: null,
                 video_total_duration_sec: null,
                 literatures: null,
+                language: null,
               };
               yield res;
             }
@@ -447,6 +456,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               count_share: null,
               count_comment: null,
               literatures: null,
+              language: null,
             };
             yield res;
           }
@@ -626,6 +636,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 platform_rank_score: null,
                 videos: null,
                 literatures: null,
+                language: null,
               };
               yield res;
               continue;
@@ -784,6 +795,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               platform_rank_score: null,
               videos: null,
               literatures: null,
+              language: null,
             };
             yield res;
             continue;
@@ -897,6 +909,110 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                   level_of_evidence: null,
                 },
               ],
+              language: null,
+            };
+            yield res;
+          }
+        } else {
+          if (
+            "group__entrez_search_result__lib_biopython" in garbage &&
+            garbage["group__entrez_search_result__lib_biopython"]
+          ) {
+            const { template_parse_html_tree, g_create_time, g_search_key } =
+              garbage.group__entrez_search_result__lib_biopython;
+            const { ref_works } = template_parse_html_tree;
+            if (!ref_works) {
+              throw new Error("Why parse ref_works failed ?");
+            }
+            const find_value = (
+              label: (typeof ref_works)["entries"][number]["label"]
+            ) =>
+              ref_works.entries_multiple.find((it) => it.label === label)
+                ?.values_join ?? null;
+            const get_doi = () => {
+              let line = find_value("LID");
+              if (!line) {
+                return null;
+              }
+              line = line.trim();
+              if (!line || line.indexOf("[doi]") < 0) {
+                return null;
+              }
+              line = line.replace("[doi]", "").trim();
+              if (!line) {
+                return null;
+              }
+              return line;
+            };
+            const pubmed_id = find_value("PMID");
+            if (!pubmed_id) {
+              throw new Error("TODO: other platform");
+            }
+            const dcom = find_value("DCOM");
+            const lr = find_value("LR");
+            let content_text_summary = find_value("AB");
+            if (content_text_summary && content_text_summary.length > 700) {
+              content_text_summary =
+                content_text_summary.substring(0, 700) + "...";
+            }
+            const res: MediaContent = {
+              last_crawl_time: Times.parse_text_to_instant(g_create_time),
+              title: find_value("TI") ?? "",
+              content_text_summary,
+              content_text_detail: null,
+              content_link_url: `https://pubmed.ncbi.nlm.nih.gov/${pubmed_id}`,
+              authors: ref_works.authors.map((it) => {
+                return {
+                  platform_user_id: `PersonName---${it.AU}`,
+                  nickname: it.AU,
+                  avater_url: null,
+                  home_link_url: null,
+                };
+              }),
+              platform: PlatformEnum.PubMed,
+              platform_duplicate_id: `${pubmed_id}`,
+              count_read: null,
+              count_like: null,
+              from_search_context: !g_search_key
+                ? []
+                : [
+                    {
+                      question: g_search_key,
+                    },
+                  ],
+              create_time: Arrays.first_or_null(
+                [
+                  dcom ? Times.parse_text_to_instant(dcom) : null,
+                  lr ? Times.parse_text_to_instant(lr) : null,
+                ].filter((it) => it !== null)
+              ),
+              update_time: null,
+              tags:
+                chain(() =>
+                  ref_works.entries_multiple
+                    .find((it) => it.label === "OT")
+                    ?.values.map((it) => ({ text: it }))
+                )
+                  .map((it) => (it && it.length > 0 ? it : null))
+                  .get_value() ?? null,
+              ip_location: null,
+              cover_url: null,
+              count_share: null,
+              count_star: null,
+              video_total_count_danmaku: null,
+              video_total_duration_sec: null,
+              count_comment: null,
+              platform_rank_score: null,
+              videos: null,
+              literatures: [
+                {
+                  journal: find_value("JT"),
+                  doi: get_doi(),
+                  category: null,
+                  level_of_evidence: null,
+                },
+              ],
+              language: find_value("LA"),
             };
             yield res;
           }
@@ -1133,6 +1249,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         if (literatures.length <= 0) {
           literatures = null;
         }
+        const language = prev?.language ?? cur.language;
         return {
           platform: cur.platform,
           platform_duplicate_id: cur.platform_duplicate_id,
@@ -1159,6 +1276,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           content_text_detail_uncleaned_timeline,
           content_text_latest: content_text_latest ? content_text_latest : "",
           literatures,
+          language,
         };
       },
     });
@@ -1271,11 +1389,17 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           // });
         }
 
-        const update_result = await exec_update_result({
-          value,
-          existed,
-        });
-        update_results.push(update_result);
+        try {
+          const update_result = await exec_update_result({
+            value,
+            existed,
+          });
+          update_results.push(update_result);
+        } catch (err2) {
+          throw new Error(`update failed : ${Jsons.dump({ value, existed })}`, {
+            cause: err2,
+          });
+        }
         continue;
       }
       await update_bar();
@@ -1286,15 +1410,21 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         );
       });
 
-      const insert_result =
-        not_existed.length > 0
-          ? await exec_insert_result({ not_existed })
-          : null;
+      try {
+        const insert_result =
+          not_existed.length > 0
+            ? await exec_insert_result({ not_existed })
+            : null;
 
-      return {
-        update_results,
-        insert_result,
-      };
+        return {
+          update_results,
+          insert_result,
+        };
+      } catch (err) {
+        throw new Error(`insert failed`, {
+          cause: err,
+        });
+      }
     } catch (err) {
       // if (`${err}`.includes("duplicate key value violates")) {
       //   // cause by pkey duplicate
@@ -1373,6 +1503,32 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         ...value.tag_texts,
         ...found_tags_in_context_text,
       ]);
+      let authors_names = chain(() =>
+        value.authors
+          .values()
+          .map((it) => Arrays.last_or_null(it)?.value?.nickname)
+          .toArray()
+          .filter((it) => typeof it === "string")
+          .filter((it) => it.length > 0)
+          .join(",")
+      )
+        .map((it) => (it ? it : null))
+        .get_value();
+      if (authors_names && authors_names.length > 700) {
+        authors_names = authors_names.substring(0, 700) + "...";
+      }
+      let from_search_question_texts = chain(() =>
+        value.from_search_questions.values().toArray().join(",")
+      )
+        .map((it) => (it ? it : null))
+        .get_value();
+      if (
+        from_search_question_texts &&
+        from_search_question_texts.length > 700
+      ) {
+        from_search_question_texts =
+          from_search_question_texts.substring(0, 700) + "...";
+      }
       const res = {
         ...Mappings.filter_keys(value, "pick", [
           "platform",
@@ -1440,22 +1596,8 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         context_text_latest_lines_count:
           context_text_latest?.split("\n").length?.toString() ?? null,
         last_crawl_time: Times.instant_to_date(value.last_crawl_time),
-        authors_names: chain(() =>
-          value.authors
-            .values()
-            .map((it) => Arrays.last_or_null(it)?.value?.nickname)
-            .toArray()
-            .filter((it) => typeof it === "string")
-            .filter((it) => it.length > 0)
-            .join(",")
-        )
-          .map((it) => (it ? it : null))
-          .get_value(),
-        from_search_question_texts: chain(() =>
-          value.from_search_questions.values().toArray().join(",")
-        )
-          .map((it) => (it ? it : null))
-          .get_value(),
+        authors_names,
+        from_search_question_texts,
         literature_first_journal: literature_first?.journal ?? null,
         literature_first_doi: literature_first?.doi ?? null,
         literature_first_category: literature_first?.category ?? null,
@@ -1715,7 +1857,13 @@ async function _main() {
             LibianCrawlerCleanAndMergeUtil.InsertOrUpdateProvider<Prev>
           >[2]
         ) => {
-          return await insert_or_update(db, values, options);
+          try {
+            return await insert_or_update(db, values, options);
+          } catch (err) {
+            throw new Error(`Insert or update failed`, {
+              cause: err,
+            });
+          }
         },
       };
     }

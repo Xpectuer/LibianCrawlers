@@ -24,6 +24,6 @@ features:
     details: 部署和支持 NocoDB ，提供类似电子表格的可视化界面。
   - title: 数据保护
     details: 从工程架构上为个人开发者保护数据安全。
-  - title: 数据计算
-    details: 执行内容识别并存储结果，或将数据用于搜索引擎或LLM训练。
+  - title: 数据分析
+    details: 
 ---

@@ -1289,6 +1289,49 @@
               "type": "string"
             }
           }
+        },
+        {
+          "description": "dump页面，会使用 tag 和 uuid 作为 tag 的值。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "dump_page_with_uuid"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "additionalItems": false,
+              "minItems": 1,
+              "maxItems": 1,
+              "items": [
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "minProperties": 0,
+              "maxProperties": 0
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
         }
       ]
     },

@@ -1,5 +1,5 @@
 import * as net from "node:net";
-import dnsSocket from "dns-socket";
+// import dnsSocket from "dns-socket";
 import config from "./config.ts";
 
 const test_socket_connect = async (options: net.SocketConnectOpts) => {

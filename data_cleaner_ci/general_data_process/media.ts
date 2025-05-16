@@ -5,6 +5,7 @@ export enum PlatformEnum {
   拼多多h5yangkeduo = "mobile.yangkeduo.com",
   百度搜索 = "www.baidu.com",
   知网 = "cnki.net",
+  PubMed = "pubmed.ncbi.nlm.nih.gov",
 }
 
 export type MediaContentTag = {
@@ -26,9 +27,9 @@ export type MediaContentAuthor = {
    */
   avater_url: DataClean.HttpUrl | null;
   /**
-   * 用户主页链接
+   * 用户主页链接f
    */
-  home_link_url: DataClean.HttpUrl;
+  home_link_url: DataClean.HttpUrl | null;
 };
 
 export type MediaSearchContext = {
@@ -132,6 +133,10 @@ export type MediaContent = {
    * 文献相关
    */
   literatures: Literature[] | null;
+  /**
+   * 语言
+   */
+  language: string | null;
 };
 
 export type Literature = {

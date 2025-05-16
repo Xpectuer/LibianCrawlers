@@ -89,6 +89,9 @@
                 "journal": $journal
             };
             $m
+        ),
+        "ref_works": ( 
+            $is_string(g_content.result.obj.obj) ? $parse_ref_works(g_content.result.obj.obj) : null
         )
     }
 )

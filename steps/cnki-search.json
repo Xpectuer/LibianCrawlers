@@ -14,7 +14,7 @@
     {
       "fn": "logi",
       "args": [
-        "Start CNKI (https://www.cnki.net/) search"
+        "Start CNKI (https://www.cnki.net/) 中文页面 search"
       ]
     },
     {
@@ -63,7 +63,7 @@
     {
       "fn": "logi",
       "args": [
-        "wait to start foreach table , now you can jump page before foreach :)"
+        "如果你想略过一些分页，你可以趁这个debug进行操作 :)"
       ]
     },
     "debug",
@@ -93,6 +93,36 @@
                     "args": [
                       -1
                     ]
+                  },
+                  {
+                    "fn": "page_click",
+                    "args": [
+                      ".top-tip a>>nth=0"
+                    ],
+                    "kwargs": {
+                      "timeout": 6000
+                    },
+                    "description": "跳转到期刊页面"
+                  },
+                  {
+                    "fn": "page_click",
+                    "args": [
+                      "#J_sumBtn-stretch"
+                    ],
+                    "kwargs": {
+                      "timeout": 6000
+                    },
+                    "description": "点击期刊页面的展开"
+                  },
+                  {
+                    "fn": "dump_page_with_uuid",
+                    "args": [
+                      "dump_journal_page"
+                    ]
+                  },
+                  {
+                    "fn": "page_close",
+                    "description": "关闭期刊页面"
                   }
                 ],
                 "on_found_after_click_steps": [

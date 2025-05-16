@@ -1316,7 +1316,7 @@ export namespace DataClean {
   }
 
   /**
-   * npm package english2number
+   * Copy from npm package english2number , because i can't import it ...
    */
   const english2number = (function () {
     // deno-lint-ignore prefer-const
@@ -1518,17 +1518,23 @@ export namespace DataClean {
       return chinese_number;
     }
     if (/^[a-zA-Z\s]+$/g.test(value)) {
-      const english_number = english2number(value);
-      if (
-        typeof english_number === "number" &&
-        !Nums.is_invalid(english_number)
-      ) {
-        if (debug) {
-          debug(
-            `parsed english number sourced ${source_value_v2} from ${value} to ${english_number}`
-          );
+      try {
+        const english_number = english2number(value);
+        if (
+          typeof english_number === "number" &&
+          !Nums.is_invalid(english_number)
+        ) {
+          if (debug) {
+            debug(
+              `parsed english number sourced ${source_value_v2} from ${value} to ${english_number}`
+            );
+          }
+          return english_number;
         }
-        return english_number;
+      } catch (err) {
+        if (debug) {
+          debug(`failed english2number : ${err}`);
+        }
       }
     }
     const chinese_quantifier_endings = [
@@ -1755,6 +1761,80 @@ export namespace DataClean {
     return {
       edited,
       datetime,
+    };
+  }
+
+  export function parse_ref_works(s: string) {
+    if (typeof s !== "string") {
+      throw new Error(`Please ensure input value is string, but ${s}`);
+    }
+    const parse_ref_works_failed = "parse_ref_works_failed";
+    let entries: {
+      label: string;
+      value: string;
+    }[];
+    try {
+      entries = s
+        .replaceAll("\n      ", "")
+        .split("\n")
+        .filter((line) => line.trim())
+        .map((line) => {
+          const sp_idx = line.indexOf("-");
+          if (sp_idx < 0) {
+            throw parse_ref_works_failed;
+          }
+          const label = line.substring(0, sp_idx);
+          const value = line.substring(sp_idx + 1);
+          return [label.trim(), value.trim()] as const;
+        })
+        .map(([label, value]) => ({ label, value }));
+    } catch (err) {
+      if (err === parse_ref_works_failed) {
+        return null;
+      } else {
+        throw err;
+      }
+    }
+    const authors: { FAU: string; AU: string; AUID: string; AD: string[] }[] =
+      [];
+    for (const { label, value } of entries) {
+      switch (label) {
+        case "FAU":
+          authors.push({
+            FAU: value,
+            AU: "",
+            AUID: "",
+            AD: [],
+          });
+          break;
+        case "AU":
+        case "AUID":
+          Arrays.last_or_null(authors)![label] = value;
+          break;
+        case "AD":
+          Arrays.last_or_null(authors)!.AD.push(value);
+          break;
+      }
+    }
+    const entries_multiple: {
+      label: string;
+      values: string[];
+      values_join: string;
+    }[] = [];
+    for (const label of new Set(entries.map((it) => it.label))) {
+      const values = entries
+        .filter((it) => it.label === label)
+        .map((it) => it.value);
+      entries_multiple.push({
+        label,
+        values,
+        values_join: values.join(", "),
+      });
+    }
+    return {
+      entries,
+      authors,
+      entries_multiple,
     };
   }
 }
@@ -2378,6 +2458,20 @@ export namespace Jsonatas {
         "<s:o>"
       );
       jsonata_exp.registerFunction(
+        "is_string",
+        (str: Jsons.JSONValue) => {
+          return typeof str === "string";
+        },
+        "<j:b>"
+      );
+      jsonata_exp.registerFunction(
+        "parse_ref_works",
+        (str: string) => {
+          return DataClean.parse_ref_works(str);
+        },
+        "<s:(ol)>"
+      );
+      jsonata_exp.registerFunction(
         "json_parse",
         (str: string) => {
           try {
@@ -2417,9 +2511,7 @@ export namespace Jsonatas {
         path.join("jsonata_templates", `${template_name}.jsonata`)
       )
     );
-    if (opt?.no_cache !== true) {
-      Jsonatas.register_common_function_on_exp(jsonata_template_exp);
-    }
+    Jsonatas.register_common_function_on_exp(jsonata_template_exp);
     _cache_jsonata_template_exp.set(template_name, jsonata_template_exp);
     return jsonata_template_exp;
   }

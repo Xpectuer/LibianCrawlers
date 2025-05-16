@@ -4,27 +4,23 @@
 
 以下是爬虫模块完成进度表。
 
-### SmartCrawl
+常用选项:
 
-| 平台  | 爬取搜索菜单 | 清洗搜索菜单 | 爬取搜索结果的商品/帖子详情 | 清洗搜索结果的商品/帖子详情 | 爬取评论区 | 清洗评论区 |
-|-----|--------|--------|----------------|----------------|-------|-------|
-| 淘宝  | ✔️     | todo   | todo           | todo           | todo  | todo  |
-| 拼多多 | ✔️     |        | ✔️             | ✔️             | todo  | todo  |
-| 小红书 | ✔️     | todo   | ✔️             | todo           | todo  | todo  |
-| 百度  | ✔️     | ✔️     | todo           | todo           |       |       |
-| 知网  |
+`--help` 可以展示帮助。
 
-### ApiCrawl
+`--mode` 可以设置输出模式。
 
-## 命令参数
-
-运行以下命令或查看源码以获取帮助。
-
-```shell
-poetry run smart-crawl --help
-```
+- **缺省值** 是 `'save_file'` 即保存到本地文件。
+- `'insert_to_db'` 表示写入远程数据仓库。
+- **常用**: `all` 或 `'save_file_and_insert_to_db'` 表示既保存到本地文件又写入远程数据仓库。
 
 ### 淘宝搜索
+
+| 内容               | 爬取 | 清洗 |
+| ------------------ | ---- | ---- |
+| 搜索菜单           | ✔️   | todo |
+| 搜索结果的商品详情 | todo | todo |
+| 商品详情评论区     | todo | todo |
 
 ```shell
 poetry run smart-crawl --debug --url https://www.taobao.com/ --locale zh-CN --steps jsonfile:steps/taobao-search.json?q=羽绒服
@@ -32,11 +28,23 @@ poetry run smart-crawl --debug --url https://www.taobao.com/ --locale zh-CN --st
 
 ### 拼多多(mobile.yangkeduo.com)搜索
 
+| 内容               | 爬取 | 清洗 |
+| ------------------ | ---- | ---- |
+| 搜索菜单           | ✔️   | todo |
+| 搜索结果的商品详情 | ✔️   | ✔️   |
+| 商品详情评论区     | todo | todo |
+
 ```shell
 poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-CN --steps jsonfile:steps/yangkeduo-mobile-search.json?q=羽绒服
 ```
 
 ### 小红书搜索
+
+| 内容               | 爬取 | 清洗 |
+| ------------------ | ---- | ---- |
+| 搜索菜单           | ✔️   | todo |
+| 搜索结果的帖子详情 | ✔️   | ✔️   |
+| 评论区             | todo | todo |
 
 ```shell
 poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --steps jsonfile:steps/xiaohongshu-search.json?q=丸子头
@@ -44,12 +52,34 @@ poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --s
 
 ### 百度
 
+| 内容               | 爬取 | 清洗 |
+| ------------------ | ---- | ---- |
+| 搜索菜单           | ✔️   | ✔️   |
+| 搜索结果的网站详情 | todo | todo |
+| 评论区             | todo | todo |
+
 ```shell
 poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --steps jsonfile:steps/baidu.json?q=吹风机
 ```
 
 ### 知网搜索
 
+| 内容               | 爬取 | 清洗 |
+| ------------------ | ---- | ---- |
+| 搜索菜单           | ✔️   | todo |
+| 搜索结果的文献详情 | ✔️   | ✔️   |
+| 文献的期刊详情     | ✔️   | todo |
+
 ```shell
 poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --steps jsonfile:steps/cnki-search.json?q=肺动脉高压
+```
+
+### Entrez 库搜索
+
+| 内容     | 爬取 | 清洗 |
+| -------- | ---- | ---- |
+| 查询论文 | ✔️   | ✔️   |
+
+```shell
+poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hypertension"
 ```

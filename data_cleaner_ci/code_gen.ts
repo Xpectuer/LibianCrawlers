@@ -27,6 +27,7 @@ export async function generate_repository_api(
     batch_size: number | null;
     prevent_oom_batch_mem_size: number;
     only_gen_batches_union_merge_file: boolean;
+    skip_existed: boolean;
   }
 ) {
   const tasks: ((
@@ -113,6 +114,7 @@ export async function generate_repository_api(
                       batch_size,
                     }
                   : false,
+              skip_existed: cmdarg.skip_existed,
             });
             const api_file_path = path.join(
               data_cleaner_ci_generated,
@@ -234,6 +236,7 @@ export async function generate_repository_api_type<T>(param: {
         total: number;
         batch_size: number;
       };
+  skip_existed: boolean;
 }) {
   const {
     typename,
@@ -241,6 +244,7 @@ export async function generate_repository_api_type<T>(param: {
     samples_gen,
     debugopt_logtime,
     only_gen_batches_union_merge_file,
+    skip_existed,
   } = param;
 
   let offset = 0;
@@ -262,171 +266,185 @@ export async function generate_repository_api_type<T>(param: {
         const _read_end_at = now();
         const batch_start = offset;
         const batch_end = batch_start + samples_res.length - 1;
-        const batch_file_name = `batch_${batch_start}_${batch_end}.ts` as const;
-        const res_file_path = path.join(
-          data_cleaner_ci_generated,
-          typename,
-          batch_file_name
-        );
-        batch_file_name_list.push(batch_file_name);
-        const samples = samples_res.map((it) => JSON.stringify(it));
-        const input = {
-          debugopt_logtime,
-          samples,
-          typename,
-          typedesc,
-          _TIP,
-          res_file_path,
-        };
-        const _subproc_start_at = now();
-        const proc = new Deno.Command("deno", {
-          args: [
-            "run",
-            "--allow-env=CI,READABLE_STREAM,NODE_NDEBUG",
-            "--allow-write=data_cleaner_ci_generated",
-            "--v8-flags=--max-old-space-size=8192",
-            "subproc/quicktype_gen.ts",
-          ],
-          stderr: "inherit",
-          stdin: "piped",
-          stdout: "inherit",
-        }).spawn();
-        // const stdin_writer = proc.stdin.getWriter();
-        await Jsons.dump_to({
-          obj: input,
-          output: {
-            writer: proc.stdin,
-          },
-        });
-        // await stdin_writer.write(new TextEncoder().encode());
-        // await stdin_writer.close();
-        const _subproc_write_end_at = now();
-
-        const status = await proc.status;
-        if (!status.success) {
-          throw new Error(`code gen failed !`);
-        }
-        const _subproc_run_end_at = now();
-
-        // const quicktype_gen = Comlink.wrap<QuicktypeGen<T>>(
-        //   new Worker(
-        //     new URL("./workers/quicktype_gen.ts", import.meta.url).href,
-        //     {
-        //       type: "module",
-        //       name: "quicktype_gen",
-        //     }
-        //   )
-        // );
-        // const {
-        //   _samples_stringify_start_at,
-        //   _addsource_start_at,
-        //   _addinput_start_at,
-        //   _quicktype_start_at,
-        //   _quicktype_end_at,
-        //   lines,
-        // } = await quicktype_gen({
-        //   debugopt_logtime,
-        //   samples_res,
-        //   typename,
-        //   typedesc,
-        //   _TIP,
-        // });
-        //-----------------------
-
-        // const _samples_stringify_start_at = now();
-        // const samples = samples_res.map((it) => JSON.stringify(it));
-        // const _addsource_start_at = now();
-        // await jsonInput.addSource({
-        //   name: typename,
-        //   samples,
-        //   description: typedesc + `\n\n${_TIP}`,
-        // });
-        // const _addinput_start_at = now();
-        // const inputData = new InputData();
-        // inputData.addInput(jsonInput);
-        // const _quicktype_start_at = now();
-        // const res_quicktype = await quicktype({
-        //   inputData,
-        //   lang: new QuickTypeUtil.MyTypeScriptTargetLanguage(),
-        //   checkProvenance: true,
-        //   debugPrintTimes: debugopt_logtime,
-        //   fixedTopLevels: true,
-        //   rendererOptions: {
-        //     declareUnions: true,
-        //     preferUnions: true,
-        //     preferConstValues: true,
-        //     runtimeTypecheck: true,
-        //     runtimeTypecheckIgnoreUnknownProperties: true,
-        //   },
-        //   combineClasses: true,
-        //   inferMaps: false,
-        //   inferEnums: true,
-        //   inferUuids: false,
-        //   inferDateTimes: false,
-        //   inferIntegerStrings: false,
-        //   inferBooleanStrings: false,
-        //   ignoreJsonRefs: true,
-        // });
-        // const _quicktype_end_at = now();
-        // ------------------
-        // const res_file_content = lines.join("\n");
-        // // const res_file_path = path.join(
-        // //   data_cleaner_ci_generated,
-        // //   typename,
-        // //   `batch_${batch_start}_${batch_end}.ts`
-        // // );
-        // await Deno.mkdir(path.dirname(res_file_path), {
-        //   mode: 0o700,
-        //   recursive: true,
-        // });
-        // await Deno.writeTextFile(res_file_path, res_file_content);
-        // const _write_text_file_end_at = now();
-        console.log(`Genarated: ${res_file_path}`);
-        if (debugopt_logtime) {
-          // const to_mem_size = async (obj: unknown) => {
-          //   const n = await Promise.resolve(SizeOf.sizeof(obj));
-          //   return `${(n / 1024 / 1024).toFixed(2)} MB`;
-          // };
-          // const _batch_mem_size_start_at = now();
-          // const [batch_mem_size] = await Promise.all([to_mem_size(samples_res)]);
-          // const _batch_mem_size_end_at = now();
-
-          const batch_data_status = {
-            cast_read: `${(_read_end_at - _read_start_at) / 1000} s`,
-            batch_size: samples_res.length,
-            cast_subproc_write: `${
-              (_subproc_write_end_at - _subproc_start_at) / 1000
-            } s`,
-            cast_subproc_run: `${
-              (_subproc_run_end_at - _subproc_start_at) / 1000
-            } s`,
-            // cast_samples_stringify: `${
-            //   (_addsource_start_at - _samples_stringify_start_at) / 1000
-            // } s`,
-            // cast_addsource: `${
-            //   (_addinput_start_at - _addsource_start_at) / 1000
-            // } s`,
-            // cast_addinput: `${
-            //   (_quicktype_start_at - _addinput_start_at) / 1000
-            // } s`,
-            // cast_quicktype: `${
-            //   (_quicktype_end_at - _quicktype_start_at) / 1000
-            // } s`,
-            // cast_write_text_file: `${
-            //   (_write_text_file_end_at - _quicktype_end_at) / 1000
-            // } s`,
-            _deno_mem_after_all: SizeOf.get_deno_mem_loginfo(),
-            // batch_mem_size,
-            // cast_batch_mem_size: `${
-            //   (_batch_mem_size_end_at - _batch_mem_size_start_at) / 1000
-            // } s`,
+        try {
+          const batch_file_name =
+            `batch_${batch_start}_${batch_end}.ts` as const;
+          const res_file_path = path.join(
+            data_cleaner_ci_generated,
+            typename,
+            batch_file_name
+          );
+          batch_file_name_list.push(batch_file_name);
+          let res_file_existed: boolean;
+          try {
+            const res_file_stat = await Deno.stat(res_file_path);
+            res_file_existed = res_file_stat.isFile;
+          } catch (err) {
+            if (err instanceof Deno.errors.NotFound) {
+              res_file_existed = false;
+            } else {
+              throw err;
+            }
+          }
+          if (skip_existed && res_file_existed) {
+            console.log(`\nSkip existed : ${res_file_path}\n`);
+            continue;
+          }
+          const samples = samples_res.map((it) => JSON.stringify(it));
+          const input = {
+            debugopt_logtime,
+            samples,
+            typename,
+            typedesc,
+            _TIP,
+            res_file_path,
           };
-          console.debug("batch data status :", {
-            ...batch_data_status,
+          const _subproc_start_at = now();
+          const proc = new Deno.Command("deno", {
+            args: [
+              "run",
+              "--allow-env=CI,READABLE_STREAM,NODE_NDEBUG",
+              "--allow-write=data_cleaner_ci_generated",
+              "--v8-flags=--max-old-space-size=8192",
+              "subproc/quicktype_gen.ts",
+            ],
+            stderr: "inherit",
+            stdin: "piped",
+            stdout: "inherit",
+          }).spawn();
+          await Jsons.dump_to({
+            obj: input,
+            output: {
+              writer: proc.stdin,
+            },
           });
+          const _subproc_write_end_at = now();
+
+          const status = await proc.status;
+          if (!status.success) {
+            throw new Error(`code gen failed !`);
+          }
+          const _subproc_run_end_at = now();
+
+          //   new Worker(
+          //     new URL("./workers/quicktype_gen.ts", import.meta.url).href,
+          //     {
+          //       type: "module",
+          //       name: "quicktype_gen",
+          //     }
+          //   )
+          // );
+          // const {
+          //   _samples_stringify_start_at,
+          //   _addsource_start_at,
+          //   _addinput_start_at,
+          //   _quicktype_start_at,
+          //   _quicktype_end_at,
+          //   lines,
+          // } = await quicktype_gen({
+          //   debugopt_logtime,
+          //   samples_res,
+          //   typename,
+          //   typedesc,
+          //   _TIP,
+          // });
+          //-----------------------
+
+          // const _samples_stringify_start_at = now();
+          // const samples = samples_res.map((it) => JSON.stringify(it));
+          // const _addsource_start_at = now();
+          // await jsonInput.addSource({
+          //   name: typename,
+          //   samples,
+          //   description: typedesc + `\n\n${_TIP}`,
+          // });
+          // const _addinput_start_at = now();
+          // const inputData = new InputData();
+          // inputData.addInput(jsonInput);
+          // const _quicktype_start_at = now();
+          // const res_quicktype = await quicktype({
+          //   inputData,
+          //   lang: new QuickTypeUtil.MyTypeScriptTargetLanguage(),
+          //   checkProvenance: true,
+          //   debugPrintTimes: debugopt_logtime,
+          //   fixedTopLevels: true,
+          //   rendererOptions: {
+          //     declareUnions: true,
+          //     preferUnions: true,
+          //     preferConstValues: true,
+          //     runtimeTypecheck: true,
+          //     runtimeTypecheckIgnoreUnknownProperties: true,
+          //   },
+          //   combineClasses: true,
+          //   inferMaps: false,
+          //   inferEnums: true,
+          //   inferUuids: false,
+          //   inferDateTimes: false,
+          //   inferIntegerStrings: false,
+          //   inferBooleanStrings: false,
+          //   ignoreJsonRefs: true,
+          // });
+          // const _quicktype_end_at = now();
+          // ------------------
+          // const res_file_content = lines.join("\n");
+          // // const res_file_path = path.join(
+          // //   data_cleaner_ci_generated,
+          // //   typename,
+          // //   `batch_${batch_start}_${batch_end}.ts`
+          // // );
+          // await Deno.mkdir(path.dirname(res_file_path), {
+          //   mode: 0o700,
+          //   recursive: true,
+          // });
+          // await Deno.writeTextFile(res_file_path, res_file_content);
+          // const _write_text_file_end_at = now();
+          console.log(`\nGenarated: ${res_file_path}\n`);
+          if (debugopt_logtime) {
+            //   const n = await Promise.resolve(SizeOf.sizeof(obj));
+            //   return `${(n / 1024 / 1024).toFixed(2)} MB`;
+            // };
+            // const _batch_mem_size_start_at = now();
+            // const [batch_mem_size] = await Promise.all([to_mem_size(samples_res)]);
+            // const _batch_mem_size_end_at = now();
+
+            const batch_data_status = {
+              cast_read: `${(_read_end_at - _read_start_at) / 1000} s`,
+              batch_size: samples_res.length,
+              cast_subproc_write: `${
+                (_subproc_write_end_at - _subproc_start_at) / 1000
+              } s`,
+              cast_subproc_run: `${
+                (_subproc_run_end_at - _subproc_start_at) / 1000
+              } s`,
+              // cast_samples_stringify: `${
+              //   (_addsource_start_at - _samples_stringify_start_at) / 1000
+              // } s`,
+              // cast_addsource: `${
+              //   (_addinput_start_at - _addsource_start_at) / 1000
+              // } s`,
+              // cast_addinput: `${
+              //   (_quicktype_start_at - _addinput_start_at) / 1000
+              // } s`,
+              // cast_quicktype: `${
+              //   (_quicktype_end_at - _quicktype_start_at) / 1000
+              // } s`,
+              // cast_write_text_file: `${
+              //   (_write_text_file_end_at - _quicktype_end_at) / 1000
+              // } s`,
+              _deno_mem_after_all: SizeOf.get_deno_mem_loginfo(),
+              // batch_mem_size,
+              // cast_batch_mem_size: `${
+              //   (_batch_mem_size_end_at - _batch_mem_size_start_at) / 1000
+              // } s`,
+            };
+            console.debug("batch data status :", {
+              ...batch_data_status,
+            });
+          }
+        } finally {
+          offset = batch_end + 1;
+          _read_start_at = now();
         }
-        offset = batch_end + 1;
-        _read_start_at = now();
       }
     }
     const index_file_content = (() => {
@@ -476,6 +494,7 @@ export async function code_gen_main() {
     "network",
     "debugopt-logtime",
     "only-gen-batches-union-merge-file",
+    "skip-existed",
   ] as const;
   const _args_str = [
     "high-water-mark",
@@ -570,6 +589,7 @@ Help for code gen:
         prevent_oom_batch_mem_size: prevent_oom_batch_mem_size,
         only_gen_batches_union_merge_file:
           cmdarg["only-gen-batches-union-merge-file"],
+        skip_existed: cmdarg["skip-existed"],
       })
   );
 }

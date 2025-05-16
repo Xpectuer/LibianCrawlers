@@ -66,7 +66,7 @@ async def search(*,
             raise ValueError(f'rid_list should be list or tuple , but rid_list is {rid_list} , record is {record}')
         for idx in range(0, rid_list.__len__()):
             rid = rid_list[idx]
-            efetch_handle = Entrez.efetch(db='pubmed', id=rid, rettype='medline', retmode='text')
+            efetch_handle = Entrez.efetch(db=db, id=rid, rettype='medline', retmode='text')
             try:
                 yield rid, efetch_handle.read(), idx < rid_list.__len__() - 1
             finally:

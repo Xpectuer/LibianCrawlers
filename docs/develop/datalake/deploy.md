@@ -1,5 +1,10 @@
 # 1-部署数据湖
 
+:::danger
+似乎存在错误，虽然在 DockerCompose 内部 NocoDB 连接到 postgres 启用 SSL 没问题。但为啥我在家中的内网环境下死活没法启用 SSL，我试图从公网域名连也无法启用 SSL ？是 GFW 干的，还是我的配置文件问题？
+:::
+
+
 本文描述了如何部署 LibianDatalake 数据湖。
 
 ## 1. 创建环境变量文件

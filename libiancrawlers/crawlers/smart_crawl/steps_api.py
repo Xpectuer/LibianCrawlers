@@ -4,7 +4,7 @@ import hashlib
 import random
 from datetime import datetime
 from typing import Optional, Literal, TypedDict, Callable, Awaitable, Union, List, Tuple, Dict
-
+from uuid import uuid4
 from aioify import aioify
 from loguru import logger
 from playwright.async_api import Page, BrowserContext, Locator
@@ -943,6 +943,9 @@ def _create_steps_api_functions(*,
         await sleep(0.5)
         await switch_page(-1)
 
+    async def dump_page_with_uuid(tag: str):
+        return await dump_page(f'tag_{tag}_uuid_{uuid4().hex}')
+
     fn_map = {
         'sleep': api_sleep,
         'logd': logd,
@@ -967,6 +970,7 @@ def _create_steps_api_functions(*,
         'page_click_and_expect_element_destroy': page_click_and_expect_element_destroy,
         'if_url_is': if_url_is,
         'page_close': page_close,
+        'dump_page_with_uuid': dump_page_with_uuid,
     }
 
     return fn_map

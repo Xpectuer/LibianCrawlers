@@ -9,6 +9,7 @@ async function run_tests() {
     // "test_baidu",
     // "test_xhs2",
     "test_cnki",
+    "test_entrez_search"
   ]) {
     let target_file: string;
     const func_config_file = path.join(

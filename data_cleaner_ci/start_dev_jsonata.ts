@@ -24,6 +24,7 @@ async function start_dev_jsonata() {
         "--allow-read=data_cleaner_ci_generated/.cache_by_id,jsonata_templates,user_code,util.ts",
         "--allow-write=user_code",
         "--allow-run=deno",
+        "--allow-env",
         "jsonata_templates/jsonata_test.ts",
       ],
       {
