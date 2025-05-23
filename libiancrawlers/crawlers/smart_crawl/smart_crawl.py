@@ -5,7 +5,7 @@ import json
 import os.path
 import traceback
 from threading import Thread
-from typing import Literal, Optional, Any, TypedDict
+from typing import Literal, Optional, Any, TypedDict, Tuple, Union
 
 import aiofiles.os
 import aiofiles.ospath
@@ -72,7 +72,12 @@ async def smart_crawl_v1(*,
                          save_file_json_indent=2,
                          steps: JSON = None,
                          debug: bool = False,
+                         dump_page_ignore_names: Optional[Union[str, Tuple[str]]] = None,
+                         **__kwargs,
                          ):
+    if __kwargs.keys().__len__() > 0:
+        raise ValueError(f'Invalid param : {__kwargs}')
+
     _is_success_end = True
     base_dir = None
     _param_json = json.dumps(locals(), ensure_ascii=False, indent=save_file_json_indent)
@@ -90,10 +95,17 @@ async def smart_crawl_v1(*,
         raise ValueError(
             f'Invalid steps , not iterable , typeof steps is {type(steps)} , param is {___steps_param} , but parsed value is {steps}')
 
+    _appium_url_prefix = 'appium://'
+    if url.startswith(_appium_url_prefix):
+        appium_url = url[len(_appium_url_prefix):]
+        logger.debug('appium_url is {}', appium_url)
+    else:
+        appium_url = None
+
     from libiancrawlers.app_util.types import Initiator
     from libiancrawlers.app_util.app_init import init_app
     from libiancrawlers.app_util.magic_util import get_magic_info
-    from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options, read_proxy_server
+
     from libiancrawlers.crawlers.smart_crawl.steps_api import SmartCrawlStopSignal
     from asyncio import locks
 
@@ -133,19 +145,25 @@ async def smart_crawl_v1(*,
             await require_init_table()
         logger.debug('start get browser')
 
-        await update_proxies()
-        proxy_server = await read_proxy_server()
-        my_public_ip_info = await get_my_public_ip_info()
+        if appium_url:
+            raise ValueError('Not support yet')
+        else:
+            from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options, \
+                read_proxy_server
 
-        browser_context, _ = await get_browser(
-            mode=LaunchBrowserParam(browser_data_dir_id=browser_data_dir_id),
-            my_public_ip_info=my_public_ip_info,
-            launch_options=await get_best_launch_options(
+            await update_proxies()
+            proxy_server = await read_proxy_server()
+            my_public_ip_info = await get_my_public_ip_info()
+
+            browser_context, _ = await get_browser(
+                mode=LaunchBrowserParam(browser_data_dir_id=browser_data_dir_id),
                 my_public_ip_info=my_public_ip_info,
-                proxy_server=proxy_server,
-                locale=locale,
+                launch_options=await get_best_launch_options(
+                    my_public_ip_info=my_public_ip_info,
+                    proxy_server=proxy_server,
+                    locale=locale,
+                )
             )
-        )
 
         if is_insert_to_db:
             fixed_param_insert_to_db = dict(
@@ -167,33 +185,37 @@ async def smart_crawl_v1(*,
             )
             logger.debug('finish insert to db')
 
-        __pages = browser_context.pages
-        logger.debug('start get page , pages were {}', __pages)
-        if len(__pages) > 0:
-            b_page = __pages[0]
+        if appium_url:
+            raise ValueError('Not support yet')
         else:
-            logger.debug('start new page')
-            b_page = await browser_context.new_page()
-
-        logger.debug('start page goto')
-        _resp_goto_obj = await b_page.goto(url=url, wait_until='domcontentloaded')
-
-        async def parse_resp_goto():
-            logger.debug('start parse resp_goto')
-            _resp_goto_dict = await response_to_dict(_resp_goto_obj)
-
-            if 300 <= _resp_goto_obj.status <= 399:
-                body_resp_goto = None
+            __pages = browser_context.pages
+            logger.debug('start get page , pages were {}', __pages)
+            if len(__pages) > 0:
+                b_page = __pages[0]
             else:
-                logger.debug('start parse body_resp_goto')
-                body_resp_goto = get_magic_info(await _resp_goto_obj.body())
-            return dict(
-                resp_goto_dict=_resp_goto_dict,
-                body_resp_goto=body_resp_goto,
-            )
+                logger.debug('start new page')
+                b_page = await browser_context.new_page()
 
-        if is_insert_to_db:
-            await _insert_to_garbage_table(**(await parse_resp_goto()))
+            logger.debug('start page goto')
+            _resp_goto_obj = await b_page.goto(url=url, wait_until='domcontentloaded')
+
+            async def parse_resp_goto():
+                logger.debug('start parse resp_goto')
+                _resp_goto_dict = await response_to_dict(_resp_goto_obj)
+
+                if 300 <= _resp_goto_obj.status <= 399:
+                    body_resp_goto = None
+                else:
+                    logger.debug('start parse body_resp_goto')
+                    body_resp_goto = get_magic_info(await _resp_goto_obj.body(),
+                                                    dump_page_ignore_names=dump_page_ignore_names)
+                return dict(
+                    resp_goto_dict=_resp_goto_dict,
+                    body_resp_goto=body_resp_goto,
+                )
+
+            if is_insert_to_db:
+                await _insert_to_garbage_table(**(await parse_resp_goto()))
 
         from libiancrawlers.crawlers.smart_crawl.steps_api import _create_steps_api_functions
 
@@ -221,13 +243,14 @@ async def smart_crawl_v1(*,
                         mode='minio',
                         base_dir=None,
                         png_filename=None,
-                        pdf_filename=None)
+                        pdf_filename=None),
                 )
             else:
                 page_info_smart_wait_insert_to_db = None
 
             logger.debug('start build frame tree')
-            frame_tree = await frame_tree_to_dict(page.main_frame)
+            frame_tree = await frame_tree_to_dict(page.main_frame,
+                                                  dump_page_ignore_names=dump_page_ignore_names)
             if is_save_file:
                 logger.debug('start build page_info_smart_wait_save_file')
                 page_info_smart_wait_save_file = await page_info_to_dict(
@@ -236,7 +259,7 @@ async def smart_crawl_v1(*,
                         mode='file',
                         base_dir=base_dir,
                         png_filename=f'screenshot__{filename_slugify(dump_tag, allow_unicode=True)}.png',
-                        pdf_filename=f'screenshot__{filename_slugify(dump_tag, allow_unicode=True)}.pdf')
+                        pdf_filename=f'screenshot__{filename_slugify(dump_tag, allow_unicode=True)}.pdf'),
                 )
             else:
                 page_info_smart_wait_save_file = None

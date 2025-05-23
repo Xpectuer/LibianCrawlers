@@ -8,8 +8,9 @@ async function run_tests() {
     // "test_yangkeduo",
     // "test_baidu",
     // "test_xhs2",
-    "test_cnki",
-    "test_entrez_search"
+    // "test_cnki",
+    // "test_entrez_search",
+    "test_qianniu_message_export",
   ]) {
     let target_file: string;
     const func_config_file = path.join(

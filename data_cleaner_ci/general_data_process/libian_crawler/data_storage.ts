@@ -7,13 +7,13 @@ import type { Options as PostgresOptions } from "postgres";
 import { DataMerge, Jsons } from "../../util.ts";
 import { PostgresColumnType } from "../../pg.ts";
 import dns from "node:dns/promises";
-import net from "node:net";
 
 export const _libian_crawler_cleaned = "libian_crawler_cleaned" as const;
 
 export interface LibianCrawlerDatabase {
   "libian_crawler_cleaned.media_post": MediaPostTable;
   "libian_crawler_cleaned.shop_good": ShopGoodTable;
+  "libian_crawler_cleaned.chat_message": ChatMessageTable;
   // "libian_crawler_cleaned.file_storage": FileStorageTable;
   // "libian_crawler_cleaned.image_ocr": ImageOcrTable;
   // "libian_crawler_cleaned.audio_speech_recognition": AudioSpeechRecognitionTable;
@@ -148,6 +148,42 @@ export interface ShopGoodTable {
 //   file_id: string;
 //   // TODO
 // }
+
+export interface ChatMessageTable {
+  id: string;
+  platform: PlatformEnum;
+  platform_duplicate_id: string; // always computed
+  create_time: Date;
+  update_time: Date | null;
+  content_plain_text: string | null;
+  content_img_url: string | null;
+
+  user_sendfrom_platform_id: string | null;
+  user_sendfrom_nickname: string | null;
+  user_sendfrom_avater_url: string | null;
+
+  user_sendto_platform_id: string | null;
+  user_sendto_nickname: string | null;
+  user_sendto_avater_url: string | null;
+
+  group_sendto_platform_id: string | null;
+  group_sendto_nickname: string | null;
+  group_sendto_avater_url: string | null;
+
+  user_employer_platform_id: string | null;
+  user_employer_nickname: string | null;
+  user_employer_avater_url: string | null;
+
+  user_employee_platform_id: string | null;
+  user_employee_nickname: string | null;
+  user_employee_avater_url: string | null;
+
+  user_customer_platform_id: string | null;
+  user_customer_nickname: string | null;
+  user_customer_avater_url: string | null;
+
+  create_date: Date | null;
+}
 
 export async function create_and_init_libian_srawler_database_scope<R>(
   scope: (db: Kysely<LibianCrawlerDatabase>) => Promise<R>

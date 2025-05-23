@@ -92,6 +92,33 @@
         ),
         "ref_works": ( 
             $is_string(g_content.result.obj.obj) ? $parse_ref_works(g_content.result.obj.obj) : null
+        ),
+        "qianniu_message_export": (
+            $map_item := function($x) {(
+                $r := {
+                    "groupTime": $x.**[$contains($join(attrs.class),"groupTime")].str,
+                    "chatTime": $x.**[$contains($join(attrs.class),"chatTime")].str,
+                    "chatTextLeft": $x.**[$contains($join(attrs.class),"chatTextLeft")].str,
+                    "chatName": $x.**[$contains($join(attrs.class),"chatName")].str,
+                    "img": $x.**[name="img"].attrs.src
+                };
+                $r
+            )};
+            $shopname := $tags[$contains($join(attrs.class), "UserArea--shopName")].str;
+            $shop_username := $tags[$contains($join(attrs.class), "UserArea--userName")].str;
+            $shop_icon := $tags[$contains($join(attrs.class), "UserArea--icon")].attrs.src;
+            $active_user_nickname := $tags["results-list-active" in attrs.class].str;
+            $messages := $tags["message-list-right" in attrs.class].(
+                $.*.*.$map_item($).$[$]
+            );
+            $m := {
+                "messages": $messages,
+                "active_user_nickname": $active_user_nickname,
+                "shopname": $shopname,
+                "shop_username": $shop_username,
+                "shop_icon": $shop_icon
+            };
+            $m
         )
     }
 )

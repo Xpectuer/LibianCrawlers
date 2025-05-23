@@ -1,16 +1,14 @@
 # -*- coding: UTF-8 -*-
 import asyncio
-import base64
-import pathlib
-import typing
-from datetime import datetime
 import json
 import os.path
+import pathlib
+import typing
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional, Literal, Union, Dict, Callable, Awaitable, Any, TypedDict, List, Tuple
 from urllib.parse import urlparse, parse_qs
 
-import hashlib
 import aiofiles.os
 import aiofiles.ospath
 
@@ -21,12 +19,10 @@ monkey_patch_hook_urllib()
 
 import playwright.async_api
 
-# noinspection PyProtectedMember
-from camoufox import AsyncCamoufox
 from loguru import logger
 # noinspection PyProtectedMember
 from playwright.async_api import PlaywrightContextManager, Frame
-from playwright.async_api import async_playwright, BrowserContext, Browser
+from playwright.async_api import async_playwright, BrowserContext
 from playwright.sync_api import ViewportSize
 
 from libiancrawlers.app_util.app_init import get_app_init_conf
@@ -58,7 +54,7 @@ async def shutdown_playwright():
         PLAYWRIGHT_CONTEXT = None
 
 
-async def _get_ctx():
+async def get_global_playwright_context():
     global PLAYWRIGHT_CONTEXT
     if PLAYWRIGHT_CONTEXT is None:
         async with PLAYWRIGHT_LOCK:
@@ -71,38 +67,41 @@ async def _get_ctx():
 
 async def get_browser(*,
                       mode: Union[
-                          Literal["connect"],
+                          # Literal["connect"],
                           LaunchBrowserParam,
                       ],
                       my_public_ip_info: MyPublicIpInfo,
                       launch_options: Dict[str, Any],
                       ):
-    if mode == 'connect':
-        ctx = await _get_ctx()
-        pw = await ctx.__aenter__()
-        ws_endpoint = await read_config('camoufox', 'server', 'ws-endpoint')
-        browser: Browser = await pw.firefox.connect(ws_endpoint=ws_endpoint)
-        browser_context = await browser.new_context()
-    else:
-        gecko_profile_dir = await read_config_get_path('crawler', 'gecko', 'profile-dir-base')
-        user_data_dir = os.path.join(gecko_profile_dir,
-                                     filename_slugify(mode.browser_data_dir_id, allow_unicode=True))
-        logger.debug('create browser , user data dir at {}', user_data_dir)
-        firefox_user_prefs = dict()
-        if launch_options.get('firefox_user_prefs') is not None:
-            firefox_user_prefs.update(launch_options.pop('firefox_user_prefs'))
-        async_camoufox_launch_options = dict(
-            persistent_context=True,
-            user_data_dir=user_data_dir,
-            firefox_user_prefs=firefox_user_prefs,
-            **launch_options,
-        )
-        logger.debug('async_camoufox_launch_options is :\n{}', json.dumps(async_camoufox_launch_options, indent=2))
-        browser_context: BrowserContext = await AsyncCamoufox(**async_camoufox_launch_options).__aenter__()
-        browser: None = browser_context.browser
-        # browser = browser_context.browser
-        # if browser is None:
-        #     raise ValueError('Why browser is None ?')
+    logger.debug('camoufox import')
+    from camoufox import AsyncCamoufox
+
+    # if mode == 'connect':
+    #     ctx = await get_global_playwright_context()
+    #     pw = await ctx.__aenter__()
+    #     ws_endpoint = await read_config('camoufox', 'server', 'ws-endpoint')
+    #     browser: Browser = await pw.firefox.connect(ws_endpoint=ws_endpoint)
+    #     browser_context = await browser.new_context()
+    # else:
+    gecko_profile_dir = await read_config_get_path('crawler', 'gecko', 'profile-dir-base')
+    user_data_dir = os.path.join(gecko_profile_dir,
+                                 filename_slugify(mode.browser_data_dir_id, allow_unicode=True))
+    logger.debug('create browser , user data dir at {}', user_data_dir)
+    firefox_user_prefs = dict()
+    if launch_options.get('firefox_user_prefs') is not None:
+        firefox_user_prefs.update(launch_options.pop('firefox_user_prefs'))
+    async_camoufox_launch_options = dict(
+        persistent_context=True,
+        user_data_dir=user_data_dir,
+        firefox_user_prefs=firefox_user_prefs,
+        **launch_options,
+    )
+    logger.debug('async_camoufox_launch_options is :\n{}', json.dumps(async_camoufox_launch_options, indent=2))
+    browser_context: BrowserContext = await AsyncCamoufox(**async_camoufox_launch_options).__aenter__()
+    browser: None = browser_context.browser
+    # browser = browser_context.browser
+    # if browser is None:
+    #     raise ValueError('Why browser is None ?')
     logger.info('BrowserContext is {} , Browser is {}', browser_context, browser)
     return browser_context, browser
 
@@ -123,7 +122,6 @@ ResultOfUrlParseToDict = TypedDict('ResultOfUrlParseToDict', {
     'password': Optional[str],
     'hostname': Optional[str],
     'port': Optional[int],
-
 })
 
 
@@ -257,13 +255,15 @@ async def request_info_to_dict(req: Optional[playwright.async_api.Request]):
     )
 
 
-async def frame_tree_to_dict(frame: Frame):
+async def frame_tree_to_dict(frame: Frame,
+                             *,
+                             dump_page_ignore_names: Optional[str]):
     if frame.child_frames is None:
         child_frames = []
     else:
         child_frames = []
         for cf in frame.child_frames:
-            child_frames.append(await frame_tree_to_dict(cf))
+            child_frames.append(await frame_tree_to_dict(cf, dump_page_ignore_names=dump_page_ignore_names))
     from libiancrawlers.app_util.magic_util import get_magic_info
     is_detached = frame.is_detached()
     return {
@@ -274,7 +274,8 @@ async def frame_tree_to_dict(frame: Frame):
         'name': frame.name,
         'url': url_parse_to_dict(frame.url),
         'title': None if is_detached else await frame.title(),
-        'content': None if is_detached else get_magic_info(await frame.content()),
+        'content': None if is_detached else get_magic_info(await frame.content(),
+                                                           dump_page_ignore_names=dump_page_ignore_names),
         'child_frames': child_frames,
     }
 
@@ -443,8 +444,9 @@ ResultOfPageInfoToDict = TypedDict('ResultOfPageInfoToDict', {
 })
 
 
-async def page_info_to_dict(page: playwright.async_api.Page, *,
-                            on_screenshot: Optional[BlobOutput] = None,
+async def page_info_to_dict(page: playwright.async_api.Page,
+                            *,
+                            on_screenshot: Optional[BlobOutput],
                             ) -> ResultOfPageInfoToDict:
     async def get_screenshot(*,
                              output_base_dir: str,

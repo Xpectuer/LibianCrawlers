@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 import json
-from typing import Union, Callable, Any, Optional, TypedDict, List, Dict, TypeVar
+from typing import Union, Callable, Any, Optional, TypedDict, List, Dict, TypeVar, Tuple
 
 import charset_normalizer
 import json5
@@ -151,23 +151,29 @@ ITag = TypedDict('ITag', {
     'children': Optional[List['IPageElement']]
 })
 
-Bs4ToDictIgnoreConfig = TypedDict('Bs4ToDictIgnoreConfig', {
-    'style_str': bool,
-    'script_str': bool,
-    'str_max_length': int,
+Bs4ToDictConfig = TypedDict('Bs4ToDictConfig', {
+    'dump_page_ignore_names': List[str],
 })
 
 
-def _bs4_tag_to_dict(t: Tag, *, children: bool, ignore_conf: Bs4ToDictIgnoreConfig) -> ITag:
+def _bs4_tag_to_dict(t: Tag, *, children: bool, conf: Bs4ToDictConfig) -> ITag:
     n = t.name
     s = t.string
+
     skip_length_check = False
+
+    def _name_exist():
+        try:
+            return conf.get('dump_page_ignore_names', []).index(n) >= 0
+        except ValueError:
+            return False
+
+    __name_exist = _name_exist()
+
     if s is None:
         pass
-    elif ignore_conf.get('style_str') and n == 'style':
-        s = 'Ignore style'
-    elif ignore_conf.get('script_str') and n == 'script':
-        s = 'Ignore script'
+    elif __name_exist:
+        s = '__IGNORE__'
     elif n in ['pre', 'textarea']:
         j, j5 = parse_json(s.strip())
         if j is not None or j5 is not None:
@@ -175,15 +181,15 @@ def _bs4_tag_to_dict(t: Tag, *, children: bool, ignore_conf: Bs4ToDictIgnoreConf
     else:
         s = s.strip()
 
-    if not skip_length_check:
-        str_max_length = ignore_conf.get('str_max_length')
-        if s is not None and str_max_length is not None and 0 <= str_max_length < len(s):
-            s = f'Ignore length greater than {str_max_length}'
+    # if not skip_length_check:
+    #     str_max_length = ignore_conf.get('str_max_length')
+    #     if s is not None and str_max_length is not None and 0 <= str_max_length < len(s):
+    #         s = f'Ignore length greater than {str_max_length}'
 
-    cld = None if not children else [
+    cld = None if __name_exist or not children else [
         _bs4_page_element_to_dict(c,
                                   children=children,
-                                  ignore_conf=ignore_conf
+                                  conf=conf
                                   ) for c in t.children]
 
     if cld is not None and len(cld) == 1:
@@ -224,9 +230,9 @@ IPageElementUnknownType = TypedDict('IPageElementUnknownType', {
 IPageElement = Union[ITag, INavigableString, IPageElementUnknownType]
 
 
-def _bs4_page_element_to_dict(p: PageElement, *, children: bool, ignore_conf: Bs4ToDictIgnoreConfig) -> IPageElement:
+def _bs4_page_element_to_dict(p: PageElement, *, children: bool, conf: Bs4ToDictConfig) -> IPageElement:
     if isinstance(p, Tag):
-        return _bs4_tag_to_dict(p, children=children, ignore_conf=ignore_conf)
+        return _bs4_tag_to_dict(p, children=children, conf=conf)
     if isinstance(p, NavigableString):
         return _bs4_navigable_string_to_dict(p)
     d = p.__dict__
@@ -245,29 +251,23 @@ ParseHtmlInfoResult = TypedDict('ParseHtmlInfoResult', {
 })
 
 
-def parse_html_info(html_doc: Optional[str], *, html_root_ignore_conf: Optional[Bs4ToDictIgnoreConfig] = None) \
+def parse_html_info(html_doc: Optional[str], *, conf: Optional[Bs4ToDictConfig] = None) \
         -> Optional[ParseHtmlInfoResult]:
     if html_doc is None:
         return None
-    if html_root_ignore_conf is None:
-        html_root_ignore_conf = {
-            'style_str': False,
-            'script_str': False,
-            'str_max_length': -1,
+    if conf is None:
+        conf: Bs4ToDictConfig = {
+            'dump_page_ignore_names': []
         }
     soup = BeautifulSoup(html_doc, 'html.parser')
     _title = soup.__getattr__('title')
     r: ParseHtmlInfoResult = {
         'title': None if _title is None else _bs4_tag_to_dict(_title,
                                                               children=True,
-                                                              ignore_conf={
-                                                                  'style_str': False,
-                                                                  'script_str': False,
-                                                                  'str_max_length': -1,
-                                                              }),
+                                                              conf=conf),
         'root': _bs4_tag_to_dict(soup,
                                  children=True,
-                                 ignore_conf=html_root_ignore_conf),
+                                 conf=conf),
     }
 
     return r
@@ -307,8 +307,10 @@ def find_tag(t: Optional[ITag], names: List[str], prop: Optional[str]):
     return None
 
 
-def get_magic_info(buf: Union[str, bytes], *,
-                   html_root_ignore_conf: Optional[Bs4ToDictIgnoreConfig] = None) -> MagicInfo:
+def get_magic_info(buf: Union[str, bytes],
+                   *,
+                   dump_page_ignore_names: Optional[Union[str, Tuple[str]]],
+                   ) -> MagicInfo:
     mime = magic.from_buffer(buffer=buf, mime=True)
     desc = magic.from_buffer(buffer=buf, mime=False)
 
@@ -332,7 +334,15 @@ def get_magic_info(buf: Union[str, bytes], *,
 
     try:
         if text.strip().startswith('<'):
-            html_info = parse_html_info(text, html_root_ignore_conf=html_root_ignore_conf)
+            if dump_page_ignore_names is None:
+                _dump_page_ignore_names = []
+            elif isinstance(dump_page_ignore_names, str):
+                _dump_page_ignore_names = [item.strip() for item in dump_page_ignore_names.split(',')]
+            else:
+                _dump_page_ignore_names = [item.strip() for item in dump_page_ignore_names]
+            html_info = parse_html_info(text, conf={
+                'dump_page_ignore_names': _dump_page_ignore_names
+            })
         else:
             html_info = None
     except BaseException as err:

@@ -501,8 +501,8 @@ export async function code_gen_main() {
     "batch-size",
     "prevent-oom-batch-mem-size",
   ] as const;
-  const high_water_mark_default = 1 as const;
-  const prevent_oom_batch_mem_size_default = 1073741824; // 1024 * 1024 * 1024
+  const high_water_mark_default = 0 as const;
+  const prevent_oom_batch_mem_size_default = 536870912; // 512 * 1024 * 1024
   const cmdarg = parseArgs(Deno.args, {
     boolean: [..._args_bool, "help"] as const,
     string: _args_str,

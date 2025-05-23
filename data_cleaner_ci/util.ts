@@ -312,6 +312,8 @@ export namespace Typings {
 
   /**
    * https://stackoverflow.com/a/79613705/21185704
+   * 
+   * https://github.com/microsoft/TypeScript/pull/45025
    */
   export type ReduceUnionMapping<
     A,
@@ -333,7 +335,7 @@ export namespace Typings {
         }
       >;
 
-  type _Test_UnionReduceMap = ReduceUnionMapping<
+  type _Test_ReduceUnionMap = ReduceUnionMapping<
     | { id: 1; xxx: 1 }
     | { id: 2; xxx: 2 }
     | { str?: "aa"; xxx: 3 }
@@ -341,7 +343,7 @@ export namespace Typings {
     | { name: "a"; xxx: 5 }
     | { name?: "b"; xxx: 6 }
   >;
-
+  
   export type RemovePrefixRecursion<
     T extends string,
     C extends string
@@ -370,6 +372,10 @@ export namespace Typings {
       [Key in keyof Source]: Source[Key] extends string ? Key : never;
     }[keyof Source]
   >;
+
+  type UnionMap<T, M> = T extends any ? M extends (arg: T) => infer R ? R : never : never;
+
+
 }
 
 // deno-lint-ignore no-namespace
@@ -1089,34 +1095,34 @@ export namespace Mappings {
     return Object.keys(obj) as any;
   };
 
-  export const find_entry_which_defined_value_and_key_startswith = <
-    P extends string,
-    T extends Record<string, any>
-  >(
-    prefix: P,
-    obj: T
-  ) => {
-    return (
-      object_keys(obj)
-        .map((key) => {
-          if (Strs.startswith(key, prefix)) {
-            const k: keyof Typings.ReduceUnionMapping<T> = key as any;
-            if (k === undefined) {
-              return null;
-            }
-            const o: Typings.ReduceUnionMapping<T> = obj as any;
-            const v = o[k];
-            if (v === undefined) {
-              return null;
-            }
-            return [k, v] as const;
-          } else {
-            return null;
-          }
-        })
-        .find((it) => it) ?? null
-    );
-  };
+  // export const find_entry_which_defined_value_and_key_startswith = <
+  //   P extends string,
+  //   T extends Record<string, any>
+  // >(
+  //   prefix: P,
+  //   obj: T
+  // ) => {
+  //   return (
+  //     object_keys(obj)
+  //       .map((key) => {
+  //         if (Strs.startswith(key, prefix)) {
+  //           const k: keyof Typings.ReduceUnionMapping<T> = key as any;
+  //           if (k === undefined) {
+  //             return null;
+  //           }
+  //           const o: Typings.ReduceUnionMapping<T> = obj as any;
+  //           const v = o[k];
+  //           if (v === undefined) {
+  //             return null;
+  //           }
+  //           return [k, v] as const;
+  //         } else {
+  //           return null;
+  //         }
+  //       })
+  //       .find((it) => it) ?? null
+  //   );
+  // };
 
   export function filter_keys<
     T extends Record<string, any>,
@@ -1265,6 +1271,14 @@ export namespace DataClean {
     if (Strs.startswith(url, "http://")) {
       const _url: `http://${string}` = url;
       return `https://${Strs.remove_prefix(_url, "http://")}` as const;
+    }
+    if (Strs.startswith(url, "//")) {
+      const _url: `//${string}` = url;
+      return `https:${_url}` as const;
+    }
+    if (Strs.startswith(url, "://")) {
+      const _url: `://${string}` = url;
+      return `https${_url}` as const;
     }
     if (url.indexOf("://") >= 0) {
       throw new Error(`Not http or https protocol : ${url}`);
@@ -2379,6 +2393,7 @@ export namespace Jsonatas {
         "deno_eval",
         async (str: string) => {
           let script_filepath: string;
+          let loop_limit = 0;
           while (true) {
             script_filepath = path.join(
               "user_code",
@@ -2400,6 +2415,15 @@ export namespace Jsonatas {
               await Deno.stat(script_filepath);
               await delay(1000);
               // if found existed , wait it delete by other thread
+              if (loop_limit++ >= 1000) {
+                throw new Error(
+                  `Why loop limit ? ${Jsons.dump({
+                    loop_limit,
+                    script_filepath,
+                    str,
+                  })}`
+                );
+              }
             } catch (err) {
               if (err instanceof Deno.errors.NotFound) {
                 // if not found , create and run script
@@ -2409,51 +2433,64 @@ export namespace Jsonatas {
               }
             }
           }
-          await write_file({
-            file_path: script_filepath,
-            creator: {
-              mode: "text",
-              // deno-lint-ignore require-await
-              content: async () => str,
-            },
-            log_tag: "no",
-          });
-          const command = new Deno.Command("deno", {
-            args: [
-              "run",
-              script_filepath,
-              "--check",
-              "--no-config",
-              "--no-lock",
-              "--no-npm",
-              "--no-remote",
-              "--",
-              "--deny-all",
-            ],
-            stdin: "null",
-            stdout: "piped",
-            stderr: "piped",
-            env: {},
-          });
-          const proc = command.spawn();
-          const o = await proc.output();
-          const stderr_str = new TextDecoder("utf-8").decode(o.stderr);
-          const stdout_str = new TextDecoder("utf-8").decode(o.stdout);
-          let stdout_json: Jsons.JSONValue;
+          let success: boolean = false;
           try {
-            stdout_json = Jsons.load(stdout_str, {
-              parse_json5: true,
+            await write_file({
+              file_path: script_filepath,
+              creator: {
+                mode: "text",
+                // deno-lint-ignore require-await
+                content: async () => str,
+              },
+              log_tag: "no",
             });
-          } catch (err) {
-            stdout_json = null;
+            const command = new Deno.Command("deno", {
+              args: [
+                "run",
+                script_filepath,
+                "--check",
+                "--no-config",
+                "--no-lock",
+                "--no-npm",
+                "--no-remote",
+                "--",
+                "--deny-all",
+              ],
+              stdin: "null",
+              stdout: "piped",
+              stderr: "piped",
+              env: {},
+            });
+            const proc = command.spawn();
+            const o = await proc.output();
+            const stderr_str = new TextDecoder("utf-8").decode(o.stderr);
+            const stdout_str = new TextDecoder("utf-8").decode(o.stdout);
+            let stdout_json: Jsons.JSONValue;
+            try {
+              stdout_json = Jsons.load(stdout_str, {
+                parse_json5: true,
+              });
+            } catch (err) {
+              stdout_json = null;
+            }
+            success = o.success;
+            return {
+              success,
+              code: o.code,
+              stderr_str,
+              stdout_str,
+              stdout_json,
+            };
+          } finally {
+            // Don't remove
+            // if (success) {
+            //   try {
+            //     await Deno.remove(script_filepath);
+            //   } catch (err) {
+            //     // ignore
+            //   }
+            // }
           }
-          return {
-            success: o.success,
-            code: o.code,
-            stderr_str,
-            stdout_str,
-            stdout_json,
-          };
         },
         "<s:o>"
       );
@@ -2851,6 +2888,47 @@ export namespace MonkeyPatch {
 
     // Return the original.
     return original;
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace TestUtil {
+  export async function read_vars() {
+    let nocodb_baseurl2: string = "";
+    let nocodb_token: string = "";
+
+    try {
+      const obj = Jsons.load(
+        new TextDecoder().decode(
+          await Deno.readFile(path.join("user_code", "testdevconfig.json"))
+        )
+      );
+      if (typeof obj === "object" && obj && !Array.isArray(obj)) {
+        if (
+          "nocodb_baseurl" in obj &&
+          typeof obj["nocodb_baseurl"] === "string"
+        ) {
+          nocodb_baseurl2 = obj["nocodb_baseurl"];
+        }
+        if ("nocodb_token" in obj && typeof obj["nocodb_token"] === "string") {
+          nocodb_token = obj["nocodb_token"];
+        }
+      }
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) {
+        // ignore
+      } else {
+        console.error("Error on read user_code/testdevconfig.json", err);
+        throw err;
+      }
+    }
+
+    const nocodb_baseurl = DataClean.url_use_https_noempty(nocodb_baseurl2);
+
+    return {
+      nocodb_baseurl,
+      nocodb_token,
+    } as const;
   }
 }
 

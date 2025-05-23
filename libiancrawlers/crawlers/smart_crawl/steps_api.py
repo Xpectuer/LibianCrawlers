@@ -2,16 +2,16 @@
 import asyncio
 import hashlib
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Literal, TypedDict, Callable, Awaitable, Union, List, Tuple, Dict
 from uuid import uuid4
-from aioify import aioify
 from loguru import logger
 from playwright.async_api import Page, BrowserContext, Locator
 
 from libiancrawlers.app_util.types import JSON
 from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.exceptions import is_timeout_error
+from libiancrawlers.util.timefmt import days_iter, YMD, days_ranges_iter, YMDParam
 
 StepsBlock = Union[
     JSON,
@@ -40,31 +40,48 @@ PageScrollDownElementToClickContext = TypedDict('PageScrollDownElementToClickCon
                                                  'locator': Locator})
 
 
-def _create_steps_api_functions(*,
-                                b_page: Page,
-                                browser_context: BrowserContext,
-                                _dump_page: Callable[[str, Page], Awaitable],
-                                _process_steps: Callable[
-                                    [StepsBlock],
-                                    Awaitable,
-                                ],
-                                _page_ref_lock: asyncio.locks.Lock,
-                                _page_ref: PageRef
-                                ):
-    from libiancrawlers.app_util.gui_util import gui_confirm
+# noinspection PyMethodMayBeStatic
+class StepsApi:
+    def __init__(self, *,
+                 b_page: Page,
+                 browser_context: BrowserContext,
+                 _dump_page: Callable[[str, Page], Awaitable],
+                 _process_steps: Callable[
+                     [StepsBlock],
+                     Awaitable,
+                 ],
+                 _page_ref_lock: asyncio.locks.Lock,
+                 _page_ref: PageRef):
+        self._b_page = b_page
+        self._browser_context = browser_context
+        self._var_dump_page = _dump_page
+        self._var_process_steps = _process_steps
+        self._page_ref_lock = _page_ref_lock
+        self._page_ref = _page_ref
+        self._page_mouse_move_default_timeout = 2.0
+        self._page_mouse_move_default_steps = 2
+        self._page_click_default_timeout = 5000
+        self._page_type_default_timeout = 5000
+        self._page_type_default_delay = 300
+        self._page_go_back_default_timeout = 5000
 
-    async def get_window_inner_box():
-        _page = await get_page()
-        return {
-            'width': int(await _page.evaluate('window.innerWidth')),
-            'height': int(await _page.evaluate('window.innerHeight')),
-        }
+    def __getitem__(self, item):
+        if isinstance(item, str) and not item.startswith('_'):
+            return getattr(self, item)
+        else:
+            raise ValueError(f'Not found item {item}')
 
-    async def get_page():
+    # ------------------------------------------------------------------
+    # Private Util
+
+    async def _process_steps(self, _steps):
+        return await self._var_process_steps(_steps)
+
+    async def _get_page(self):
         import inspect
 
-        async with _page_ref_lock:
-            res = _page_ref['value']
+        async with self._page_ref_lock:
+            res = self._page_ref['value']
 
         _frame, _filename, _line_number, _function_name, _lines, _index = inspect.stack()[1]
         logger.debug('current page title is {} , call from {} , link is \n    {}',
@@ -73,153 +90,34 @@ def _create_steps_api_functions(*,
                      res.url)
         return res
 
-    async def set_page(v: Page):
-        async with _page_ref_lock:
-            _page_ref['value'] = v
+    async def _set_page(self, v: Page):
+        async with self._page_ref_lock:
+            self._page_ref['value'] = v
         logger.debug('set page to {}', v)
 
-    async def switch_page(to: Union[int, Literal['default'], Page]):
-        try:
-            await sleep(1)
-            if to == 'default':
-                res = b_page
-            elif isinstance(to, int):
-                logger.debug('all pages : {}', browser_context.pages)
-                len_all_pages = browser_context.pages.__len__()
-                res = browser_context.pages[
-                    len_all_pages - 1 if to > 0 and to >= len_all_pages else -1
-                    if to < 0 and abs(to) > len_all_pages else to
-                ]
-            elif isinstance(to, Page):
-                res = to
-            else:
-                raise ValueError(f'Invalid param {to}')
-            _old_page = await get_page()
-            from_title = await _old_page.title()
-            to_title_prev = await res.title()
-            logger.debug('Start switch page {} : from {} , to title on create {}',
-                         to,
-                         from_title,
-                         to_title_prev,
-                         )
-            await page_wait_loaded(page=res)
-            to_title_cur = await res.title()
-            await set_page(res)
-            logger.debug('Finish switch page {} : from {} , to title ( {} >>> {} )',
-                         to,
-                         from_title,
-                         to_title_prev,
-                         to_title_cur)
-            await sleep(1)
-            while (await get_page()).url != res.url:
-                logger.warning('It seems like ref not change , recall again')
-                await switch_page(to)
-        except BaseException as err:
-            if is_timeout_error(err):
-                logger.debug('switch page timeout ? maybe system blocking ? we will retry')
-                await switch_page(to)
-            raise
+    async def _get_window_inner_box(self):
+        _page = await self._get_page()
+        return {
+            'width': int(await _page.evaluate('window.innerWidth')),
+            'height': int(await _page.evaluate('window.innerHeight')),
+        }
 
-    async def page_wait_loaded(*, page: Page = None):
-        if page is None:
-            page = (await get_page())
-        from libiancrawlers.util.exceptions import is_timeout_error
-        logger.debug('start bring to front at first')
-        await page_bring_to_front(page=page)
-        try:
-            logger.debug('start wait domcontentloaded')
-            await page.wait_for_load_state('domcontentloaded', timeout=5000)
-        except BaseException as err:
-            if is_timeout_error(err):
-                logger.debug('ignore timeout err on switch page domcontentloaded')
-            else:
-                raise
-        try:
-            logger.debug('start wait networkidle')
-            await page.wait_for_load_state('networkidle', timeout=10000)
-        except BaseException as err:
-            if is_timeout_error(err):
-                logger.debug('ignore timeout err on switch page networkidle')
-            else:
-                raise
-        logger.debug('start bring to front at last')
-        await page_bring_to_front(page=page)
-
-    async def page_random_mouse_move():
-        _page = await get_page()
-        box = await _get_bounding_box(_page.locator('body'), timeout=1500)
-        window_box = await get_window_inner_box()
-        if box is None:
-            logger.warning("Can't get body bounding box")
-            box = {
-                'x': 0,
-                'y': 0,
-                'width': window_box['width'],
-                'height': window_box['height']
-            }
-        logger.debug('on mouse random move , box is {} , window_box is {}', box, window_box)
-        try:
-            await page_mouse_move(
-                random.randint(
-                    min(max(100, int(box['x'])), window_box['width'] - 100),
-                    min(max(100, int(box['x'] + box['width'])), window_box['width'] - 100)
-                ),
-                random.randint(
-                    min(max(100, int(box['y'])), window_box['height'] - 100),
-                    min(max(100, int(box['y'] + box['height'])), window_box['height'] - 100)
-                )
-            )
-        except BaseException as err:
-            from libiancrawlers.util.exceptions import is_timeout_error
-            if is_timeout_error(err):
-                logger.debug('ignore timeout error on random mouse move')
-            else:
-                raise
-
-    async def page_mouse_move(x, y, **kwargs):
+    async def _page_mouse_move(self, x, y, **kwargs):
         logger.debug('mouse move {}', kwargs)
         if kwargs.get('timeout') is None:
-            timeout = 2.0
+            timeout = self._page_mouse_move_default_timeout
         else:
             timeout = kwargs.pop('timeout')
 
         if kwargs.get('steps') is None:
-            steps = 2
+            steps = self._page_mouse_move_default_steps
         else:
             steps = kwargs.pop('steps')
 
-        _page = await get_page()
+        _page = await self._get_page()
         await asyncio.wait_for(_page.mouse.move(x, y, steps=steps), timeout=timeout)
 
-    async def page_go_back(**kwargs):
-        page = await get_page()
-        old_url = page.url
-        logger.debug('page go back , kwargs={} , current url is\n    {}',
-                     kwargs, old_url)
-        if kwargs.get('timeout') is not None:
-            timeout = kwargs.pop('timeout')
-        else:
-            timeout = 4000
-        res = await page.go_back(timeout=timeout, **kwargs)
-        return res
-
-    @aioify
-    def logd(*args, **kwargs):
-        logger.debug(*args, **kwargs)
-
-    @aioify
-    def logi(*args, **kwargs):
-        logger.info(*args, **kwargs)
-
-    @aioify
-    def logw(*args, **kwargs):
-        logger.warning(*args, **kwargs)
-
-    @aioify
-    def loge(*args, **kwargs):
-        logger.error(*args, **kwargs)
-
-    async def _get_bounding_box(loc: Locator, *, timeout=750):
+    async def _get_bounding_box(self, loc: Locator, *, timeout=750):
         count = 0
         while True:
             try:
@@ -232,7 +130,7 @@ def _create_steps_api_functions(*,
                 count += 1
                 continue
 
-    async def on_locator(loc: Locator, opts: OnLocatorBlock) -> Locator:
+    async def _on_locator(self, loc: Locator, opts: OnLocatorBlock) -> Locator:
         if not (isinstance(opts, list) or isinstance(opts, set) or isinstance(opts, tuple)):
             opts = [opts]
         for opt in opts:
@@ -263,8 +161,8 @@ def _create_steps_api_functions(*,
                 raise ValueError(f'Invalid on locator operation : {opt}') from err
         return loc
 
-    async def page_any_frame(*, func, timeout: Optional[float], err_msg: str, suc_msg_template: str):
-        _page = await get_page()
+    async def _page_any_frame(self, *, func, timeout: Optional[float], err_msg: str, suc_msg_template: str):
+        _page = await self._get_page()
         start_at = datetime.utcnow().timestamp() * 1000.0
         last_timeout_err = None
         out_loop = True
@@ -277,7 +175,7 @@ def _create_steps_api_functions(*,
                 try:
                     res = await func(frame=frame, loop_timeout=loop_timeout)
                     logger.debug(suc_msg_template, frame, res)
-                    return res
+                    return frame, res
                 except BaseException as err:
                     from libiancrawlers.util.exceptions import is_timeout_error
                     if is_timeout_error(err):
@@ -293,18 +191,397 @@ def _create_steps_api_functions(*,
         else:
             raise TimeoutError(err_msg) from last_timeout_err
 
-    async def page_wait_for_selector_in_any_frame(selector: str, *, timeout: Optional[float], **kwargs):
+    async def _page_bring_to_front(self, *, page: Optional[Page] = None,
+                                   timeout: Optional[float] = None,
+                                   retry_limit: Optional[int] = None):
+        if timeout is None:
+            timeout = 3000
+        if retry_limit is None:
+            retry_limit = 5
+        if page is None:
+            page = await self._get_page()
+
+        retry = 0
+        while True:
+            try:
+                logger.debug('start bring page to front')
+                future = page.bring_to_front()
+                return await asyncio.wait_for(future, timeout=timeout / 1000.0)
+            except BaseException as err:
+                from libiancrawlers.util.exceptions import is_timeout_error
+                if is_timeout_error(err):
+                    retry += 1
+                    if retry > retry_limit:
+                        logger.warning('bring to front failed')
+                        raise
+                    logger.debug('bring to front timeout , retry {} ...', retry)
+                    continue
+                raise
+
+    async def _dump_page(self, dump_tag: str):
+        return await self._var_dump_page(dump_tag, await self._get_page())
+
+    # ------------------------------------------------------------------
+    # Public API
+
+    async def sleep(self, total: float):
+        if total < 10:
+            logger.warning('Do you known sleep() unit is millisecond ? (you bypass {})', total)
+        await sleep(total / 1000.0)
+
+    async def logd(self, *args, **kwargs):
+        logger.debug(*args, **kwargs)
+
+    async def logi(self, *args, **kwargs):
+        logger.info(*args, **kwargs)
+
+    async def logw(self, *args, **kwargs):
+        logger.warning(*args, **kwargs)
+
+    async def loge(self, *args, **kwargs):
+        logger.error(*args, **kwargs)
+
+    async def page_random_mouse_move(self):
+        _page = await self._get_page()
+        box = await self._get_bounding_box(_page.locator('body'), timeout=1500)
+        window_box = await self._get_window_inner_box()
+        if box is None:
+            logger.warning("Can't get body bounding box")
+            box = {
+                'x': 0,
+                'y': 0,
+                'width': window_box['width'],
+                'height': window_box['height']
+            }
+        logger.debug('on mouse random move , box is {} , window_box is {}', box, window_box)
+        try:
+            await self._page_mouse_move(
+                random.randint(
+                    min(max(100, int(box['x'])), window_box['width'] - 100),
+                    min(max(100, int(box['x'] + box['width'])), window_box['width'] - 100)
+                ),
+                random.randint(
+                    min(max(100, int(box['y'])), window_box['height'] - 100),
+                    min(max(100, int(box['y'] + box['height'])), window_box['height'] - 100)
+                )
+            )
+        except BaseException as err:
+            from libiancrawlers.util.exceptions import is_timeout_error
+            if is_timeout_error(err):
+                logger.debug('ignore timeout error on random mouse move')
+            else:
+                raise
+
+    async def page_wait_loaded(self, *, page: Page = None):
+        if page is None:
+            page = (await self._get_page())
+        from libiancrawlers.util.exceptions import is_timeout_error
+        logger.debug('start bring to front at first')
+        await self._page_bring_to_front(page=page)
+        try:
+            logger.debug('start wait domcontentloaded')
+            await page.wait_for_load_state('domcontentloaded', timeout=5000)
+        except BaseException as err:
+            if is_timeout_error(err):
+                logger.debug('ignore timeout err on switch page domcontentloaded')
+            else:
+                raise
+        try:
+            logger.debug('start wait networkidle')
+            await page.wait_for_load_state('networkidle', timeout=10000)
+        except BaseException as err:
+            if is_timeout_error(err):
+                logger.debug('ignore timeout err on switch page networkidle')
+            else:
+                raise
+        logger.debug('start bring to front at last')
+        await self._page_bring_to_front(page=page)
+
+    async def page_wait_for_selector_in_any_frame(self, selector: str, *, timeout: Optional[float], **kwargs):
         from playwright.async_api import Frame
 
         async def fn(*, frame: Frame, loop_timeout: float):
             return await frame.wait_for_selector(selector, timeout=loop_timeout, **kwargs)
 
-        return await page_any_frame(func=fn,
-                                    timeout=timeout,
-                                    err_msg=f'not found selector {selector} in any frame',
-                                    suc_msg_template=f'success found selector {selector} in frame {{}} , result is {{}}')
+        return await self._page_any_frame(func=fn,
+                                          timeout=timeout,
+                                          err_msg=f'not found selector {selector} in any frame',
+                                          suc_msg_template=f'success found selector {selector} in frame {{}} , result is {{}}')
 
-    async def page_scroll_down(*,
+    async def page_wait_for_function(self, *args, **kwargs):
+        return await (await self._get_page()).wait_for_function(*args, **kwargs)
+
+    async def page_click(self,
+                         selector: Union[str, Locator, XY],
+                         *,
+                         method: Literal['click', 'tap'] = None,
+                         on_new_page: Optional[
+                             Union[
+                                 Literal[
+                                     'switch_it_and_run_steps_no_matter_which_page',
+                                     'ignore'
+                                 ],
+                                 StepsBlock
+                             ]
+                         ] = None,
+                         detail_logd: bool = False,
+                         wait_any_page_create_time_limit: Optional[float] = None,
+                         only_main_frame: bool = True,
+                         each_steps_before: Optional[StepsBlock] = None,
+                         each_steps_after: Optional[StepsBlock] = None,
+                         **kwargs):
+        if method is None:
+            method = 'click'
+        if on_new_page is None:
+            on_new_page = 'switch_it_and_run_steps_no_matter_which_page'
+        if wait_any_page_create_time_limit is None or wait_any_page_create_time_limit < 0:
+            wait_any_page_create_time_limit = 3000
+
+        pages_size_old = self._browser_context.pages.__len__()
+        logger.debug('on page {} : selector={} , kwargs={}', method, selector, kwargs)
+        if kwargs.get('timeout') is None:
+            timeout = self._page_click_default_timeout
+        else:
+            timeout = kwargs.pop('timeout')
+        has_text = None
+        has_not_text = None
+        if kwargs.get('has_text') is not None:
+            has_text = kwargs.pop('has_text')
+        if kwargs.get('has_not_text') is not None:
+            has_not_text = kwargs.pop('has_not_text')
+        _page = await self._get_page()
+
+        async def _debug_window_state(msg: str):
+            if detail_logd:
+                logger.debug('{} , window state is :' +
+                             '\n    window.history.length is {}' +
+                             '\n    window.history.scrollRestoration is {}' +
+                             '\n    window.location is {}' +
+                             '\n ',
+                             msg,
+                             await _page.evaluate('window.history.length'),
+                             await _page.evaluate('window.history.scrollRestoration'),
+                             await _page.evaluate('window.location'),
+                             )
+
+        await _debug_window_state(f'before page {method}')
+
+        if isinstance(selector, dict) and 'x' in selector and 'y' in selector:
+            await _page.mouse.click(selector.get('x'), selector.get('y'), **kwargs)
+        else:
+            if isinstance(selector, str):
+                if only_main_frame:
+                    _loc = _page.locator(
+                        selector=selector,
+                        has_text=has_text,
+                        has_not_text=has_not_text
+                    )
+                else:
+                    frame, _ = await self.page_wait_for_selector_in_any_frame(selector=selector, timeout=timeout)
+                    _loc = frame.locator(
+                        selector=selector,
+                        has_text=has_text,
+                        has_not_text=has_not_text,
+                    )
+            else:
+                _loc = selector
+
+            if kwargs.get('on_locator') is not None:
+                _loc = await self._on_locator(_loc, kwargs.pop('on_locator'))
+
+            async def _click(_locator: Locator):
+                if method == 'click':
+                    await _locator.click(
+                        timeout=timeout,
+                        **kwargs
+                    )
+                elif method == 'tap':
+                    await _locator.tap(
+                        timeout=timeout,
+                        **kwargs
+                    )
+                else:
+                    raise ValueError(f'Invalid method {method}')
+
+            if each_steps_before is not None or each_steps_after is not None:
+                _loc_all = await _loc.all()
+                if _loc_all.__len__() <= 0:
+                    raise TimeoutError(f'Not found matched , selector is {selector}')
+                for _loc_item in _loc_all:
+                    if each_steps_before is not None:
+                        await self._process_steps(each_steps_before)
+                    await _click(_loc_item)
+                    if each_steps_after is not None:
+                        await self._process_steps(each_steps_after)
+            else:
+                await _click(_loc)
+
+        await _debug_window_state(f'after page {method}')
+
+        if on_new_page != 'ignore':
+            wait_any_page_create_at = datetime.now().timestamp()
+            while datetime.now().timestamp() - wait_any_page_create_at < wait_any_page_create_time_limit / 1000.0:
+                if pages_size_old != self._browser_context.pages.__len__():
+                    logger.debug('Some page created , page list is {}', self._browser_context.pages)
+                    if on_new_page == 'switch_it_and_run_steps_no_matter_which_page':
+                        logger.debug('switch to new page , run steps no matter which page')
+                        await self.switch_page(-1)
+                    else:
+                        old_page = await self._get_page()
+                        try:
+                            logger.debug('switch to new page , but i will back')
+                            await self.switch_page(-1)
+                            logger.debug('run steps on new page')
+                            await self._process_steps(on_new_page)
+                        finally:
+                            logger.debug('switch back to old page {}', old_page)
+                            await self.switch_page(old_page)
+                        pass
+                    break
+                else:
+                    logger.debug('not found new page created after click')
+                    await sleep(0.5)
+
+    async def page_click_and_expect_element_destroy(self, selector: Union[str, Locator, XY], *,
+                                                    on_exist_steps: StepsBlock = None,
+                                                    retry_limit=5):
+        retry_count = 0
+        err = None
+        while True:
+            try:
+                await self.page_click(selector, timeout=1000)
+            except BaseException as err1:
+                err = err1
+                if not is_timeout_error(err):
+                    raise err1
+                logger.debug('page click failed , maybe element already destroy')
+            # 有时确实按下了按钮，但是也会 timeout error
+            try:
+                await sleep(0.5)
+                await self.page_wait_for_selector_in_any_frame(selector, timeout=500)
+                if retry_count < retry_limit:
+                    retry_count += 1
+                    continue
+                else:
+                    if on_exist_steps is not None:
+                        await self._process_steps(on_exist_steps)
+                        break
+                    else:
+                        raise Exception(f'Expect selector {selector} destroy after page click , but not')
+            except BaseException as err2:
+                if not is_timeout_error(err2):
+                    if err is not None:
+                        raise err2 from err
+                    else:
+                        raise err2
+                # 只有找不到这个元素时才认为关闭成功了
+                logger.debug('Select {} not found , click success', selector)
+                break
+
+    async def page_type(self, *args, **kwargs):
+        delay = kwargs.pop('delay', self._page_type_default_delay)
+        timeout = kwargs.pop('timeout', self._page_type_default_timeout)
+        use_fill = kwargs.pop('use_fill', False)
+        force = kwargs.pop('force', False)
+        selector = args[0]
+        only_main_frame = kwargs.pop('only_main_frame', True)
+        if only_main_frame:
+            page = await self._get_page()
+            if use_fill:
+                await page.fill(*args, timeout=timeout, strict=kwargs.get('strict'), force=force)
+            else:
+                await page.focus(selector=selector, timeout=timeout, strict=kwargs.get('strict'))
+                await page.type(*args, delay=delay, timeout=timeout, **kwargs)
+        else:
+            logger.debug('wait for selector in any frame to type , selector is {}', selector)
+            frame, _ = await self.page_wait_for_selector_in_any_frame(selector=selector,
+                                                                      timeout=timeout,
+                                                                      strict=kwargs.get('strict'),
+                                                                      state=kwargs.get('state'))
+            logger.debug('existed selector in any frame to type , try type to frame {} , args is {}',
+                         frame, args)
+            if use_fill:
+                await frame.fill(*args, timeout=timeout, strict=kwargs.get('strict'))
+            else:
+                await frame.focus(selector=selector, timeout=timeout, strict=kwargs.get('strict'))
+                await frame.type(*args, delay=delay, timeout=timeout, **kwargs)
+            logger.debug('Success type to frame')
+
+    async def page_type_days_ranges_iter(self, *,
+                                         start: Union[Literal['now'], YMDParam],
+                                         offset_day: int,
+                                         stop_until: Union[int, YMDParam],
+                                         yield_stop_until_value_if_end_value_not_equal: bool = True,
+                                         time_format: str = '%Y-%m-%d',
+                                         delay: Optional[float] = None,
+                                         timeout: Optional[float] = None,
+                                         strict: Optional[bool] = True,
+                                         only_main_frame: Optional[bool] = None,
+                                         use_fill: Optional[bool] = None,
+                                         force: Optional[bool] = None,
+                                         begin_selector: Optional[Union[str, Locator, XY]] = None,
+                                         end_selector: Optional[Union[str, Locator, XY]] = None,
+                                         steps_before_begin: StepsBlock = None,
+                                         steps_after_begin: StepsBlock = None,
+                                         steps_before_end: StepsBlock = None,
+                                         steps_after_end: StepsBlock = None,
+                                         ):
+        for begin_tuple, end_tuple in days_ranges_iter(
+                start=start,
+                stop_until=stop_until,
+                offset_day=offset_day,
+                yield_stop_until_value_if_end_value_not_equal=yield_stop_until_value_if_end_value_not_equal
+        ):
+            logger.debug('iter time range : {} to {}', begin_tuple, end_tuple)
+            begin_year, begin_month, begin_day = begin_tuple
+            end_year, end_month, end_day = end_tuple
+            page_type_kwargs = dict()
+            if delay is not None:
+                page_type_kwargs['delay'] = delay
+            if timeout is not None:
+                page_type_kwargs['timeout'] = timeout
+            if strict is not None:
+                page_type_kwargs['strict'] = strict
+            if only_main_frame is not None:
+                page_type_kwargs['only_main_frame'] = only_main_frame
+            if use_fill is not None:
+                page_type_kwargs['use_fill'] = use_fill
+            if force is not None:
+                page_type_kwargs['force'] = force
+
+            if begin_selector is not None:
+                begin_time = datetime.now().replace(year=begin_year, month=begin_month, day=begin_day)
+                if steps_before_begin is not None:
+                    logger.debug('run steps_before_begin')
+                    await self._process_steps(steps_before_begin)
+                logger.debug('Start page type begin')
+                await self.page_type(
+                    begin_selector,
+                    begin_time.strftime(time_format),
+                    **page_type_kwargs
+                )
+                logger.debug('Stop page type begin')
+                if steps_after_begin is not None:
+                    logger.debug('run steps_after_begin')
+                    await self._process_steps(steps_after_begin)
+
+            if end_selector is not None:
+                end_time = datetime.now().replace(year=end_year, month=end_month, day=end_day)
+                if steps_before_end is not None:
+                    logger.debug('run steps_before_end')
+                    await self._process_steps(steps_before_end)
+                logger.debug('Start page type end')
+                await self.page_type(
+                    end_selector,
+                    end_time.strftime(time_format),
+                    **page_type_kwargs
+                )
+                logger.debug('Stop page type end')
+                if steps_after_end is not None:
+                    logger.debug('run steps_after_end')
+                    await self._process_steps(steps_after_end)
+
+    async def page_scroll_down(self, *,
                                delta_y=233.0,
                                interval=0.5,
                                max_height: Optional[float] = 20000,
@@ -312,7 +589,7 @@ def _create_steps_api_functions(*,
                                retry_scroll_down_limit: int = 2,
                                page_click_if_found: PageScrollDownPageClickIfFound = None,
                                ):
-        _page = await get_page()
+        _page = await self._get_page()
         logger.debug('start page scroll down , current page title is {}', await _page.title())
 
         _last_scroll_down_time = {
@@ -334,7 +611,7 @@ def _create_steps_api_functions(*,
         retry_scroll_down = 0
         retry_scroll_up = 0
 
-        window_box = await get_window_inner_box()
+        window_box = await self._get_window_inner_box()
         if window_box is not None:
             logger.debug('window_box is {}', window_box)
         else:
@@ -373,7 +650,7 @@ def _create_steps_api_functions(*,
         }
 
         async def _update_ctx_box(_ctx: PageScrollDownElementToClickContext):
-            __box = await _get_bounding_box(_ctx['locator'])
+            __box = await self._get_bounding_box(_ctx['locator'])
             if __box is None:
                 return False
             _old_ctx = {
@@ -425,7 +702,7 @@ def _create_steps_api_functions(*,
                         if detail_logd:
                             logger.debug('skip nth {} because it not visible', _element_idx)
                         return 'continue'
-                    _box = await _get_bounding_box(_element_locator)
+                    _box = await self._get_bounding_box(_element_locator)
                     if _box is None:
                         if detail_logd:
                             logger.debug('skip nth {} because it box invalid', _element_idx)
@@ -573,15 +850,16 @@ def _create_steps_api_functions(*,
                                     _element_info, curr_height, curr_height_min, window_box)
 
                                 if on_before_click_steps is not None:
-                                    await _process_steps(on_before_click_steps)
+                                    await self._process_steps(on_before_click_steps)
 
                                 async def _check_steps():
                                     if on_before_click_check_steps is not None:
-                                        await _process_steps(on_before_click_check_steps)
+                                        await self._process_steps(on_before_click_check_steps)
                                     if check_selector_exist_after_click is not None:
                                         try:
-                                            await page_wait_for_selector_in_any_frame(check_selector_exist_after_click,
-                                                                                      timeout=2000)
+                                            await self.page_wait_for_selector_in_any_frame(
+                                                check_selector_exist_after_click,
+                                                timeout=2000)
                                             logger.debug(
                                                 'click success and selector {} existed',
                                                 check_selector_exist_after_click)
@@ -599,7 +877,7 @@ def _create_steps_api_functions(*,
                                         return True
 
                                 try:
-                                    await page_click(
+                                    await self.page_click(
                                         _ctx['locator'],
                                         detail_logd=detail_logd
                                     )
@@ -618,15 +896,15 @@ def _create_steps_api_functions(*,
 
                                 await sleep(0.5)
                                 _dump_count += 1
-                                await dump_page(
+                                await self._dump_page(
                                     f'scroll_click_dump_pre_{_dump_count}_{_element_key}_')
-                                await _process_steps(on_found_after_click_steps)
+                                await self._process_steps(on_found_after_click_steps)
                                 await sleep(0.5)
-                                await dump_page(
+                                await self._dump_page(
                                     f'scroll_click_dump_aft_{_dump_count}_{_element_key}_')
                                 await sleep(0.5)
                                 if on_found_after_click_and_dump_steps is not None:
-                                    await _process_steps(on_found_after_click_and_dump_steps)
+                                    await self._process_steps(on_found_after_click_and_dump_steps)
                                     await sleep(0.5)
                         except BaseException as err:
                             raise Exception(
@@ -660,7 +938,7 @@ def _create_steps_api_functions(*,
                 retry_scroll_down = 0
 
                 async def scroll_up():
-                    await page_random_mouse_move()
+                    await self.page_random_mouse_move()
                     prev_height_bottom['value'] = prev_height
                     for i in range(0, 4):
                         await _page.mouse.wheel(delta_x=0, delta_y=-random_delta_y())
@@ -692,151 +970,22 @@ def _create_steps_api_functions(*,
             prev_height = curr_height
             await sleep(random_interval())
 
-    async def page_click(selector: Union[str, Locator, XY],
-                         *,
-                         method: Literal['click', 'tap'] = None,
-                         on_new_page: Optional[
-                             Union[
-                                 Literal[
-                                     'switch_it_and_run_steps_no_matter_which_page',
-                                     'ignore'
-                                 ],
-                                 StepsBlock
-                             ]
-                         ] = None,
-                         detail_logd: bool = False,
-                         wait_any_page_create_time_limit: Optional[float] = None,
-                         **kwargs):
-        if method is None:
-            method = 'click'
-        if on_new_page is None:
-            on_new_page = 'switch_it_and_run_steps_no_matter_which_page'
-        if wait_any_page_create_time_limit is None or wait_any_page_create_time_limit < 0:
-            wait_any_page_create_time_limit = 3000
-
-        pages_size_old = browser_context.pages.__len__()
-        logger.debug('on page {} : selector={} , kwargs={}', method, selector, kwargs)
-        if kwargs.get('timeout') is None:
-            timeout = 5000
-        else:
+    async def page_go_back(self, **kwargs):
+        page = await self._get_page()
+        old_url = page.url
+        logger.debug('page go back , kwargs={} , current url is\n    {}',
+                     kwargs, old_url)
+        if kwargs.get('timeout') is not None:
             timeout = kwargs.pop('timeout')
-        has_text = None
-        has_not_text = None
-        if kwargs.get('has_text') is not None:
-            has_text = kwargs.pop('has_text')
-        if kwargs.get('has_not_text') is not None:
-            has_not_text = kwargs.pop('has_not_text')
-        _page = await get_page()
-
-        async def _debug_window_state(msg: str):
-            if detail_logd:
-                logger.debug('{} , window state is :' +
-                             '\n    window.history.length is {}' +
-                             '\n    window.history.scrollRestoration is {}' +
-                             '\n    window.location is {}' +
-                             '\n ',
-                             msg,
-                             await _page.evaluate('window.history.length'),
-                             await _page.evaluate('window.history.scrollRestoration'),
-                             await _page.evaluate('window.location'),
-                             )
-
-        await _debug_window_state(f'before page {method}')
-
-        if isinstance(selector, dict) and 'x' in selector and 'y' in selector:
-            await _page.mouse.click(selector.get('x'), selector.get('y'), **kwargs)
         else:
-            if isinstance(selector, str):
-                _loc = _page.locator(
-                    selector=selector,
-                    has_text=has_text,
-                    has_not_text=has_not_text
-                )
-            else:
-                _loc = selector
+            timeout = self._page_go_back_default_timeout
+        res = await page.go_back(timeout=timeout, **kwargs)
+        return res
 
-            if kwargs.get('on_locator') is not None:
-                _loc = await on_locator(_loc, kwargs.pop('on_locator'))
+    async def dump_page_with_uuid(self, tag: str):
+        return await self._dump_page(f'tag_{tag}_uuid_{uuid4().hex}')
 
-            if method == 'click':
-                await _loc.click(
-                    timeout=timeout,
-                    **kwargs
-                )
-            elif method == 'tap':
-                await _loc.tap(
-                    timeout=timeout,
-                    **kwargs
-                )
-            else:
-                raise ValueError(f'Invalid method {method}')
-
-        await _debug_window_state(f'after page {method}')
-
-        if on_new_page != 'ignore':
-            wait_any_page_create_at = datetime.now().timestamp()
-            while datetime.now().timestamp() - wait_any_page_create_at < wait_any_page_create_time_limit / 1000.0:
-                if pages_size_old != browser_context.pages.__len__():
-                    logger.debug('Some page created , page list is {}', browser_context.pages)
-                    if on_new_page == 'switch_it_and_run_steps_no_matter_which_page':
-                        logger.debug('switch to new page , run steps no matter which page')
-                        await switch_page(-1)
-                    else:
-                        old_page = await get_page()
-                        try:
-                            logger.debug('switch to new page , but i will back')
-                            await switch_page(-1)
-                            logger.debug('run steps on new page')
-                            await _process_steps(on_new_page)
-                        finally:
-                            logger.debug('switch back to old page {}', old_page)
-                            await switch_page(old_page)
-                        pass
-                    break
-                else:
-                    logger.debug('not found new page created after click')
-                    await sleep(0.5)
-
-    async def page_click_and_expect_element_destroy(selector: Union[str, Locator, XY], *,
-                                                    on_exist_steps: StepsBlock = None,
-                                                    retry_limit=5):
-        retry_count = 0
-        err = None
-        while True:
-            try:
-                await page_click(selector, timeout=1000)
-            except BaseException as err1:
-                err = err1
-                if not is_timeout_error(err):
-                    raise err1
-                logger.debug('page click failed , maybe element already destroy')
-            # 有时确实按下了按钮，但是也会 timeout error
-            try:
-                await sleep(0.5)
-                await page_wait_for_selector_in_any_frame(selector, timeout=500)
-                if retry_count < retry_limit:
-                    retry_count += 1
-                    continue
-                else:
-                    if on_exist_steps is not None:
-                        await _process_steps(on_exist_steps)
-                        break
-                    else:
-                        raise Exception(f'Expect selector {selector} destroy after page click , but not')
-            except BaseException as err2:
-                if not is_timeout_error(err2):
-                    if err is not None:
-                        raise err2 from err
-                    else:
-                        raise err2
-                # 只有找不到这个元素时才认为关闭成功了
-                logger.debug('Select {} not found , click success', selector)
-                break
-
-    async def dump_page(dump_tag: str):
-        return await _dump_page(dump_tag, await get_page())
-
-    async def dump_page_for_each(*,
+    async def dump_page_for_each(self, *,
                                  dump_tag_prefix: str,
                                  before_dump_steps: Optional[StepsBlock],
                                  after_dump_steps: Optional[StepsBlock],
@@ -850,7 +999,7 @@ def _create_steps_api_functions(*,
             logger.debug('[dump_tag = {}] before before_dump_steps', dump_tag)
             if before_dump_steps is not None:
                 try:
-                    await _process_steps(before_dump_steps)
+                    await self._process_steps(before_dump_steps)
                 except BaseException as err:
                     from libiancrawlers.util.exceptions import is_timeout_error
                     if is_timeout_error(err) and before_dump_break_by_timeout:
@@ -860,12 +1009,12 @@ def _create_steps_api_functions(*,
                         raise
             logger.debug('[dump_tag = {}] after before_dump_steps', dump_tag)
             logger.debug('[dump_tag = {}] before dump_page', dump_tag)
-            await dump_page(dump_tag=dump_tag)
+            await self._dump_page(dump_tag=dump_tag)
             logger.debug('[dump_tag = {}] after dump_page', dump_tag)
             logger.debug('[dump_tag = {}] before after_dump_steps', dump_tag)
             if after_dump_steps is not None:
                 try:
-                    await _process_steps(after_dump_steps)
+                    await self._process_steps(after_dump_steps)
                 except BaseException as err:
                     from libiancrawlers.util.exceptions import is_timeout_error
                     if is_timeout_error(err) and after_dump_break_by_timeout:
@@ -876,104 +1025,91 @@ def _create_steps_api_functions(*,
             logger.debug('[dump_tag = {}] after after_dump_steps', dump_tag)
             count += 1
 
-    async def page_bring_to_front(*, page: Optional[Page] = None,
-                                  timeout: Optional[float] = None,
-                                  retry_limit: Optional[int] = None):
-        if timeout is None:
-            timeout = 3000
-        if retry_limit is None:
-            retry_limit = 5
-        if page is None:
-            page = await get_page()
-
-        retry = 0
-        while True:
-            try:
-                logger.debug('start bring page to front')
-                future = page.bring_to_front()
-                return await asyncio.wait_for(future, timeout=timeout / 1000.0)
-            except BaseException as err:
-                from libiancrawlers.util.exceptions import is_timeout_error
-                if is_timeout_error(err):
-                    retry += 1
-                    if retry > retry_limit:
-                        logger.warning('bring to front failed')
-                        raise
-                    logger.debug('bring to front timeout , retry {} ...', retry)
-                    continue
-                raise
-
-    async def page_wait_for_function(*args, **kwargs):
-        return await (await get_page()).wait_for_function(*args, **kwargs)
-
-    async def page_type(*args, **kwargs):
-        delay = kwargs.pop('delay', 300)
-        return await (await get_page()).type(*args, delay=delay, **kwargs)
-
-    # async def page_wait_for_selector(*args, **kwargs):
-    #     return await (await get_page()).wait_for_selector(*args, **kwargs)
-
-    async def api_sleep(total: float):
-        if total < 10:
-            logger.warning('Do you known sleep() unit is millisecond ? (you bypass {})', total)
-        await sleep(total / 1000.0)
-
-    async def if_url_is(*args, run_steps: StepsBlock = None, else_steps: StepsBlock = None):
+    async def if_url_is(self, *args, run_steps: StepsBlock = None, else_steps: StepsBlock = None):
         await sleep(0.3)
-        _page = await get_page()
+        _page = await self._get_page()
         logger.debug('current page url is {}', _page.url)
         for url in args:
             if _page.url == url:
                 if run_steps is not None:
-                    await _process_steps(run_steps)
+                    await self._process_steps(run_steps)
                 else:
                     logger.debug('url is {} , it is in {} , please set `run_steps`', _page.url, args)
                 break
         else:
             if else_steps is not None:
-                await _process_steps(else_steps)
+                await self._process_steps(else_steps)
             else:
                 logger.debug('url is {} , it not in {} , please set `else_steps`', _page.url, args)
 
-    async def page_close():
-        _cur_page = await get_page()
-        await switch_page(-2)
+    async def page_close(self):
+        _cur_page = await self._get_page()
+        await self.switch_page(-2)
         await sleep(0.5)
         await _cur_page.close()
         await sleep(0.5)
-        await switch_page(-1)
+        await self.switch_page(-1)
 
-    async def dump_page_with_uuid(tag: str):
-        return await dump_page(f'tag_{tag}_uuid_{uuid4().hex}')
+    async def switch_page(self, to: Union[int, Literal['default'], Page]):
+        try:
+            await sleep(1)
+            if to == 'default':
+                res = self._b_page
+            elif isinstance(to, int):
+                logger.debug('all pages : {}', self._browser_context.pages)
+                len_all_pages = self._browser_context.pages.__len__()
+                res = self._browser_context.pages[
+                    len_all_pages - 1 if to > 0 and to >= len_all_pages else -1
+                    if to < 0 and abs(to) > len_all_pages else to
+                ]
+            elif isinstance(to, Page):
+                res = to
+            else:
+                raise ValueError(f'Invalid param {to}')
+            _old_page = await self._get_page()
+            from_title = await _old_page.title()
+            to_title_prev = await res.title()
+            logger.debug('Start switch page {} : from {} , to title on create {}',
+                         to,
+                         from_title,
+                         to_title_prev,
+                         )
+            await self.page_wait_loaded(page=res)
+            to_title_cur = await res.title()
+            await self._set_page(res)
+            logger.debug('Finish switch page {} : from {} , to title ( {} >>> {} )',
+                         to,
+                         from_title,
+                         to_title_prev,
+                         to_title_cur)
+            await sleep(1)
+            while (await self._get_page()).url != res.url:
+                logger.warning('It seems like ref not change , recall again')
+                await self.switch_page(to)
+        except BaseException as err:
+            if is_timeout_error(err):
+                logger.debug('switch page timeout ? maybe system blocking ? we will retry')
+                await self.switch_page(to)
+            raise
 
-    fn_map = {
-        'sleep': api_sleep,
-        'logd': logd,
-        'logi': logi,
-        'logw': logw,
-        'loge': loge,
-        # 'dump_page': dump_page,
-        'dump_page_for_each': dump_page_for_each,
-        'gui_confirm': gui_confirm,
-        'switch_page': switch_page,
-        'page_random_mouse_move': page_random_mouse_move,
-        'page_wait_loaded': page_wait_loaded,
-        # 'page_bring_to_front': page_bring_to_front,
-        # 'page_wait_for_function': page_wait_for_function,
-        # 'page_mouse_move': page_mouse_move,
-        'page_type': page_type,
-        'page_click': page_click,
-        # 'page_wait_for_selector': page_wait_for_selector,
-        'page_wait_for_selector_in_any_frame': page_wait_for_selector_in_any_frame,
-        'page_scroll_down': page_scroll_down,
-        'page_go_back': page_go_back,
-        'page_click_and_expect_element_destroy': page_click_and_expect_element_destroy,
-        'if_url_is': if_url_is,
-        'page_close': page_close,
-        'dump_page_with_uuid': dump_page_with_uuid,
-    }
+    async def gui_confirm(self, *, title: str, message: str):
+        from libiancrawlers.app_util.gui_util import gui_confirm
+        return await gui_confirm(title=title, message=message)
 
-    return fn_map
+
+def _create_steps_api_functions(*,
+                                b_page: Page,
+                                browser_context: BrowserContext,
+                                _dump_page: Callable[[str, Page], Awaitable],
+                                _process_steps: Callable[
+                                    [StepsBlock],
+                                    Awaitable,
+                                ],
+                                _page_ref_lock: asyncio.locks.Lock,
+                                _page_ref: PageRef
+                                ):
+    return StepsApi(b_page=b_page, browser_context=browser_context, _dump_page=_dump_page,
+                    _process_steps=_process_steps, _page_ref_lock=_page_ref_lock, _page_ref=_page_ref)
 
 
 if __name__ == '__main__':

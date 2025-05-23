@@ -32,11 +32,14 @@ import {
 import { Paragraphs } from "../paragraph_analysis.ts";
 import { ShopGood } from "../shop_good.ts";
 import {
+  ChatMessageTable,
   create_and_init_libian_srawler_database_scope,
   MediaPostTable,
   ShopGoodTable,
 } from "./data_storage.ts";
 import { pg_dto_equal } from "../../pg.ts";
+import { ChatMessage } from "../chat_message.ts";
+import { createHash } from "node:crypto";
 
 // deno-lint-ignore no-namespace
 export namespace LibianCrawlerCleanAndMergeUtil {
@@ -54,6 +57,29 @@ export namespace LibianCrawlerCleanAndMergeUtil {
   }
 
   export function xiaohongshu_related_searches() {}
+
+  export function compute_platform_duplicate_id_for_chat_message(
+    msg: Pick<
+      ChatMessage,
+      | "create_time"
+      | "platform"
+      | "content_plain_text"
+      | "content_img_url"
+      | "user_sendfrom"
+    >
+  ) {
+    const hash = createHash("sha512")
+      .update(
+        `${msg.platform}___${Times.instant_to_date(
+          msg.create_time
+        ).toISOString()}___${msg.user_sendfrom?.nickname ?? ""}___${
+          msg.content_plain_text ?? ""
+        }___${msg.content_img_url ?? ""}`
+      )
+      .digest("hex");
+
+    return `cpdi___${msg.user_sendfrom?.nickname ?? ``}___${hash}` as const;
+  }
 
   export type MediaContentMerged = Omit<
     MediaContent,
@@ -461,14 +487,64 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             yield res;
           }
         }
-        const smart_crawl_entry =
-          Mappings.find_entry_which_defined_value_and_key_startswith(
-            "group__smart-crawl-v1",
-            garbage
-          );
-        if (smart_crawl_entry) {
-          const [_smart_crawl_key, smart_crawl] = smart_crawl_entry;
-          const { template_parse_html_tree } = smart_crawl;
+
+        // const find_entry_which_defined_value_and_key_startswith = () => {
+        //   // const g: Typings.ReduceUnionMapping<typeof garbage> =
+        //   //   // deno-lint-ignore no-explicit-any
+        //   //   garbage as any;
+        //   if (garbage.obj.g_type === "smart-crawl-v1") {
+        //     return [void 0, garbage] as const;
+        //   } else {
+        //     return null;
+        //   }
+        //   // return (
+        //   //   Mappings.object_keys(garbage)
+        //   //     .map((key) => {
+        //   //       // if (Strs.startswith(key, "group__smart-crawl-v1")) {
+        //   //       //   const k = key;
+        //   //       //   if (k === undefined) {
+        //   //       //     return null;
+        //   //       //   }
+        //   //       //   // if ("group__smart-crawl-v1__cli-group:at_202505" in garbage) {
+        //   //       //   //   const o = garbage["group__smart-crawl-v1__cli-group:at_202505"]
+        //   //       //   // }
+
+        //   //       //   // https://github.com/microsoft/TypeScript/issues/34933#issuecomment-889570502
+
+        //   //       //   const o2: Typings.ReduceUnionMapping<typeof garbage> =
+        //   //       //     // deno-lint-ignore no-explicit-any
+        //   //       //     garbage as any;
+        //   //       //   let a: (typeof o2)["group__smart-crawl-v1__cli-group:at_202505"];
+
+        //   //       //   // const o: Omit<typeof o2, never> = o2;
+        //   //       //   // if (k in o) {
+        //   //       //   //   const v = o[k];
+        //   //       //   //   if (v === undefined) {
+        //   //       //   //     return null;
+        //   //       //   //   }
+        //   //       //   //   return [k, v] as const;
+        //   //       //   // } else {
+        //   //       //   //   return null;
+        //   //       //   // }
+        //   //       // } else {
+        //   //       //   return null;
+        //   //       // }
+        //   //     })
+        //   //     .find((it) => it) ?? null
+        //   // );
+        // };
+
+        // const smart_crawl_entry =
+        //   find_entry_which_defined_value_and_key_startswith();
+        const { template_parse_html_tree } = garbage.obj;
+        if (template_parse_html_tree) {
+          // const [_smart_crawl_key, smart_crawl] = smart_crawl_entry;
+          // if ("template_parse_html_tree" in smart_crawl) {
+          //   let template_parse_html_tree =
+          //     smart_crawl["template_parse_html_tree"];
+          // }
+          // const { template_parse_html_tree } = smart_crawl;
+          const smart_crawl = garbage.obj;
           if (
             template_parse_html_tree.yangkeduo &&
             template_parse_html_tree.yangkeduo.window_raw_data_eval &&
@@ -913,6 +989,132 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             };
             yield res;
           }
+          if (
+            template_parse_html_tree.qianniu_message_export &&
+            "messages" in template_parse_html_tree.qianniu_message_export &&
+            template_parse_html_tree.qianniu_message_export.messages
+          ) {
+            const {
+              messages: messages_no_order,
+              active_user_nickname,
+              shopname,
+              shop_icon,
+            } = template_parse_html_tree.qianniu_message_export;
+            const user_employer: ChatMessage["user_employer"] = {
+              nickname: shopname ?? null,
+              platform_id: null,
+              avater_url: DataClean.url_use_https_emptyable(shop_icon),
+            };
+            const user_customer: ChatMessage["user_customer"] = {
+              nickname: active_user_nickname ?? null,
+              platform_id: null,
+              avater_url: null,
+            };
+
+            let messages_ordered: Array<
+              (typeof messages_no_order)[number] & {
+                create_time: Temporal.Instant;
+              }
+            > = [];
+            let current_group_time: string | null = null;
+            for (const msg of messages_no_order) {
+              if (Mappings.object_keys(msg).length <= 0) {
+                continue;
+              }
+              if ("groupTime" in msg && msg.groupTime) {
+                current_group_time = msg.groupTime;
+                continue;
+              }
+              if (current_group_time === null) {
+                throw new Error(
+                  `Why current group time not setting , qianniu_message_export is :${Jsons.dump(
+                    template_parse_html_tree.qianniu_message_export,
+                    { indent: 2 }
+                  )}`
+                );
+              }
+              if (
+                !msg.chatTime ||
+                !msg.chatName ||
+                (!msg.chatTextLeft && !msg.img)
+              ) {
+                throw new Error(
+                  `Not found msg property , msg is ${Jsons.dump(msg)}`
+                );
+              }
+              const create_time = Times.parse_instant(
+                `${current_group_time} ${msg.chatTime}`
+              );
+              if (!create_time) {
+                throw new Error(
+                  `Parse time invalid , msg is ${Jsons.dump(msg)}`
+                );
+              }
+              messages_ordered.push({
+                ...msg,
+                create_time,
+              });
+            }
+            messages_ordered = messages_ordered.sort((a, b) => {
+              return Temporal.Instant.compare(a.create_time, b.create_time);
+            });
+            let user_employee: ChatMessage["user_employee"] = null;
+            for (const msg of messages_ordered) {
+              if (
+                !msg.chatTime ||
+                !msg.chatName ||
+                (!msg.chatTextLeft && !msg.img)
+              ) {
+                throw new Error(
+                  `Not found msg property , msg is ${Jsons.dump(msg)}`
+                );
+              }
+              const _chatName = msg.chatName;
+              let user_sendfrom: ChatMessage["user_sendfrom"];
+              let user_sendto: ChatMessage["user_sendto"];
+              if (_chatName === user_customer.nickname) {
+                user_sendfrom = user_customer;
+                if (user_employee === null) {
+                  user_sendto = user_employer;
+                } else {
+                  user_sendto = user_employee;
+                }
+              } else {
+                user_employee = {
+                  nickname: _chatName,
+                  platform_id: null,
+                  avater_url: null,
+                };
+                user_sendfrom = user_employee;
+                user_sendto = user_customer;
+              }
+              const res: Omit<ChatMessage, "platform_duplicate_id"> = {
+                platform: PlatformEnum.千牛聊天记录,
+                create_time: msg.create_time,
+                update_time: null,
+                content_plain_text: msg.chatTextLeft ?? null,
+                content_img_url: DataClean.url_use_https_emptyable(msg.img),
+                user_sendfrom,
+                user_sendto,
+                group_sendto: null,
+                user_employer,
+                user_employee,
+                user_customer,
+              };
+              const res2: ChatMessage & {
+                __mode__: "chat_message";
+              } = {
+                __mode__: "chat_message",
+                ...res,
+                platform_duplicate_id:
+                  LibianCrawlerCleanAndMergeUtil.compute_platform_duplicate_id_for_chat_message(
+                    res
+                  ),
+              };
+              yield res2;
+              continue;
+            }
+          }
         } else {
           if (
             "group__entrez_search_result__lib_biopython" in garbage &&
@@ -1288,6 +1490,31 @@ export namespace LibianCrawlerCleanAndMergeUtil {
       ShopGood
     >({
       get_key_prefix: "shopgood",
+      reduce(prev, cur) {
+        const create_time = Nums.take_extreme_value("min", [
+          prev?.update_time ?? null,
+          cur.update_time,
+          prev?.create_time ?? null,
+          cur.create_time,
+        ]);
+        const update_time = Nums.take_extreme_value("max", [
+          prev?.update_time ?? null,
+          cur.update_time,
+          prev?.create_time ?? null,
+          cur.create_time,
+        ]);
+        return {
+          ...cur,
+          create_time,
+          update_time,
+        };
+      },
+    });
+  }
+
+  export function create_reducer_for_chat_message() {
+    return create_reducer_for_type<ChatMessage, ChatMessage>({
+      get_key_prefix: "chatmessage",
       reduce(prev, cur) {
         const create_time = Nums.take_extreme_value("min", [
           prev?.update_time ?? null,
@@ -1766,6 +1993,113 @@ export namespace LibianCrawlerCleanAndMergeUtil {
       },
     });
   }
+
+  export async function insert_or_update_chat_message(
+    db: Parameters<
+      Parameters<typeof create_and_init_libian_srawler_database_scope>[0]
+    >[0],
+    values: ChatMessage[],
+    options: {
+      on_bar_text: (text: string) => Promise<void>;
+    }
+  ) {
+    const get_id = (value: ChatMessage) => {
+      return `${value.platform}___${value.platform_duplicate_id}`;
+    };
+    const table = `libian_crawler_cleaned.chat_message`;
+    const get_dto_for_insert_or_update = (value: (typeof values)[number]) => {
+      const create_time = Times.instant_to_date(value.create_time);
+      const create_date = Times.instant_to_date(value.create_time);
+      create_date.setHours(0, 0, 0, 0);
+      const res = {
+        ...Mappings.filter_keys(value, "pick", [
+          "platform",
+          "platform_duplicate_id",
+          "content_plain_text",
+          "content_img_url",
+        ]),
+        create_time,
+        update_time: Times.instant_to_date(value.update_time),
+
+        user_sendfrom_platform_id: value.user_sendfrom?.platform_id ?? null,
+        user_sendfrom_nickname: value.user_sendfrom?.nickname ?? null,
+        user_sendfrom_avater_url: value.user_sendfrom?.avater_url ?? null,
+
+        user_sendto_platform_id: value.user_sendto?.platform_id ?? null,
+        user_sendto_nickname: value.user_sendto?.nickname ?? null,
+        user_sendto_avater_url: value.user_sendto?.avater_url ?? null,
+
+        group_sendto_platform_id: value.group_sendto?.platform_id ?? null,
+        group_sendto_nickname: value.group_sendto?.nickname ?? null,
+        group_sendto_avater_url: value.group_sendto?.avater_url ?? null,
+
+        user_employer_platform_id: value.user_employer?.platform_id ?? null,
+        user_employer_nickname: value.user_employer?.nickname ?? null,
+        user_employer_avater_url: value.user_employer?.avater_url ?? null,
+
+        user_employee_platform_id: value.user_employee?.platform_id ?? null,
+        user_employee_nickname: value.user_employee?.nickname ?? null,
+        user_employee_avater_url: value.user_employee?.avater_url ?? null,
+
+        user_customer_platform_id: value.user_customer?.platform_id ?? null,
+        user_customer_nickname: value.user_customer?.nickname ?? null,
+        user_customer_avater_url: value.user_customer?.avater_url ?? null,
+
+        create_date,
+      } satisfies Omit<
+        Parameters<ReturnType<typeof db.insertInto<typeof table>>["values"]>[0],
+        "id"
+      >;
+      const _res_typecheck = res satisfies Omit<
+        // deno-lint-ignore no-explicit-any
+        { [P in keyof ChatMessageTable]: any },
+        "id"
+      >;
+      return _res_typecheck;
+    };
+    return await _insert_or_update(values, options, {
+      get_id,
+      is_value_equal_then_value_dto(value, existed_dto) {
+        const value_to_dto: typeof existed_dto = {
+          id: existed_dto.id,
+          ...get_dto_for_insert_or_update(value),
+        };
+        return pg_dto_equal(value_to_dto, existed_dto);
+      },
+      read_existed_list: async () => {
+        const existed_list = await db
+          .selectFrom(table)
+          .selectAll()
+          .where("id", "in", [...values.map((value) => get_id(value))])
+          .execute();
+        return existed_list;
+      },
+      exec_update_result: async (ctx2) => {
+        return await db
+          .updateTable(table)
+          .set((_eb) => {
+            return {
+              ...get_dto_for_insert_or_update(ctx2.value),
+            };
+          })
+          .where("id", "=", ctx2.existed.id)
+          .executeTakeFirstOrThrow();
+      },
+      exec_insert_result: async (ctx2) => {
+        return await db
+          .insertInto(table)
+          .values([
+            ...ctx2.not_existed.map((value) => {
+              return {
+                id: get_id(value),
+                ...get_dto_for_insert_or_update(value),
+              };
+            }),
+          ])
+          .execute();
+      },
+    });
+  }
 }
 
 async function _main() {
@@ -1783,6 +2117,8 @@ async function _main() {
       LibianCrawlerCleanAndMergeUtil.create_reducer_for_media_content();
     const reducer_for_shop_good =
       LibianCrawlerCleanAndMergeUtil.create_reducer_for_shop_good();
+    const reducer_for_chat_message =
+      LibianCrawlerCleanAndMergeUtil.create_reducer_for_chat_message();
 
     const render_param: Parameters<typeof bars.render>[0] = [
       { completed: 0, total: 1, text: "Reading garbage" },
@@ -1814,6 +2150,12 @@ async function _main() {
           "shop_name" in item.value
         ) {
           await reducer_for_shop_good.next(item.value);
+        } else if (
+          typeof item.value === "object" &&
+          "__mode__" in item.value &&
+          "chat_message" === item.value.__mode__
+        ) {
+          await reducer_for_chat_message.next(item.value);
         }
       }
     }
@@ -1882,6 +2224,12 @@ async function _main() {
             reducer: reducer_for_shop_good,
             insert_or_update:
               LibianCrawlerCleanAndMergeUtil.insert_or_update_shop_good,
+          }),
+          create_context_of_insert_or_update_reduced_data({
+            tag_text: "ChatMessage",
+            reducer: reducer_for_chat_message,
+            insert_or_update:
+              LibianCrawlerCleanAndMergeUtil.insert_or_update_chat_message,
           }),
         ] as const
       ).map(async (ctx) => {

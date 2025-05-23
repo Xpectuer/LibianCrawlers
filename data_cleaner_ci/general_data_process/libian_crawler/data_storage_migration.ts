@@ -50,7 +50,7 @@ export function create_migration<
                   (NonNullable<TB[CN]> extends string | bigint
                     ? "text" | `varchar${string}`
                     : NonNullable<TB[CN]> extends Date
-                    ? "timestamptz"
+                    ? "timestamptz" | "date"
                     : NonNullable<TB[CN]> extends PostgresColumnType.Numeric
                     ? "decimal" | "bigint" | "integer"
                     : NonNullable<TB[CN]> extends JSONColumnType<object | null>

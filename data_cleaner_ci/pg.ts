@@ -209,7 +209,19 @@ export async function* read_postgres_table(
       // })()
 
       for await (const cache_file of gen) {
-        const value = Jsons.load(Strs.parse_utf8(cache_file.bytes));
+        let value: Jsons.JSONValue;
+        try {
+          value = Jsons.load(Strs.parse_utf8(cache_file.bytes));
+        } catch (err) {
+          // 有时中途打断操作时可能会创建一个空cache文件。
+          console.warn("Failed parse json from cache_file , delete it", {
+            cache_file_path: cache_file.cache_file_path,
+            err,
+            bytes_len: cache_file.bytes.length,
+          });
+          await Deno.remove(cache_file.cache_file_path);
+          continue;
+        }
         if (value && typeof value === "object" && !Array.isArray(value)) {
           buffer.push(value);
           memory_limit_guess.push(cache_file.cache_file_stat.size);

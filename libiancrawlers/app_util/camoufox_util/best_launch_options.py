@@ -1,8 +1,12 @@
 # -*- coding: UTF-8 -*-
+
+from loguru import logger
+
+logger.debug('camoufox import')
+
 from typing import Optional, Union, Tuple
 
 from camoufox.locale import get_geolocation
-from loguru import logger
 
 from libiancrawlers.app_util.networks.geoutil import get_geo
 from libiancrawlers.app_util.networks.iputil import MyPublicIpInfo

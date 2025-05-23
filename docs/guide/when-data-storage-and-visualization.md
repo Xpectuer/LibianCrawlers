@@ -6,7 +6,7 @@ LibianCrawler 将清洗后的结构化数据采用 **增量更新** 的方式存
 
 在数据清洗完成后，我们使用 [Kysely](https://kysely.dev/) 框架将 清洗结果数据 **插入或更新（Insert or Update）** 到 PostgreSQL 数据库中的 清洗结果专用表 中。
 
-:::tip Why Keysely
+:::tip Why Kysely
 [Kysely](https://kysely.dev/) 是一个类型安全的 TypeScript SQL 生成工具。
 
 Kysely 通过 TypeScript 实现类型安全，保证业务对象属性与数据库列一致。

@@ -70,10 +70,16 @@ export namespace EditableSheet {
           return null;
         };
         let table_info = await _find_table();
-        while (table_info === null) {
-          
-          table_info = await _find_table();
-        }
+        // while (table_info === null) {
+        // await NocoDBUtil.create_table(
+        //   { baseurl, nocodb_token, logd_fetch_noco },
+        //   base_info.id,
+        //   {
+
+        //   }
+        // );
+        //   table_info = await _find_table();
+        // }
         if (logd_fetch_noco) {
           console.debug("Success get nocodb table", {
             base_info,

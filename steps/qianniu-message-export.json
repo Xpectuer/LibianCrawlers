@@ -1,0 +1,132 @@
+{
+  "$schema": "./schemas/main.json",
+  "steps": [
+    {
+      "fn": "page_wait_for_selector_in_any_frame",
+      "args": [
+        "#login-form"
+      ],
+      "kwargs": {
+        "timeout": 6000
+      },
+      "on_timeout_steps": [
+        {
+          "fn": "logd",
+          "args": [
+            "已登录千牛网页端, 无需手动登陆"
+          ]
+        }
+      ],
+      "on_success_steps": [
+        {
+          "fn": "logi",
+          "args": [
+            "未登录千牛网页端, 需要手动登陆"
+          ]
+        },
+        {
+          "fn": "gui_confirm",
+          "kwargs": {
+            "title": "need login",
+            "message": "LibianCrawler 需要手动完成登陆千牛网页端，请在浏览器窗口完成登陆后，点击此窗口的确认按钮"
+          }
+        }
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        3000
+      ]
+    },
+    {
+      "fn": "page_type_days_ranges_iter",
+      "kwargs": {
+        "start": [
+          2025,
+          5,
+          18
+        ],
+        "offset_day": -1,
+        "stop_until": 90,
+        "only_main_frame": false,
+        "use_fill": true,
+        "begin_selector": ".next-range-picker-panel-input-start-date > input",
+        "end_selector": ".next-range-picker-panel-input-end-date > input",
+        "steps_before_begin": [
+          {
+            "fn": "page_click",
+            "args": [
+              "input[placeholder=起始日期]"
+            ],
+            "kwargs": {
+              "only_main_frame": false,
+              "force": true
+            }
+          }
+        ],
+        "steps_before_end": [
+          {
+            "fn": "page_click",
+            "args": [
+              "input[placeholder=结束日期]"
+            ],
+            "kwargs": {
+              "only_main_frame": false,
+              "force": true
+            }
+          }
+        ],
+        "steps_after_end": [
+          {
+            "fn": "page_click",
+            "args": [
+              ".next-date-picker-panel-footer > button"
+            ],
+            "kwargs": {
+              "only_main_frame": false
+            }
+          },
+          {
+            "fn": "page_click",
+            "args": [
+              "button :has-text('查询')"
+            ],
+            "kwargs": {
+              "only_main_frame": false
+            }
+          },
+          {
+            "fn": "sleep",
+            "args": [
+              1000
+            ]
+          },
+          {
+            "fn": "page_click",
+            "args": [
+              ".results-list"
+            ],
+            "kwargs": {
+              "only_main_frame": false,
+              "each_steps_after": [
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1000
+                  ]
+                },
+                {
+                  "fn": "dump_page_with_uuid",
+                  "args": [
+                    "msglist"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -6,6 +6,7 @@ export enum PlatformEnum {
   百度搜索 = "www.baidu.com",
   知网 = "cnki.net",
   PubMed = "pubmed.ncbi.nlm.nih.gov",
+  千牛聊天记录 = "qn.taobao.com/home.htm/app-customer-service/toolpage/Message",
 }
 
 export type MediaContentTag = {
