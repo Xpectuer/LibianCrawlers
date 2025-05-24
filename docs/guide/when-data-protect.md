@@ -1,42 +1,34 @@
 # 5-私有数据保护
 
-## 在数据采集时
+数据保护措施是为了保护以下内容不泄漏。
 
-工程目录下的 .data/ 目录是用于存储临时数据的工作目录，该目录不会被版本管理系统-tracking。以下是 `.gitignore` 片段:
+## 数据采集和清洗时的个人信息
 
-:::code-group
-<<< @/../.gitignore#output_dirs{1 txt} [.gitignore]
-:::
+在数据采集 **之前的配置、之后的原始数据** 中会带有私人信息，这些信息同样会存在于数据清洗的类型生成结果中。
 
-一些爬取结果也会默认保存在该目录下，因为并不是所有爬取的数据都需要立即写入数据库中。
-
-在第一次执行数据采集时，如果没有找到配置文件，则会自动生成一个配置文件在用户家目录下，通过符号链接（symlink）的方式关联到工程目录。请参考 [在启动之前做好配置](../develop/crawler/init-config.md)。
-
-## 在数据清洗时
-
-在执行数据清洗任务之前，用户可以通过 `deno task init:config` 命令 [初始化配置文件](../develop/data_cleaner_ci/init-config.md):
-
-该命令会:
-
-1. 在用户家目录下创建必要的工程文件和目录。
-2. 在项目根目录中生成相应的符号链接（symlink），用于引用这些配置文件。
-
-### 配置文件的保护机制
-
-为了确保配置文件的敏感信息不被纳入版本控制，以下目录和文件会被 .gitignore 规则排除：
+因此，`deno task init:config` 命令和 `deno task init:code_gen` 命令的输出目录 `data_cleaner_ci_generated` 会被 gitignore
+排除。
 
 :::code-group
+
 <<< @/../data_cleaner_ci/.gitignore{txt} [data_cleaner_ci/.gitignore]
 
 <<< @/../.gitignore#output_dirs{1 txt} [.gitignore]
+
 :::
 
-### 用户私有代码的管理
+## 数据清洗时的个人代码
 
-用户可以在 `data_cleaner_ci/user_code/` 目录中存放任何与保护和封装私有代码相关的逻辑。以下是一些示例代码，供参考:
+`deno task init:config` 命令的作用是 [初始化配置文件](../develop/data_cleaner_ci/init-config.md)
+和创建 `data_cleaner_ci/user_code` 目录符号链接。
 
-:::code-group
-<<< @/guide/when-data-protect-examples/example1.ts
-<<< @/guide/when-data-protect-examples/MyPrivateNocoPGLibianCrawlerGarbage_api.ts
-<<< @/guide/when-data-protect-examples/example3.ts
+:::tip 为什么要在家目录下存放个人代码并符号链接到工程目录
+对每个使用该框架的程序员而言，获取数据集的方式都是不同的、且不应当被公开的。
+
+而可以被公开的部分（如爬取方式、清洗方式）则需要被这“中间的黑盒”连接。
+
+因此 `user_code` 符号链接目录指向用户通用的目录，并在工程目录下可供编辑器和脚本类型检查和提供类型推断:
+
+* 公开代码需要通过 **约定俗成** 的类型别名或函数名来调用这个黑盒
+* 而黑盒的具体实现则由程序员个人环境决定
 :::

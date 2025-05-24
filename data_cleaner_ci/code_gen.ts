@@ -599,35 +599,7 @@ export async function code_gen_main() {
     },
   });
   if (cmdarg.help) {
-    console.info(`
-Help for code gen:
-
---help
-      显示帮助。
-
---no-network
-      不使用任何远程仓库的数据，仅使用本地缓存来类型生成。
-      本地缓存位于 ./${data_cleaner_ci_generated}/.cache_by_id 中。
-
---debugopt-logtime
-      输出时间花费。
-
---only-gen-batches-union-merge-file
-      只生成 index.ts 的联合类型声明文件。不生成批次数据类型文件。
-
---high-water-mark
-      原始数据的 batch 会缓存在队列中，若队列未满则会在 timer 中异步继续加载。
-      此值为队列的长度限制。默认值为 ${high_water_mark_default}。设置为 0 以禁用队列。
-      该选项不建议修改，因为队列会导致更大的内存使用。
-
---batch-size
-      覆盖设置每 batch 的最大长度。一般在 ./${data_cleaner_ci_generated}/config.json 中的 **.batch_size 设置。
-
---skip-existed
-      跳过已经生成的类型文件。
-      如果你确信 jsonata_tampletes 没有更改、garbage 表只新增不修改；
-      那么你可以使用此选项节省大量时间。
-`);
+    console.info(await Deno.readTextFile("code_gen_help.txt"));
     return 0;
   }
 
@@ -657,40 +629,30 @@ Help for code gen:
   };
   const high_water_mark = _parseInt(false, "high-water-mark");
   const batch_size = _parseInt(true, "batch-size");
-  // let prevent_oom_batch_mem_size = _parseInt(
-  //   false,
-  //   "prevent-oom-batch-mem-size"
-  // );
-  // if (prevent_oom_batch_mem_size === 0) {
-  //   prevent_oom_batch_mem_size = 1024 * 1024 * 1024 * 1024;
-  // }
-
-  return await ProcessBar.create_scope(
-    {
-      title: "[The code_gen.ts file is generating code]",
-    },
-    async (bars) =>
-      await generate_repository_api(bars, {
-        network: cmdarg.network,
-        debugopt_logtime: cmdarg["debugopt-logtime"],
-        high_water_mark,
-        batch_size,
-        // prevent_oom_batch_mem_size: prevent_oom_batch_mem_size,
-        only_gen_batches_union_merge_file:
-          cmdarg["only-gen-batches-union-merge-file"],
-        skip_existed: cmdarg["skip-existed"],
-      })
-  );
-}
-
-if (import.meta.main) {
   try {
-    await PreventTheScreenSaver.subprocess_scope(async () => {
-      await code_gen_main();
+    return await PreventTheScreenSaver.subprocess_scope(async () => {
+      return await ProcessBar.create_scope(
+        {
+          title: "[The code_gen.ts file is generating code]",
+        },
+        async (bars) =>
+          await generate_repository_api(bars, {
+            network: cmdarg.network,
+            debugopt_logtime: cmdarg["debugopt-logtime"],
+            high_water_mark,
+            batch_size,
+            // prevent_oom_batch_mem_size: prevent_oom_batch_mem_size,
+            only_gen_batches_union_merge_file:
+              cmdarg["only-gen-batches-union-merge-file"],
+            skip_existed: cmdarg["skip-existed"],
+          })
+      );
     });
-  } catch (err) {
-    throw err;
   } finally {
     await Jsonatas.shutdown_all_workers();
   }
+}
+
+if (import.meta.main) {
+  await code_gen_main();
 }

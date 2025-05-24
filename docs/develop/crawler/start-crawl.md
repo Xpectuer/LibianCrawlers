@@ -12,7 +12,7 @@
 
 - **缺省值** 是 `'save_file'` 即保存到本地文件。
 - `'insert_to_db'` 表示写入远程数据仓库。
-- **常用**: `all` 或 `'save_file_and_insert_to_db'` 表示既保存到本地文件又写入远程数据仓库。
+- **常用**: `'all'` 或 `'save_file_and_insert_to_db'` 表示既保存到本地文件又写入远程数据仓库。
 
 `--debug` 可以在 发生异常时 或 "debug" 指令时暂停。
 
@@ -62,7 +62,6 @@ poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --s
 |-----------|------|------|
 | 搜索菜单      | ✔️   | ✔️   |
 | 搜索结果的网站详情 | todo | todo |
-| 评论区       | todo | todo |
 
 ```shell
 poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --steps jsonfile:steps/baidu.json?q=吹风机

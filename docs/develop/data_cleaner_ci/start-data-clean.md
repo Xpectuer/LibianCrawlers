@@ -11,7 +11,7 @@ deno task step:check
 没问题的话就运行。
 
 ```shell
-deno task run:libian_crawler
+deno task step:libian_crawler:clean_and_merge
 ```
 
 `clean_and_merge.ts` 脚本会先运行数据库迁移（在 `general_data_process/libian_crawler/migrations/` 目录下），
