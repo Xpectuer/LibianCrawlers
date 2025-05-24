@@ -312,7 +312,7 @@ export namespace Typings {
 
   /**
    * https://stackoverflow.com/a/79613705/21185704
-   * 
+   *
    * https://github.com/microsoft/TypeScript/pull/45025
    */
   export type ReduceUnionMapping<
@@ -343,7 +343,7 @@ export namespace Typings {
     | { name: "a"; xxx: 5 }
     | { name?: "b"; xxx: 6 }
   >;
-  
+
   export type RemovePrefixRecursion<
     T extends string,
     C extends string
@@ -373,9 +373,11 @@ export namespace Typings {
     }[keyof Source]
   >;
 
-  type UnionMap<T, M> = T extends any ? M extends (arg: T) => infer R ? R : never : never;
-
-
+  type UnionMap<T, M> = T extends any
+    ? M extends (arg: T) => infer R
+      ? R
+      : never
+    : never;
 }
 
 // deno-lint-ignore no-namespace
@@ -2929,6 +2931,35 @@ export namespace TestUtil {
       nocodb_baseurl,
       nocodb_token,
     } as const;
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace PreventTheScreenSaver {
+  export async function subprocess_scope<R>(scope: () => Promise<R>) {
+    console.debug("PreventTheScreenSaver enter");
+    const command = new Deno.Command(
+      path.join("..", ".venv", "Scripts", "python"),
+      {
+        args: [path.join("..", "prevent_the_screen_saver.py")],
+        stdin: "null",
+        stdout: "inherit",
+        stderr: "inherit",
+        env: {},
+      }
+    );
+    console.debug("PreventTheScreenSaver spawn");
+    const proc = command.spawn();
+    try {
+      const res = await scope();
+      return res;
+    } finally {
+      console.debug("PreventTheScreenSaver try kill");
+      proc.kill();
+      console.debug("PreventTheScreenSaver success kill");
+      const s = await proc.status;
+      console.debug("PreventTheScreenSaver status", s);
+    }
   }
 }
 

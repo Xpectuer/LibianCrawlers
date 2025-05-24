@@ -16,6 +16,10 @@
 
 `--debug` 可以在 发生异常时 或 "debug" 指令时暂停。
 
+`--dump_page_ignore_names` 用于忽略该名称的 html element。
+
+> 例如传入 `--dump_page_ignore_names=script,svg` 可令 dump_page 忽略 script 和 svg 标签及子标签。
+
 ### 淘宝搜索
 
 | 内容        | 爬取   | 清洗   |

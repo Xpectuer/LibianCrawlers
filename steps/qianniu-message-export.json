@@ -42,11 +42,7 @@
     {
       "fn": "page_type_days_ranges_iter",
       "kwargs": {
-        "start": [
-          2025,
-          5,
-          18
-        ],
+        "start": "now",
         "offset_day": -1,
         "stop_until": 90,
         "only_main_frame": false,

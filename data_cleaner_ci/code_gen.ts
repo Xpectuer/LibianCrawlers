@@ -2,7 +2,15 @@ import path from "node:path";
 import config from "./config.ts";
 import { read_postgres_table, read_postgres_table_type_wrap } from "./pg.ts";
 import { data_cleaner_ci_generated } from "./consts.ts";
-import { Jsonatas, Jsons, Nums, ProcessBar, SizeOf, Strs } from "./util.ts";
+import {
+  Jsonatas,
+  Jsons,
+  Nums,
+  PreventTheScreenSaver,
+  ProcessBar,
+  SizeOf,
+  Strs,
+} from "./util.ts";
 import ts from "typescript";
 import { parseArgs } from "jsr:@std/cli/parse-args";
 import { QuickTypeUtil } from "./quicktypeutil.ts";
@@ -25,7 +33,7 @@ export async function generate_repository_api(
     debugopt_logtime: boolean;
     high_water_mark: number;
     batch_size: number | null;
-    prevent_oom_batch_mem_size: number;
+    // prevent_oom_batch_mem_size: number;
     only_gen_batches_union_merge_file: boolean;
     skip_existed: boolean;
   }
@@ -63,7 +71,7 @@ export async function generate_repository_api(
                 : typeof table.batch_size.code_gen === "number" &&
                   table.batch_size.code_gen > 0
                 ? table.batch_size.code_gen
-                : 200;
+                : 100;
             const rows_gen = read_postgres_table({
               ...repository.param,
               ...table,
@@ -76,7 +84,7 @@ export async function generate_repository_api(
               cache_by_id,
               network: cmdarg.network,
               debugopt_logtime: cmdarg.debugopt_logtime,
-              prevent_oom_batch_mem_size: cmdarg.prevent_oom_batch_mem_size,
+              // prevent_oom_batch_mem_size: cmdarg.prevent_oom_batch_mem_size,
               // deno-lint-ignore require-await
               on_total: async (total) => {
                 step1_total_remember.value = total;
@@ -84,14 +92,62 @@ export async function generate_repository_api(
                   ? "return"
                   : "continue";
               },
+              code_gen_skip_existed: cmdarg.skip_existed
+                ? async (count, total) => {
+                    if (count < 0) {
+                      throw new Error(`Assert count >= 0 but ${count}`);
+                    }
+                    if (!cache_by_id_enable) {
+                      return "no-skip";
+                    }
+                    const batch_start =
+                      Math.floor(count / batch_size) * batch_size;
+                    const batch_end =
+                      Math.min(total, batch_start + batch_size) - 1;
+                    const batch_file_path = path.join(
+                      data_cleaner_ci_generated,
+                      typename,
+                      _batch_file_name(batch_start, batch_end)
+                    );
+                    try {
+                      const batch_file_stat = await Deno.stat(batch_file_path);
+                      if (batch_file_stat.isFile) {
+                        return "skip";
+                      } else {
+                        throw new Error(
+                          `batch file is not file : ${batch_file_path}`
+                        );
+                      }
+                    } catch (err) {
+                      if (err instanceof Deno.errors.NotFound) {
+                        return "no-skip";
+                      } else {
+                        throw new Error(
+                          `Why error on batch file name find ? context is ${Jsons.dump(
+                            {
+                              batch_start,
+                              batch_end,
+                              batch_size,
+                              count,
+                            }
+                          )}`,
+                          {
+                            cause: err,
+                          }
+                        );
+                      }
+                    }
+                  }
+                : null,
             });
-            const samples_gen = read_postgres_table_type_wrap({
+            const samples_gen = read_postgres_table_type_wrap<boolean>({
               jsonata_exp,
               rows_gen,
               cache_by_id,
               with_jsonata_template: table.with_jsonata_template,
               debugopt_logtime: cmdarg.debugopt_logtime,
               high_water_mark: cmdarg.high_water_mark,
+              code_gen_skip_existed: cmdarg.skip_existed,
             });
             if (cmdarg.only_gen_batches_union_merge_file) {
               const _batch = await rows_gen.next();
@@ -128,7 +184,6 @@ export async function generate_repository_api(
             // \`\`\`shell
             // ${deno_run_script}
             // \`\`\`
-            import jsonata from "jsonata";
             import { read_postgres_table, read_postgres_table_type_wrap } from "../../pg.ts"
             import { ${typename} } from "./index.ts"
 
@@ -164,7 +219,6 @@ export async function generate_repository_api(
             cache_by_id,
             network: ${j(cmdarg.network)},
             debugopt_logtime: ${j(cmdarg.debugopt_logtime)},
-            prevent_oom_batch_mem_size: ${j(cmdarg.prevent_oom_batch_mem_size)},
             on_bar: options?.on_bar,
             });
 
@@ -176,13 +230,14 @@ export async function generate_repository_api(
 
             const with_jsonata_template = ${j(table.with_jsonata_template)}
 
-            return read_postgres_table_type_wrap<${typename}>({
+            return read_postgres_table_type_wrap<false, ${typename}>({
             rows_gen,
             jsonata_exp,
             cache_by_id,
             with_jsonata_template,
             debugopt_logtime: ${j(cmdarg.debugopt_logtime)},
             high_water_mark: ${j(cmdarg.high_water_mark)},
+            code_gen_skip_existed: false,
             })
             }
 
@@ -225,6 +280,23 @@ export async function generate_repository_api(
   // console.info("OK");
 }
 
+function _batch_file_name<S extends number, E extends number>(
+  batch_start: S,
+  batch_end: E
+) {
+  if (
+    typeof batch_start !== "number" ||
+    typeof batch_end !== "number" ||
+    Nums.is_invalid(batch_start) ||
+    Nums.is_invalid(batch_end) ||
+    batch_start < 0 ||
+    batch_end < 0
+  ) {
+    throw new Error(`Invalid param : ${batch_start} , ${batch_end}`);
+  }
+  return `batch_${batch_start}_${batch_end}.ts` as const;
+}
+
 export async function generate_repository_api_type<T>(param: {
   typename: string;
   typedesc: string;
@@ -257,7 +329,7 @@ export async function generate_repository_api_type<T>(param: {
       while (offset < total) {
         const batch_start = offset;
         const batch_end = Math.min(total, batch_start + batch_size) - 1;
-        const batch_file_name = `batch_${batch_start}_${batch_end}.ts` as const;
+        const batch_file_name = _batch_file_name(batch_start, batch_end);
         batch_file_name_list.push(batch_file_name);
         offset = batch_end + 1;
       }
@@ -267,8 +339,7 @@ export async function generate_repository_api_type<T>(param: {
         const batch_start = offset;
         const batch_end = batch_start + samples_res.length - 1;
         try {
-          const batch_file_name =
-            `batch_${batch_start}_${batch_end}.ts` as const;
+          const batch_file_name = _batch_file_name(batch_start, batch_end);
           const res_file_path = path.join(
             data_cleaner_ci_generated,
             typename,
@@ -287,6 +358,11 @@ export async function generate_repository_api_type<T>(param: {
             }
           }
           if (skip_existed && res_file_existed) {
+            if (samples_res.find((it) => it !== "skip")) {
+              throw new Error(
+                `If skip_existed && res_file_existed (Existed ${batch_file_name}) , Assert generator should return all "skip"`
+              );
+            }
             console.log(`\nSkip existed : ${res_file_path}\n`);
             continue;
           }
@@ -499,17 +575,17 @@ export async function code_gen_main() {
   const _args_str = [
     "high-water-mark",
     "batch-size",
-    "prevent-oom-batch-mem-size",
+    // "prevent-oom-batch-mem-size",
   ] as const;
   const high_water_mark_default = 0 as const;
-  const prevent_oom_batch_mem_size_default = 536870912; // 512 * 1024 * 1024
+  // const prevent_oom_batch_mem_size_default = 536870912; // 512 * 1024 * 1024
   const cmdarg = parseArgs(Deno.args, {
     boolean: [..._args_bool, "help"] as const,
     string: _args_str,
     default: {
       network: true,
       "high-water-mark": `${high_water_mark_default}`,
-      "prevent-oom-batch-mem-size": `${prevent_oom_batch_mem_size_default}`,
+      // "prevent-oom-batch-mem-size": `${prevent_oom_batch_mem_size_default}`,
     } satisfies {
       [P in
         | (typeof _args_bool)[number]
@@ -526,18 +602,31 @@ export async function code_gen_main() {
     console.info(`
 Help for code gen:
 
---network       (默认使用)
---no-network    不使用任何远程仓库的数据，仅使用本地缓存来类型生成。
-                本地缓存位于 ./${data_cleaner_ci_generated}/.cache_by_id 中。
+--help
+      显示帮助。
 
---high-water-mark    原始数据的 batch 会缓存在队列中，若队列未满则会在 timer 中异步继续加载。
-                     此值为队列的长度限制。默认值为 ${high_water_mark_default}。可设置为 0 以禁用队列。
+--no-network
+      不使用任何远程仓库的数据，仅使用本地缓存来类型生成。
+      本地缓存位于 ./${data_cleaner_ci_generated}/.cache_by_id 中。
 
---batch-size    覆盖设置每 batch 的最大长度。一般在 ./${data_cleaner_ci_generated}/config.json 中的 **.batch_size 设置。
---prevent-oom-batch-mem-size    每 batch 的原始数据大小超过此值时，将会提前 yield batch。
-                                单位为 byte ，默认值为 ${prevent_oom_batch_mem_size_default} （即 ${
-      prevent_oom_batch_mem_size_default / 1024 / 1024
-    }*1024*1024）
+--debugopt-logtime
+      输出时间花费。
+
+--only-gen-batches-union-merge-file
+      只生成 index.ts 的联合类型声明文件。不生成批次数据类型文件。
+
+--high-water-mark
+      原始数据的 batch 会缓存在队列中，若队列未满则会在 timer 中异步继续加载。
+      此值为队列的长度限制。默认值为 ${high_water_mark_default}。设置为 0 以禁用队列。
+      该选项不建议修改，因为队列会导致更大的内存使用。
+
+--batch-size
+      覆盖设置每 batch 的最大长度。一般在 ./${data_cleaner_ci_generated}/config.json 中的 **.batch_size 设置。
+
+--skip-existed
+      跳过已经生成的类型文件。
+      如果你确信 jsonata_tampletes 没有更改、garbage 表只新增不修改；
+      那么你可以使用此选项节省大量时间。
 `);
     return 0;
   }
@@ -568,13 +657,13 @@ Help for code gen:
   };
   const high_water_mark = _parseInt(false, "high-water-mark");
   const batch_size = _parseInt(true, "batch-size");
-  let prevent_oom_batch_mem_size = _parseInt(
-    false,
-    "prevent-oom-batch-mem-size"
-  );
-  if (prevent_oom_batch_mem_size === 0) {
-    prevent_oom_batch_mem_size = 1024 * 1024 * 1024 * 1024;
-  }
+  // let prevent_oom_batch_mem_size = _parseInt(
+  //   false,
+  //   "prevent-oom-batch-mem-size"
+  // );
+  // if (prevent_oom_batch_mem_size === 0) {
+  //   prevent_oom_batch_mem_size = 1024 * 1024 * 1024 * 1024;
+  // }
 
   return await ProcessBar.create_scope(
     {
@@ -586,7 +675,7 @@ Help for code gen:
         debugopt_logtime: cmdarg["debugopt-logtime"],
         high_water_mark,
         batch_size,
-        prevent_oom_batch_mem_size: prevent_oom_batch_mem_size,
+        // prevent_oom_batch_mem_size: prevent_oom_batch_mem_size,
         only_gen_batches_union_merge_file:
           cmdarg["only-gen-batches-union-merge-file"],
         skip_existed: cmdarg["skip-existed"],
@@ -596,7 +685,9 @@ Help for code gen:
 
 if (import.meta.main) {
   try {
-    await code_gen_main();
+    await PreventTheScreenSaver.subprocess_scope(async () => {
+      await code_gen_main();
+    });
   } catch (err) {
     throw err;
   } finally {

@@ -280,6 +280,9 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           const { g_content, g_search_key } =
             garbage.group__xiaohongshu_search_result__lib_xhs;
           const { result } = g_content;
+          if (!("items" in result)) {
+            continue;
+          }
           const { items } = result;
           if (!items) {
             continue;
@@ -555,14 +558,15 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               template_parse_html_tree.yangkeduo.window_raw_data_eval
                 .stdout_json;
             const { goods, mall } = store.initDataObj;
+            const activity = "activity" in goods ? goods.activity : undefined;
             const create_time = Nums.take_extreme_value("min", [
-              Times.parse_instant(goods.activity?.startTime),
+              Times.parse_instant(activity?.startTime),
               Times.parse_instant(smart_crawl.g_create_time),
               Temporal.Now.instant(),
             ]);
             const update_time = Nums.take_extreme_value("max", [
               create_time,
-              Times.parse_instant(goods.activity?.startTime),
+              Times.parse_instant(activity?.startTime),
               Times.parse_instant(store.initDataObj.goods.nowTime),
             ]);
             const res: ShopGood = {
@@ -580,16 +584,18 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                   : []),
               ]),
               good_images: goods.detailGallery.map((it) => {
+                const gifUrl =
+                  "gifUrl" in it
+                    ? it.gifUrl
+                    : "gif_url" in it
+                    ? it.gif_url
+                    : undefined;
                 return {
                   url: DataClean.url_use_https_noempty(it.url),
                   width: it.width,
                   height: it.height,
-                  gifurl:
-                    [it.gifUrl, it.gifUrl]
-                      .map((u) => DataClean.url_use_https_emptyable(u))
-                      .filter((u) => u)
-                      .at(0) ?? null,
-                  id: chain(() => it.id)
+                  gifurl: DataClean.url_use_https_emptyable(gifUrl) ?? null,
+                  id: chain(() => ("id" in it ? it.id : null))
                     .map((d) => (typeof d === "number" ? `${d}` : null))
                     .get_value(),
                 };
@@ -604,8 +610,13 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                   price_display_cny_unit001: Arrays.first_or_null(
                     (
                       [
-                        [sku.skuPrice, 1],
-                        [sku.priceDisplay?.price, 100],
+                        ["skuPrice" in sku ? sku.skuPrice : null, 1],
+                        [
+                          "priceDisplay" in sku
+                            ? sku.priceDisplay?.price
+                            : null,
+                          100,
+                        ],
                         [sku.groupPrice, 100],
                         [sku.normalPrice, 100],
                         [sku.normalSavePrice, 100],
@@ -630,10 +641,12 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                       )
                   ),
                   label:
-                    sku.sideCarLabels
-                      ?.map((it) => it.text)
-                      .filter((it) => Strs.is_not_blank(it))
-                      .join(";") ?? "",
+                    "sideCarLabels" in sku
+                      ? sku.sideCarLabels
+                          ?.map((it) => it.text)
+                          .filter((it) => Strs.is_not_blank(it))
+                          .join(";") ?? ""
+                      : "",
                 };
               }),
               link_url: `https://mobile.yangkeduo.com/goods.html?goods_id=${goods.goodsID}`,
