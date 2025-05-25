@@ -59,11 +59,8 @@ def _parse_ymd(t: Union[Literal['now'], datetime, YMDParam]) -> YMD:
 
 def days_iter(*,
               start: Union[Literal['now'], YMDParam, str],
-              offset_day: Union[int, str],
+              offset_day:int,
               stop_until: Union[int, YMDParam]) -> Generator[YMD, Any, None]:
-    if not isinstance(offset_day, int):
-        offset_day = int(offset_day)
-
     if offset_day == 0:
         raise ValueError('Invalid offset_month')
     t = _parse_ymd(start)
@@ -112,14 +109,11 @@ def days_iter(*,
 
 def days_ranges_iter(*,
                      start: Union[Literal['now'], YMDParam, str],
-                     offset_day: Union[int, str],
+                     offset_day: int,
                      stop_until: Union[int, YMDParam],
                      yield_stop_until_value_if_end_value_not_equal: bool,
                      end_offset: int,
                      ) -> Generator[Tuple[YMD, YMD], Any, None]:
-    if not isinstance(offset_day, int):
-        offset_day = int(offset_day)
-
     last_year: Optional[Year] = None
     last_mouth: Optional[Mouth] = None
     last_day: Optional[Day] = None

@@ -74,7 +74,7 @@
             }
           }
         ],
-        "steps_after_end": [
+        "steps_after_type_all": [
           {
             "fn": "page_click",
             "args": [

@@ -41,19 +41,22 @@ def test_days_ranges_iter():
     for rag in days_ranges_iter(start=(2024, 1, 1),
                                 offset_day=1,
                                 stop_until=(2024, 1, 12),
-                                yield_stop_until_value_if_end_value_not_equal=True):
+                                yield_stop_until_value_if_end_value_not_equal=True,
+                                end_offset=0):
         print(rag)
     print('------------')
     for rag in days_ranges_iter(start=(2024, 1, 1),
                                 offset_day=5,
                                 stop_until=(2024, 1, 12),
-                                yield_stop_until_value_if_end_value_not_equal=False):
+                                yield_stop_until_value_if_end_value_not_equal=False,
+                                end_offset=1):
         print(rag)
     print('------------')
     for rag in days_ranges_iter(start=(2024, 1, 1),
                                 offset_day=5,
                                 stop_until=(2024, 1, 12),
-                                yield_stop_until_value_if_end_value_not_equal=True):
+                                yield_stop_until_value_if_end_value_not_equal=True,
+                                end_offset=2):
         print(rag)
 
 

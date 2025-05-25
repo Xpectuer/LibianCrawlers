@@ -526,7 +526,11 @@ class StepsApi:
                                          steps_after_begin: StepsBlock = None,
                                          steps_before_end: StepsBlock = None,
                                          steps_after_end: StepsBlock = None,
+                                         steps_after_type_all: StepsBlock = None,
                                          ):
+        if not isinstance(offset_day, int):
+            offset_day = int(offset_day)
+        is_first_input = True
         for begin_tuple, end_tuple in days_ranges_iter(
                 start=start,
                 stop_until=stop_until,
@@ -551,37 +555,51 @@ class StepsApi:
             if force is not None:
                 page_type_kwargs['force'] = force
 
-            if begin_selector is not None:
-                begin_time = datetime.now().replace(year=begin_year, month=begin_month, day=begin_day)
-                if steps_before_begin is not None:
-                    logger.debug('run steps_before_begin')
-                    await self._process_steps(steps_before_begin)
-                logger.debug('Start page type begin')
-                await self.page_type(
-                    begin_selector,
-                    begin_time.strftime(time_format),
-                    **page_type_kwargs
-                )
-                logger.debug('Stop page type begin')
-                if steps_after_begin is not None:
-                    logger.debug('run steps_after_begin')
-                    await self._process_steps(steps_after_begin)
+            async def type_begin():
+                if begin_selector is not None:
+                    begin_time = datetime.now().replace(year=begin_year, month=begin_month, day=begin_day)
+                    if steps_before_begin is not None:
+                        logger.debug('run steps_before_begin')
+                        await self._process_steps(steps_before_begin)
+                    logger.debug('Start page type begin')
+                    await self.page_type(
+                        begin_selector,
+                        begin_time.strftime(time_format),
+                        **page_type_kwargs
+                    )
+                    logger.debug('Stop page type begin')
+                    if steps_after_begin is not None:
+                        logger.debug('run steps_after_begin')
+                        await self._process_steps(steps_after_begin)
 
-            if end_selector is not None:
-                end_time = datetime.now().replace(year=end_year, month=end_month, day=end_day)
-                if steps_before_end is not None:
-                    logger.debug('run steps_before_end')
-                    await self._process_steps(steps_before_end)
-                logger.debug('Start page type end')
-                await self.page_type(
-                    end_selector,
-                    end_time.strftime(time_format),
-                    **page_type_kwargs
-                )
-                logger.debug('Stop page type end')
-                if steps_after_end is not None:
-                    logger.debug('run steps_after_end')
-                    await self._process_steps(steps_after_end)
+            async def type_end():
+                if end_selector is not None:
+                    end_time = datetime.now().replace(year=end_year, month=end_month, day=end_day)
+                    if steps_before_end is not None:
+                        logger.debug('run steps_before_end')
+                        await self._process_steps(steps_before_end)
+                    logger.debug('Start page type end')
+                    await self.page_type(
+                        end_selector,
+                        end_time.strftime(time_format),
+                        **page_type_kwargs
+                    )
+                    logger.debug('Stop page type end')
+                    if steps_after_end is not None:
+                        logger.debug('run steps_after_end')
+                        await self._process_steps(steps_after_end)
+
+            # 有些时间选择器组件会阻止无效输入，例如在设置老于begin的end时会无效
+            if is_first_input or offset_day < 0:
+                await type_begin()
+                await type_end()
+            else:
+                await type_end()
+                await type_begin()
+            is_first_input = False
+            if steps_after_type_all is not None:
+                logger.debug('run steps_after_type_all')
+                await self._process_steps(steps_after_type_all)
 
     async def page_scroll_down(self, *,
                                delta_y=233.0,
