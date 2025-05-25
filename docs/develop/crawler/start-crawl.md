@@ -96,6 +96,8 @@ poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hype
 | 聊天记录 | ✔️ | ✔️ |
 
 ```shell
-poetry run smart-crawl --debug --url https://qn.taobao.com/home.htm/app-customer-service/toolpage/Message --locale zh-CN --dump_page_ignore_names=script,svg --steps jsonfile:steps/qianniu-message-export.json
+poetry run smart-crawl --debug --url https://qn.taobao.com/home.htm/app-customer-service/toolpage/Message --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/qianniu-message-export.json?start=now&step=-1"
 ```
+
+参数 `start` 可以传入 `now` 或 `2025-5-25` 这种日期格式。
 

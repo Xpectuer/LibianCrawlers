@@ -37,23 +37,33 @@ YMDParam = Union[YMD, List[Union[Year, Mouth, Day]]]
 
 
 def _parse_ymd(t: Union[Literal['now'], datetime, YMDParam]) -> YMD:
+    _src_t = t
     if t == 'now':
         _now = datetime.now()
         # noinspection PyTypeChecker
         t = (_now.year, _now.month, _now.day)
+    elif isinstance(t, str):
+        t = list(map(int, t.split('-')))
     elif isinstance(t, datetime):
         t = t.year, t.month, t.day
+
+    if len(t) != 3:
+        raise ValueError(f'parse YMD failed , invalid param {_src_t}')
+
     if not isinstance(t[0], int) \
             or not isinstance(t[1], int) or t[1] < 1 or t[1] > 12 \
             or not isinstance(t[2], int) or t[2] < 1 or t[2] > calendar.monthrange(t[0], t[1])[1]:
-        raise ValueError(f'Invalid value : {t}')
+        raise ValueError(f'parse YMD failed , invalid param {_src_t}')
     return t
 
 
 def days_iter(*,
-              start: Union[Literal['now'], YMDParam],
-              offset_day: int,
+              start: Union[Literal['now'], YMDParam, str],
+              offset_day: Union[int, str],
               stop_until: Union[int, YMDParam]) -> Generator[YMD, Any, None]:
+    if not isinstance(offset_day, int):
+        offset_day = int(offset_day)
+
     if offset_day == 0:
         raise ValueError('Invalid offset_month')
     t = _parse_ymd(start)
@@ -101,11 +111,14 @@ def days_iter(*,
 
 
 def days_ranges_iter(*,
-                     start: Union[Literal['now'], YMDParam],
-                     offset_day: int,
+                     start: Union[Literal['now'], YMDParam, str],
+                     offset_day: Union[int, str],
                      stop_until: Union[int, YMDParam],
                      yield_stop_until_value_if_end_value_not_equal: bool,
                      ) -> Generator[Tuple[YMD, YMD], Any, None]:
+    if not isinstance(offset_day, int):
+        offset_day = int(offset_day)
+
     last_year: Optional[Year] = None
     last_mouth: Optional[Mouth] = None
     last_day: Optional[Day] = None

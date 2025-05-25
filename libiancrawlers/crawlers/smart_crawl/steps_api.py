@@ -11,7 +11,7 @@ from playwright.async_api import Page, BrowserContext, Locator
 from libiancrawlers.app_util.types import JSON
 from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.exceptions import is_timeout_error
-from libiancrawlers.util.timefmt import days_iter, YMD, days_ranges_iter, YMDParam
+from libiancrawlers.util.timefmt import days_ranges_iter, YMDParam
 
 StepsBlock = Union[
     JSON,
@@ -508,8 +508,8 @@ class StepsApi:
             logger.debug('Success type to frame')
 
     async def page_type_days_ranges_iter(self, *,
-                                         start: Union[Literal['now'], YMDParam],
-                                         offset_day: int,
+                                         start: Union[Literal['now'], YMDParam, str],
+                                         offset_day: Union[int, str],
                                          stop_until: Union[int, YMDParam],
                                          yield_stop_until_value_if_end_value_not_equal: bool = True,
                                          time_format: str = '%Y-%m-%d',

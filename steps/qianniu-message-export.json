@@ -42,9 +42,9 @@
     {
       "fn": "page_type_days_ranges_iter",
       "kwargs": {
-        "start": "now",
-        "offset_day": -1,
-        "stop_until": 90,
+        "start": "<<<<!start!>>>>",
+        "offset_day": "<<<<!step!>>>>",
+        "stop_until": 89,
         "only_main_frame": false,
         "use_fill": true,
         "begin_selector": ".next-range-picker-panel-input-start-date > input",
