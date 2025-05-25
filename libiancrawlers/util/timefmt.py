@@ -1,7 +1,7 @@
 # -*- coding: UTF-8 -*-
 import time
 import calendar
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from typing import TypeVar, Callable, Literal, Union, Tuple, List, Optional, Generator, Any
 
@@ -115,6 +115,7 @@ def days_ranges_iter(*,
                      offset_day: Union[int, str],
                      stop_until: Union[int, YMDParam],
                      yield_stop_until_value_if_end_value_not_equal: bool,
+                     end_offset: int,
                      ) -> Generator[Tuple[YMD, YMD], Any, None]:
     if not isinstance(offset_day, int):
         offset_day = int(offset_day)
@@ -123,14 +124,19 @@ def days_ranges_iter(*,
     last_mouth: Optional[Mouth] = None
     last_day: Optional[Day] = None
 
+    def end_date_offset(y: int, m: int, d: int):
+        t = datetime(year=y, month=m, day=d, hour=0, minute=0, second=0, microsecond=0)
+        t = t + (1 if end_offset > 0 else -1) * timedelta(days=abs(end_offset))
+        return t.year, t.month, t.day
+
     for year, month, day in days_iter(
             start=start, offset_day=offset_day, stop_until=stop_until
     ):
         if last_year is not None and last_mouth is not None and last_day is not None:
             if offset_day > 0:
-                yield (last_year, last_mouth, last_day), (year, month, day)
+                yield (last_year, last_mouth, last_day), end_date_offset(year, month, day)
             else:
-                yield (year, month, day), (last_year, last_mouth, last_day)
+                yield (year, month, day), end_date_offset(last_year, last_mouth, last_day)
         last_year = year
         last_mouth = month
         last_day = day
@@ -139,23 +145,23 @@ def days_ranges_iter(*,
         stop_year: Year = stop_until[0]
         stop_month: Mouth = stop_until[1]
         stop_day: Day = stop_until[2]
-        if last_year is not None:
+        if last_year is not None and last_mouth is not None and last_day is not None:
             if offset_day > 0:
-                yield (last_year, last_mouth, last_day), (stop_year, stop_month, stop_day)
+                yield (last_year, last_mouth, last_day), end_date_offset(stop_year, stop_month, stop_day)
             else:
-                yield (stop_year, stop_month, stop_day), (last_year, last_mouth, last_day)
+                yield (stop_year, stop_month, stop_day), end_date_offset(last_year, last_mouth, last_day)
         else:
             start_year, start_month, start_day = _parse_ymd(start)
             if offset_day > 0:
                 if start_year < stop_year \
                         or start_year == stop_year and start_month < stop_month \
                         or start_year == stop_year and start_month == stop_month and start_day < stop_day:
-                    yield (last_year, last_mouth, last_day), (stop_year, stop_month, stop_day)
+                    yield (start_year, start_month, start_day), end_date_offset(stop_year, stop_month, stop_day)
             else:
                 if start_year > stop_year \
                         or start_year == stop_year and start_month > stop_month \
                         or start_year == stop_year and start_month == stop_month and start_day > stop_day:
-                    yield (stop_year, stop_month, stop_day), (last_year, last_mouth, last_day)
+                    yield (stop_year, stop_month, stop_day), end_date_offset(start_year, start_month, start_day)
 
 
 # def datetime_ranges(*,

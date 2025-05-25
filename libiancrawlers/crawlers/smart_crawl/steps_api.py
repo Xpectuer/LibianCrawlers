@@ -512,6 +512,7 @@ class StepsApi:
                                          offset_day: Union[int, str],
                                          stop_until: Union[int, YMDParam],
                                          yield_stop_until_value_if_end_value_not_equal: bool = True,
+                                         end_offset: int = 0,
                                          time_format: str = '%Y-%m-%d',
                                          delay: Optional[float] = None,
                                          timeout: Optional[float] = None,
@@ -530,7 +531,8 @@ class StepsApi:
                 start=start,
                 stop_until=stop_until,
                 offset_day=offset_day,
-                yield_stop_until_value_if_end_value_not_equal=yield_stop_until_value_if_end_value_not_equal
+                yield_stop_until_value_if_end_value_not_equal=yield_stop_until_value_if_end_value_not_equal,
+                end_offset=end_offset,
         ):
             logger.debug('iter time range : {} to {}', begin_tuple, end_tuple)
             begin_year, begin_month, begin_day = begin_tuple

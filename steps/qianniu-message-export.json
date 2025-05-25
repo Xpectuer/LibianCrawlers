@@ -45,6 +45,7 @@
         "start": "<<<<!start!>>>>",
         "offset_day": "<<<<!step!>>>>",
         "stop_until": 89,
+        "end_offset": -1,
         "only_main_frame": false,
         "use_fill": true,
         "begin_selector": ".next-range-picker-panel-input-start-date > input",
