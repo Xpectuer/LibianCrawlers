@@ -360,7 +360,12 @@ export async function generate_repository_api_type<T>(param: {
           if (skip_existed && res_file_existed) {
             if (samples_res.find((it) => it !== "skip")) {
               throw new Error(
-                `If skip_existed && res_file_existed (Existed ${batch_file_name}) , Assert generator should return all "skip"`
+                `If skip_existed && res_file_existed (Existed ${batch_file_name}) , Assert generator should return all "skip" , item !== \"skip\" items indexes is ${Jsons.dump(
+                  samples_res
+                    .filter((it) => it !== "skip")
+                    .map((_v, idx) => idx),
+                  { indent: 2 }
+                )}`
               );
             }
             console.log(`\nSkip existed : ${res_file_path}\n`);

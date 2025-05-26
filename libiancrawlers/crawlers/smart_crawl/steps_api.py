@@ -329,6 +329,7 @@ class StepsApi:
                          only_main_frame: bool = True,
                          each_steps_before: Optional[StepsBlock] = None,
                          each_steps_after: Optional[StepsBlock] = None,
+                         timeout_retry: int = 0,
                          **kwargs):
         if method is None:
             method = 'click'
@@ -390,18 +391,29 @@ class StepsApi:
                 _loc = await self._on_locator(_loc, kwargs.pop('on_locator'))
 
             async def _click(_locator: Locator):
-                if method == 'click':
-                    await _locator.click(
-                        timeout=timeout,
-                        **kwargs
-                    )
-                elif method == 'tap':
-                    await _locator.tap(
-                        timeout=timeout,
-                        **kwargs
-                    )
-                else:
-                    raise ValueError(f'Invalid method {method}')
+                retry_count = timeout_retry
+                while True:
+                    try:
+                        if method == 'click':
+                            await _locator.click(
+                                timeout=timeout,
+                                **kwargs
+                            )
+                        elif method == 'tap':
+                            await _locator.tap(
+                                timeout=timeout,
+                                **kwargs
+                            )
+                        else:
+                            raise ValueError(f'Invalid method {method}')
+                        break
+                    except BaseException as err:
+                        if retry_count > 0 and is_timeout_error(err):
+                            logger.warning('Timeout on page_click , current retry count is {} , _locator is {}',
+                                           retry_count, _locator)
+                            retry_count -= 1
+                        else:
+                            raise
 
             if each_steps_before is not None or each_steps_after is not None:
                 _loc_all = await _loc.all()

@@ -161,8 +161,9 @@ export async function* read_postgres_table(
   const values_generator = async function* () {
     if (cache_dir_exist && cache_by_id.enable) {
       let gid_list: number[] = [];
-      let memory_limit_guess: number[] = [];
+      // let memory_limit_guess: number[] = [];
       let buffer: Array<Jsons.JSONObject | "skip"> = [];
+
       const cache_file_generator = (async function* () {
         let cache_file_list: Array<{
           g_id: number;
@@ -188,7 +189,9 @@ export async function* read_postgres_table(
           cache_file_list
         )) {
           let is_skip: "skip" | "no-skip";
-          if (code_gen_skip_existed) {
+          if (total !== batch.total && batch.total === batch.end) {
+            is_skip = "no-skip";
+          } else if (code_gen_skip_existed) {
             const check_all_batch_can_skip = await Promise.all(
               batch.sliced.map(
                 async (_, idx) =>
@@ -269,7 +272,7 @@ export async function* read_postgres_table(
           (value && typeof value === "object" && !Array.isArray(value))
         ) {
           buffer.push(value);
-          memory_limit_guess.push(cache_file.cache_file_stat.size);
+          // memory_limit_guess.push(cache_file.cache_file_stat.size);
           gid_list.push(cache_file.g_id);
         } else {
           throw new Error(
@@ -283,7 +286,7 @@ export async function* read_postgres_table(
           }
           yield buffer;
           buffer = [];
-          memory_limit_guess = [];
+          // memory_limit_guess = [];
           gid_list = [];
           // if (preventOOM) {
           // await delay(4);
@@ -345,6 +348,7 @@ export async function* read_postgres_table(
   };
   const start_at = new Date().getTime();
   let batch_cached_start_at = new Date().getTime();
+  let buffer: (Jsons.JSONObject | "skip" | postgres.Row)[] = [];
   for await (const values of values_generator()) {
     if (debugopt_logtime) {
       console.debug("batch cached yield status :", {
@@ -352,8 +356,17 @@ export async function* read_postgres_table(
         batch_size: values.length,
       });
     }
-    yield values;
+    for (const value of values) {
+      buffer.push(value);
+      if (buffer.length >= batch_size) {
+        yield buffer;
+        buffer = [];
+      }
+    }
     batch_cached_start_at = new Date().getTime();
+  }
+  if (buffer.length > 0) {
+    yield buffer;
   }
 
   console.debug(

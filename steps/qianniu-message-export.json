@@ -58,7 +58,8 @@
             ],
             "kwargs": {
               "only_main_frame": false,
-              "force": true
+              "force": true,
+              "timeout_retry":  3
             }
           }
         ],
@@ -70,7 +71,8 @@
             ],
             "kwargs": {
               "only_main_frame": false,
-              "force": true
+              "force": true,
+              "timeout_retry":  3
             }
           }
         ],
@@ -81,7 +83,8 @@
               ".next-date-picker-panel-footer > button"
             ],
             "kwargs": {
-              "only_main_frame": false
+              "only_main_frame": false,
+              "timeout_retry":  3
             }
           },
           {
@@ -90,7 +93,8 @@
               "button :has-text('查询')"
             ],
             "kwargs": {
-              "only_main_frame": false
+              "only_main_frame": false,
+              "timeout_retry":  3
             }
           },
           {
@@ -106,6 +110,7 @@
             ],
             "kwargs": {
               "only_main_frame": false,
+              "timeout_retry":  3,
               "each_steps_after": [
                 {
                   "fn": "sleep",
