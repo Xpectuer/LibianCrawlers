@@ -20,7 +20,7 @@ async def parse_json_or_read_file_json_like(t: JSON) -> JSON:
             from libiancrawlers.app_util.playwright_util import url_parse_to_dict
             url_info = url_parse_to_dict(t)
             logger.debug('json file url info is {}', url_info)
-            async with aiofiles.open(url_info['path'], 'rt') as f:
+            async with aiofiles.open(url_info['path'], 'rt', encoding='utf-8') as f:
                 t2 = await f.read()
 
             def rep_word(_k):

@@ -29,7 +29,7 @@
 | 商品详情评论区   | todo | todo |
 
 ```shell
-poetry run smart-crawl --debug --url https://www.taobao.com/ --locale zh-CN --steps jsonfile:steps/taobao-search.json?q=羽绒服
+poetry run smart-crawl --debug --url https://www.taobao.com/ --locale zh-CN --dump_page_ignore_names=svg --steps "jsonfile:steps/taobao-search.json?q=羽绒服" --mode save_file
 ```
 
 ### 拼多多(mobile.yangkeduo.com)搜索
@@ -41,7 +41,7 @@ poetry run smart-crawl --debug --url https://www.taobao.com/ --locale zh-CN --st
 | 商品详情评论区   | todo | todo |
 
 ```shell
-poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-CN --steps jsonfile:steps/yangkeduo-mobile-search.json?q=羽绒服
+poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-CN --dump_page_ignore_names=svg --steps "jsonfile:steps/yangkeduo-mobile-search.json?q=羽绒服" --mode save_file
 ```
 
 ### 小红书搜索
@@ -53,7 +53,7 @@ poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-C
 | 评论区       | todo | todo |
 
 ```shell
-poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --steps jsonfile:steps/xiaohongshu-search.json?q=丸子头
+poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/xiaohongshu-search.json?q=丸子头" --mode save_file
 ```
 
 ### 百度
@@ -64,7 +64,7 @@ poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --s
 | 搜索结果的网站详情 | todo | todo |
 
 ```shell
-poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --steps jsonfile:steps/baidu.json?q=吹风机
+poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/baidu.json?q=吹风机" --mode save_file
 ```
 
 ### 知网搜索
@@ -76,7 +76,7 @@ poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --steps j
 | 文献的期刊详情   | ✔️ | todo |
 
 ```shell
-poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --steps jsonfile:steps/cnki-search.json?q=肺动脉高压
+poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/cnki-search.json?q=肺动脉高压" --mode save_file
 ```
 
 ### Entrez 库搜索
@@ -86,7 +86,7 @@ poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --steps js
 | 查询论文 | ✔️ | ✔️ |
 
 ```shell
-poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hypertension"
+poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hypertension" --mode save_file
 ```
 
 ### 千牛网页端聊天记录导出
@@ -96,8 +96,20 @@ poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hype
 | 聊天记录 | ✔️ | ✔️ |
 
 ```shell
-poetry run smart-crawl --debug --url https://qn.taobao.com/home.htm/app-customer-service/toolpage/Message --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/qianniu-message-export.json?start=now&step=-1"
+poetry run smart-crawl --debug --url https://qn.taobao.com/home.htm/app-customer-service/toolpage/Message --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/qianniu-message-export.json?start=now&step=-1" --mode save_file
 ```
 
 参数 `start` 可以传入 `now` 或 `2025-5-25` 这种日期格式。
+
+### Embase 及镜像站搜索并下载
+
+```shell
+poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/embase-search.json" --mode save_file
+```
+
+| 内容   | 下载导出的csv | 读取与合并导出的csv | 清洗   |
+|------|----------|-------------|------|
+| 聊天记录 | todo     | todo        | todo |
+
+
 

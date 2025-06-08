@@ -42,7 +42,8 @@
         ".search-btn"
       ],
       "kwargs": {
-        "timeout": 6000
+        "timeout": 6000,
+        "timeout_retry": 3
       }
     },
     {
@@ -100,29 +101,35 @@
                       ".top-tip a>>nth=0"
                     ],
                     "kwargs": {
-                      "timeout": 6000
+                      "timeout": 6000,
+                      "timeout_retry": 3
                     },
-                    "description": "跳转到期刊页面"
-                  },
-                  {
-                    "fn": "page_click",
-                    "args": [
-                      "#J_sumBtn-stretch"
+                    "description": "跳转到期刊页面",
+                    "on_success_steps": [
+                      {
+                        "fn": "page_click",
+                        "args": [
+                          "#J_sumBtn-stretch"
+                        ],
+                        "kwargs": {
+                          "timeout": 6000,
+                          "timeout_retry": 3
+                        },
+                        "description": "点击期刊页面的 “更多介绍” 按钮，没有的话也没事。",
+                        "on_timeout_steps": "continue"
+                      },
+                      {
+                        "fn": "dump_page_with_uuid",
+                        "args": [
+                          "dump_journal_page"
+                        ]
+                      },
+                      {
+                        "fn": "page_close",
+                        "description": "关闭期刊页面"
+                      }
                     ],
-                    "kwargs": {
-                      "timeout": 6000
-                    },
-                    "description": "点击期刊页面的展开"
-                  },
-                  {
-                    "fn": "dump_page_with_uuid",
-                    "args": [
-                      "dump_journal_page"
-                    ]
-                  },
-                  {
-                    "fn": "page_close",
-                    "description": "关闭期刊页面"
+                    "on_timeout_steps": "continue"
                   }
                 ],
                 "on_found_after_click_steps": [
@@ -169,7 +176,8 @@
               "#PageNext"
             ],
             "kwargs": {
-              "timeout": 10000
+              "timeout": 10000,
+              "timeout_retry": 3
             },
             "on_timeout_steps": [
               {
@@ -184,7 +192,8 @@
                   "#PageNext"
                 ],
                 "kwargs": {
-                  "timeout": 10000
+                  "timeout": 10000,
+                  "timeout_retry": 3
                 },
                 "on_timeout_steps": [
                   {
@@ -206,7 +215,8 @@
                       "#PageNext"
                     ],
                     "kwargs": {
-                      "timeout": 10000
+                      "timeout": 10000,
+                      "timeout_retry": 3
                     }
                   }
                 ]

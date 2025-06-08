@@ -1,7 +1,9 @@
 # -*- coding: UTF-8 -*-
 import asyncio
 import hashlib
+import os.path
 import random
+from collections import Counter
 from datetime import datetime, timedelta
 from typing import Optional, Literal, TypedDict, Callable, Awaitable, Union, List, Tuple, Dict
 from uuid import uuid4
@@ -51,13 +53,20 @@ class StepsApi:
                      Awaitable,
                  ],
                  _page_ref_lock: asyncio.locks.Lock,
-                 _page_ref: PageRef):
+                 _page_ref: PageRef,
+                 _download_storage_path: str,
+                 _dump_obj: Callable[[str, JSON], Awaitable],
+                 _global_counter: Counter
+                 ):
         self._b_page = b_page
         self._browser_context = browser_context
         self._var_dump_page = _dump_page
         self._var_process_steps = _process_steps
         self._page_ref_lock = _page_ref_lock
         self._page_ref = _page_ref
+        self._download_storage_path = _download_storage_path
+        self._dump_obj = _dump_obj
+        self._global_counter = _global_counter
         self._page_mouse_move_default_timeout = 2.0
         self._page_mouse_move_default_steps = 2
         self._page_click_default_timeout = 5000
@@ -77,6 +86,20 @@ class StepsApi:
     async def _process_steps(self, _steps):
         return await self._var_process_steps(_steps)
 
+    async def _get_page_title_ignore_err(self, res: Page):
+        try:
+            title = await res.title()
+        except BaseException as err:
+            title = f'【ERROR: get title failed: {str(err)}】'
+        return title
+
+    async def _get_page_url_ignore_err(self, res: Page):
+        try:
+            url = res.url
+        except BaseException as err:
+            url = f'【ERROR: get url failed: {str(err)}】'
+        return url
+
     async def _get_page(self):
         import inspect
 
@@ -85,9 +108,9 @@ class StepsApi:
 
         _frame, _filename, _line_number, _function_name, _lines, _index = inspect.stack()[1]
         logger.debug('current page title is {} , call from {} , link is \n    {}',
-                     await res.title(),
+                     await self._get_page_title_ignore_err(res),
                      _function_name,
-                     res.url)
+                     await self._get_page_url_ignore_err(res))
         return res
 
     async def _set_page(self, v: Page):
@@ -221,6 +244,12 @@ class StepsApi:
     async def _dump_page(self, dump_tag: str):
         return await self._var_dump_page(dump_tag, await self._get_page())
 
+    def _next_download_count(self) -> str:
+        c = self._global_counter['_download_count']
+        self._global_counter['_download_count'] += 1
+        res = str(c).rjust(6, '0')
+        return res
+
     # ------------------------------------------------------------------
     # Public API
 
@@ -314,7 +343,7 @@ class StepsApi:
     async def page_click(self,
                          selector: Union[str, Locator, XY],
                          *,
-                         method: Literal['click', 'tap'] = None,
+                         method: Literal['click', 'tap', 'dispatch_event_click'] = None,
                          on_new_page: Optional[
                              Union[
                                  Literal[
@@ -404,6 +433,8 @@ class StepsApi:
                                 timeout=timeout,
                                 **kwargs
                             )
+                        elif method == 'dispatch_event_click':
+                            await _locator.dispatch_event('click', timeout=timeout)
                         else:
                             raise ValueError(f'Invalid method {method}')
                         break
@@ -494,28 +525,34 @@ class StepsApi:
         delay = kwargs.pop('delay', self._page_type_default_delay)
         timeout = kwargs.pop('timeout', self._page_type_default_timeout)
         use_fill = kwargs.pop('use_fill', False)
+        use_select_options = kwargs.pop('use_select_options', False)
         force = kwargs.pop('force', False)
+        strict = kwargs.get('strict')
         selector = args[0]
         only_main_frame = kwargs.pop('only_main_frame', True)
         if only_main_frame:
             page = await self._get_page()
             if use_fill:
-                await page.fill(*args, timeout=timeout, strict=kwargs.get('strict'), force=force)
+                await page.fill(*args, timeout=timeout, strict=strict, force=force)
+            elif use_select_options:
+                await page.select_option(*args, timeout=timeout, strict=strict, force=force)
             else:
-                await page.focus(selector=selector, timeout=timeout, strict=kwargs.get('strict'))
+                await page.focus(selector=selector, timeout=timeout, strict=strict)
                 await page.type(*args, delay=delay, timeout=timeout, **kwargs)
         else:
             logger.debug('wait for selector in any frame to type , selector is {}', selector)
             frame, _ = await self.page_wait_for_selector_in_any_frame(selector=selector,
                                                                       timeout=timeout,
-                                                                      strict=kwargs.get('strict'),
+                                                                      strict=strict,
                                                                       state=kwargs.get('state'))
             logger.debug('existed selector in any frame to type , try type to frame {} , args is {}',
                          frame, args)
             if use_fill:
-                await frame.fill(*args, timeout=timeout, strict=kwargs.get('strict'))
+                await frame.fill(*args, timeout=timeout, strict=strict)
+            elif use_select_options:
+                await frame.select_option(*args, timeout=timeout, strict=strict, force=force)
             else:
-                await frame.focus(selector=selector, timeout=timeout, strict=kwargs.get('strict'))
+                await frame.focus(selector=selector, timeout=timeout, strict=strict)
                 await frame.type(*args, delay=delay, timeout=timeout, **kwargs)
             logger.debug('Success type to frame')
 
@@ -622,7 +659,7 @@ class StepsApi:
                                page_click_if_found: PageScrollDownPageClickIfFound = None,
                                ):
         _page = await self._get_page()
-        logger.debug('start page scroll down , current page title is {}', await _page.title())
+        logger.debug('start page scroll down , current page title is {}', await self._get_page_title_ignore_err(_page))
 
         _last_scroll_down_time = {
             'value': datetime.now().timestamp()
@@ -979,7 +1016,7 @@ class StepsApi:
                     await sleep(0.1)
                     try:
                         await _page.wait_for_load_state('networkidle', timeout=3)
-                    except:
+                    except BaseException as _err:
                         pass
 
                 logger.debug('on prev_height == curr_height , prev_height_bottom is {} , prev_height is {}',
@@ -1004,7 +1041,7 @@ class StepsApi:
 
     async def page_go_back(self, **kwargs):
         page = await self._get_page()
-        old_url = page.url
+        old_url = await self._get_page_url_ignore_err(page)
         logger.debug('page go back , kwargs={} , current url is\n    {}',
                      kwargs, old_url)
         if kwargs.get('timeout') is not None:
@@ -1099,15 +1136,15 @@ class StepsApi:
             else:
                 raise ValueError(f'Invalid param {to}')
             _old_page = await self._get_page()
-            from_title = await _old_page.title()
-            to_title_prev = await res.title()
+            from_title = await self._get_page_title_ignore_err(_old_page)
+            to_title_prev = await self._get_page_title_ignore_err(res)
             logger.debug('Start switch page {} : from {} , to title on create {}',
                          to,
                          from_title,
                          to_title_prev,
                          )
             await self.page_wait_loaded(page=res)
-            to_title_cur = await res.title()
+            to_title_cur = await self._get_page_title_ignore_err(res)
             await self._set_page(res)
             logger.debug('Finish switch page {} : from {} , to title ( {} >>> {} )',
                          to,
@@ -1120,7 +1157,7 @@ class StepsApi:
                 await self.switch_page(to)
         except BaseException as err:
             if is_timeout_error(err):
-                logger.debug('switch page timeout ? maybe system blocking ? we will retry')
+                logger.debug(f'switch page timeout ? maybe system blocking ? we will retry . error is {err}')
                 await self.switch_page(to)
             raise
 
@@ -1128,20 +1165,98 @@ class StepsApi:
         from libiancrawlers.app_util.gui_util import gui_confirm
         return await gui_confirm(title=title, message=message)
 
+    async def expect_download(self, *,
+                              timeout: float,
+                              run_steps: StepsBlock = None,
+                              dump_obj_meta=None,
+                              dump_csv=False, ):
+        logger.debug('expect download')
+        _page = await self._get_page()
+        async with _page.expect_download(timeout=timeout) as _download_info:
+            logger.debug('expect download entry scope')
+            if run_steps is not None:
+                logger.debug('expect download run steps')
+                await self._process_steps(run_steps)
+                logger.debug('expect download end steps')
+        logger.debug('expect download out scope')
+        _download = await _download_info.value
+        logger.debug('expect download done promise:\n    suggested_filename is {}\n    url is {}\n    page title is {}',
+                     _download.suggested_filename,
+                     _download.url,
+                     await self._get_page_title_ignore_err(_download.page))
+        current_download_count = self._next_download_count()
+        logger.debug('current_download_count is {}', current_download_count)
+        save_file_path = os.path.join(self._download_storage_path,
+                                      f'{current_download_count}_{_download.suggested_filename}')
+        logger.debug('download path info:\n    self._download_storage_path is {}\n    save_file_path is {}',
+                     self._download_storage_path, save_file_path)
+        logger.info('start download : {}', save_file_path)
+        await _download.save_as(save_file_path)
+        logger.debug('finish download')
+        save_file_name = os.path.basename(save_file_path)
+        save_file_name_prefix, save_file_name_ext = os.path.splitext(save_file_name)
+        if save_file_name_ext == '.csv' and dump_csv:
+            from libiancrawlers.crawlers.smart_crawl.dump_obj_util import parse_csv
+            await self._dump_obj(f'downloaded_csv_{current_download_count}', {
+                'meta': dump_obj_meta,
+                'data': await parse_csv(save_file_path),
+            })
 
-def _create_steps_api_functions(*,
-                                b_page: Page,
-                                browser_context: BrowserContext,
-                                _dump_page: Callable[[str, Page], Awaitable],
-                                _process_steps: Callable[
-                                    [StepsBlock],
-                                    Awaitable,
-                                ],
-                                _page_ref_lock: asyncio.locks.Lock,
-                                _page_ref: PageRef
-                                ):
-    return StepsApi(b_page=b_page, browser_context=browser_context, _dump_page=_dump_page,
-                    _process_steps=_process_steps, _page_ref_lock=_page_ref_lock, _page_ref=_page_ref)
+    async def for_each(self, *,
+                       run_steps: StepsBlock = None):
+        while True:
+            await self._process_steps(run_steps)
+
+    async def random(self, *,
+                     probability: Union[float, str], if_steps: StepsBlock = None, else_steps: StepsBlock = None):
+        if isinstance(probability, str):
+            probability = float(probability)
+        value = random.random()
+        logger.debug('Random result : value is {} , probability is {} , value {} probability',
+                     value, probability, '==' if value == probability else '>' if value > probability else '<')
+        if value <= probability:
+            if if_steps is not None:
+                await self._process_steps(if_steps)
+        else:
+            if else_steps is not None:
+                await self._process_steps(else_steps)
+
+    async def every_times(self, *,
+                          key: str,
+                          div: int,
+                          expect_mod=0,
+                          before_steps: StepsBlock = None,
+                          if_steps: StepsBlock = None,
+                          else_steps: StepsBlock = None,
+                          after_steps: StepsBlock = None,
+                          run_if_steps_on_error=False):
+        try:
+            if before_steps is not None:
+                await self._process_steps(before_steps)
+            k = f'every_times__{key}'
+            self._global_counter[k] += 1
+            count = self._global_counter[k]
+            logger.debug('Every times status: count={}, divmod(c, div)={}, expect_mod={}',
+                         count,
+                         divmod(count, div),
+                         expect_mod)
+            if divmod(count, div)[1] == expect_mod:
+                if if_steps is not None:
+                    await self._process_steps(if_steps)
+            else:
+                if else_steps is not None:
+                    await self._process_steps(else_steps)
+
+            if after_steps is not None:
+                await self._process_steps(after_steps)
+        except BaseException as err:
+            if run_if_steps_on_error:
+                logger.warning('Error on every times , run if_steps , err is {}', err)
+                if if_steps is not None:
+                    await self._process_steps(if_steps)
+            else:
+                logger.warning('Error on every times, err is {}', err)
+            raise
 
 
 if __name__ == '__main__':

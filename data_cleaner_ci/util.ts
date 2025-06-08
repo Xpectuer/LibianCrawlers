@@ -21,7 +21,7 @@ import AsyncLock from "async-lock";
 import { JsonStreamStringify } from "json-stream-stringify";
 import { Writable } from "node:stream";
 import { JSONParser } from "@streamparser/json";
-
+import { finished } from "node:stream/promises";
 export function is_nullish(obj: any): obj is null | undefined {
   return obj === null || obj === undefined;
 }
@@ -43,10 +43,8 @@ export function chain<T>(init_value: () => T) {
     map<R>(mapper: (value: T) => R) {
       return chain(() => mapper(this.get_value()));
     },
-    array_wrap_nonnull(): T extends Typings.Nullish
-      ? []
-      : Typings.Nullish extends T
-      ? [T] | []
+    array_wrap_nonnull(): T extends Typings.Nullish ? []
+      : Typings.Nullish extends T ? [T] | []
       : [T] {
       const v = this.get_value();
       if (v === null || v === undefined) {
@@ -62,20 +60,20 @@ export async function write_file(param: {
   file_path: string;
   creator:
     | {
-        mode: "text";
-        content: () => Promise<string>;
-        overwrite?: boolean;
-      }
+      mode: "text";
+      content: () => Promise<string>;
+      overwrite?: boolean;
+    }
     | {
-        mode: "symlink";
-        old: string;
-        allow_old_not_found: boolean;
-      };
+      mode: "symlink";
+      old: string;
+      allow_old_not_found: boolean;
+    };
   log_tag:
     | "no"
     | {
-        alia_name: string;
-      };
+      alia_name: string;
+    };
 }) {
   const { file_path, creator, log_tag } = param;
   const { alia_name } = log_tag === "no" ? {} : log_tag;
@@ -122,7 +120,7 @@ export async function write_file(param: {
       if (log_tag !== "no") {
         console.log(
           `exists old target at ${creator.old} , create symlink at ${file_path} , old info is`,
-          old_info
+          old_info,
         );
       }
     } catch (err) {
@@ -143,7 +141,7 @@ export async function write_file(param: {
     await Deno.symlink(creator.old, file_path);
     if (log_tag !== "no") {
       console.log(
-        `success symlink for ${alia_name} from ${creator.old} to ${file_path}`
+        `success symlink for ${alia_name} from ${creator.old} to ${file_path}`,
       );
     }
   } else {
@@ -173,23 +171,30 @@ export namespace Typings {
    */
   export type LengthOfString<
     S extends string,
-    Acc extends 0[] = []
-  > = string extends S
-    ? S extends string
-      ? number
-      : never
-    : S extends `${string}${infer $Rest}`
-    ? LengthOfString<$Rest, [...Acc, 0]>
+    Acc extends 0[] = [],
+  > = string extends S ? S extends string ? number
+    : never
+    : S extends `${string}${infer $Rest}` ? LengthOfString<$Rest, [...Acc, 0]>
     : Acc["length"];
 
-  export type DeepReadonly<T> = Readonly<{
-    [K in keyof T]: T[K] extends number | string | symbol // Is it a primitive? Then make it readonly
-      ? Readonly<T[K]>
-      : // Is it an array of items? Then make the array readonly and the item as well
-      T[K] extends Array<infer A>
-      ? Readonly<Array<DeepReadonly<A>>>
-      : // It is some other object, make it readonly as well
-        DeepReadonly<T[K]>;
+  export type DeepReadonly<T> = T extends object ? Readonly<
+      {
+        [K in keyof T]: T[K] extends number | string | symbol // Is it a primitive? Then make it readonly
+          ? Readonly<T[K]>
+          // Is it an array of items? Then make the array readonly and the item as well
+          : T[K] extends Array<infer A> ? Readonly<Array<DeepReadonly<A>>>
+          // It is some other object, make it readonly as well
+          : DeepReadonly<T[K]>;
+      }
+    >
+    // https://github.com/microsoft/TypeScript/issues/50774
+    : T extends unknown ? null | Readonly<unknown>
+    : Readonly<T>;
+
+  type _DeepReadonly_Test = DeepReadonly<{
+    "aa": "aaa";
+    "bb": unknown;
+    "cc": null;
   }>;
 
   export type ComparableUseOpt = bigint | number | Date;
@@ -202,13 +207,13 @@ export namespace Typings {
    */
   export type Range<
     T extends number,
-    Arr extends number[] = []
+    Arr extends number[] = [],
   > = Arr["length"] extends T ? Arr[number] : Range<T, [...Arr, Arr["length"]]>;
 
   export type MapToRecord<
     P extends Map<K, V>,
     K extends keyof any = Parameters<P["get"]>[0],
-    V = NonNullable<ReturnType<P["get"]>>
+    V = NonNullable<ReturnType<P["get"]>>,
   > = ReturnType<typeof Mappings.map_to_record<K, V>>;
 
   // -------------------------------------------
@@ -217,13 +222,11 @@ export namespace Typings {
   // oh boy don't do this
   export type UnionToIntersection<U> = (
     U extends any ? (k: U) => void : never
-  ) extends (k: infer I) => void
-    ? I
+  ) extends (k: infer I) => void ? I
     : never;
   type LastOf<T> = UnionToIntersection<
     T extends any ? () => T : never
-  > extends () => infer R
-    ? R
+  > extends () => infer R ? R
     : never;
 
   // TS4.0+
@@ -233,7 +236,7 @@ export namespace Typings {
   export type TuplifyUnion<
     T,
     L = LastOf<T>,
-    N = [T] extends [never] ? true : false
+    N = [T] extends [never] ? true : false,
   > = true extends N ? [] : Push<TuplifyUnion<Exclude<T, L>>, L>;
   // -------------------------------------------
 
@@ -249,18 +252,21 @@ export namespace Typings {
   //     : NonNullable<T[K]> | null;
   // };
 
-  export type MinusOptional<T, K extends keyof T> = Pick<
-    T,
-    Exclude<keyof T, K>
-  > & {
-    [P in K]-?: T[P];
-  };
+  export type MinusOptional<T, K extends keyof T> =
+    & Pick<
+      T,
+      Exclude<keyof T, K>
+    >
+    & {
+      [P in K]-?: T[P];
+    };
 
   export function has_nonnull_property_2<T, P extends keyof T>(
     t: T,
-    p: P
-  ): t is T &
-    (Extract<T, { P?: any }> extends { P?: infer V }
+    p: P,
+  ): t is
+    & T
+    & (Extract<T, { P?: any }> extends { P?: infer V }
       ? Record<P, NonNullable<V>>
       : Record<P, unknown>) {
     return has_nonnull_property(t, p);
@@ -268,15 +274,16 @@ export namespace Typings {
 
   export type HasNonnullProperty<
     T,
-    P extends string | number | symbol | keyof T
-  > = T &
-    (Extract<T, { P?: unknown } | { P: unknown }> extends { P?: infer V }
+    P extends string | number | symbol | keyof T,
+  > =
+    & T
+    & (Extract<T, { P?: unknown } | { P: unknown }> extends { P?: infer V }
       ? Record<P, NonNullable<V>>
       : Record<P, unknown>);
 
   export function has_nonnull_property<
     T,
-    P extends string | number | symbol | keyof T
+    P extends string | number | symbol | keyof T,
   >(t: T, p: P): t is HasNonnullProperty<T, P> {
     if (typeof t !== "object" || t === null) {
       return false;
@@ -319,21 +326,18 @@ export namespace Typings {
     A,
     P = Record<never, never>,
     C = LastOf<A>,
-    Stop = [A] extends [never] ? true : false
-  > = true extends Stop
-    ? P
+    Stop = [A] extends [never] ? true : false,
+  > = true extends Stop ? P
     : ReduceUnionMapping<
-        Exclude<A, C>,
-        {
-          [K in keyof C | keyof P]: K extends keyof C
-            ? K extends keyof P
-              ? C[K] | P[K]
-              : C[K]
-            : K extends keyof P
-            ? P[K]
-            : never;
-        }
-      >;
+      Exclude<A, C>,
+      {
+        [K in keyof C | keyof P]: K extends keyof C
+          ? K extends keyof P ? C[K] | P[K]
+          : C[K]
+          : K extends keyof P ? P[K]
+          : never;
+      }
+    >;
 
   type _Test_ReduceUnionMap = ReduceUnionMapping<
     | { id: 1; xxx: 1 }
@@ -346,11 +350,11 @@ export namespace Typings {
 
   export type RemovePrefixRecursion<
     T extends string,
-    C extends string
+    C extends string,
   > = T extends `${C}${infer S}` ? RemovePrefixRecursion<S, C> : T;
   export type RemoveSuffixRecursion<
     T extends string,
-    C extends string
+    C extends string,
   > = T extends `${infer P}${C}` ? RemoveSuffixRecursion<P, C> : T;
 
   type _Test_RemovePrefixRecursion = RemovePrefixRecursion<"aaaaa114514", "aa">;
@@ -358,7 +362,7 @@ export namespace Typings {
 
   export type RemovePrefixSuffixRecursion<
     T extends string,
-    C extends string
+    C extends string,
   > = RemoveSuffixRecursion<RemovePrefixRecursion<T, C>, C>;
 
   type _Test_RemovePrefixSuffixRecursion = RemovePrefixSuffixRecursion<
@@ -373,10 +377,8 @@ export namespace Typings {
     }[keyof Source]
   >;
 
-  type UnionMap<T, M> = T extends any
-    ? M extends (arg: T) => infer R
-      ? R
-      : never
+  type UnionMap<T, M> = T extends any ? M extends (arg: T) => infer R ? R
+    : never
     : never;
 }
 
@@ -384,21 +386,21 @@ export namespace Typings {
 export namespace Strs {
   export function endswith<E extends string>(
     text: string,
-    end: E
+    end: E,
   ): text is `${string}${E}` {
     return text.endsWith(end);
   }
 
   export function startswith<S extends string>(
     text: string,
-    head: S
+    head: S,
   ): text is `${S}${string}` {
     return text.startsWith(head);
   }
 
   export function concat_string<A extends string, B extends string>(
     a: A,
-    b: B
+    b: B,
   ): `${A}${B}` {
     return (a + b) as `${A}${B}`;
   }
@@ -406,7 +408,7 @@ export namespace Strs {
   export function remove_suffix<
     E extends string,
     T extends `${R}${E}`,
-    R extends string = T extends `${infer P}${E}` ? P : never
+    R extends string = T extends `${infer P}${E}` ? P : never,
   >(text: T, end: E): R {
     if (endswith(text, end)) {
       return text.slice(0, text.length - end.length) as R;
@@ -418,11 +420,9 @@ export namespace Strs {
   export function remove_prefix<
     P extends string,
     T extends `${P}${R}`,
-    R extends string = string extends T
-      ? string
-      : T extends `${P}${infer S}`
-      ? S
-      : never
+    R extends string = string extends T ? string
+      : T extends `${P}${infer S}` ? S
+      : never,
   >(text: T, start: P): R {
     if (startswith(text, start)) {
       return text.slice(start.length) as R;
@@ -433,7 +433,7 @@ export namespace Strs {
 
   export function remove_prefix_recursion<C extends string, T extends string>(
     text: T,
-    char: C
+    char: C,
   ): Typings.RemovePrefixRecursion<T, C> {
     let t: string = text;
     while (startswith(t, char)) {
@@ -444,7 +444,7 @@ export namespace Strs {
 
   export function remove_suffix_recursion<C extends string, T extends string>(
     text: T,
-    char: C
+    char: C,
   ): Typings.RemoveSuffixRecursion<T, C> {
     let t: string = text;
     while (endswith(t, char)) {
@@ -455,13 +455,13 @@ export namespace Strs {
 
   export function remove_prefix_suffix_recursion<
     C extends string,
-    T extends string
+    T extends string,
   >(text: T, char: C): Typings.RemovePrefixSuffixRecursion<T, C> {
     return remove_suffix_recursion(remove_prefix_recursion(text, char), char);
   }
 
   export function check_length_property<S extends string>(
-    _text: S
+    _text: S,
   ): _text is S & Record<"length", Typings.LengthOfString<S>> {
     return true;
   }
@@ -556,14 +556,14 @@ export namespace Strs {
 
   export function join<A extends string, B extends string>(
     a: A,
-    b: B
+    b: B,
   ): `${A}${B}` {
     return `${a}${b}`;
   }
 
   export function join_everyone_with_remove_prefix_suffix_recursion<
     C extends string,
-    T extends string
+    T extends string,
   >(split_char: C, first: T) {
     const trimed_first = Strs.remove_prefix_suffix_recursion(first, split_char);
     const create_option = () => {
@@ -574,17 +574,25 @@ export namespace Strs {
         and_join<V extends string>(item: V) {
           const trimed_item = Strs.remove_prefix_suffix_recursion(
             item,
-            split_char
+            split_char,
           );
           const next = join(join(trimed_first, split_char), trimed_item);
           return join_everyone_with_remove_prefix_suffix_recursion(
             split_char,
-            next
+            next,
           );
         },
       };
     };
     return create_option();
+  }
+
+  export function limit_length(text: string, size: number) {
+    if (text.length > size) {
+      return text.slice(0, size - 3) + "...";
+    } else {
+      return text;
+    }
   }
 }
 
@@ -607,8 +615,8 @@ export namespace Times {
     if (timestamp_s < 123456789) {
       throw new Error(
         `197x year timestamp ? unit is ${unit} , timestamp is ${timestamp_s} , unix_ms_or_s is ${unix_ms_or_s} , to date is ${new Date(
-          timestamp_s
-        )}`
+          timestamp_s,
+        )}`,
       );
     }
     return Temporal.Instant.fromEpochMilliseconds(timestamp_s * 1000);
@@ -686,16 +694,19 @@ export namespace Times {
   }
 
   export function instant_to_date<T extends Temporal.Instant | null>(
-    time: T
+    time: T,
   ): null extends T ? Date | null : Date {
-    if (time === null) {
+    if (
+      time === null || Nums.is_invalid(time.epochMilliseconds) ||
+      time.epochMilliseconds < 0
+    ) {
       return null as any;
     }
     return new Date(time.toString());
   }
 
   export function parse_instant<
-    T extends number | string | Date | Temporal.Instant | null | undefined
+    T extends number | string | Date | Temporal.Instant | null | undefined,
   >(value: T): Temporal.Instant | null {
     if (value === null || typeof value === "undefined") {
       return null;
@@ -761,15 +772,11 @@ export namespace Jsons {
 
   export function dump<O>(
     obj: O,
-    option?: JsonDumpOption
-  ): O extends null
-    ? `null`
-    : O extends undefined
-    ? `null`
-    : O extends string
-    ? `"${string}"`
-    : O extends boolean | bigint | number
-    ? `${O}`
+    option?: JsonDumpOption,
+  ): O extends null ? `null`
+    : O extends undefined ? `null`
+    : O extends string ? `"${string}"`
+    : O extends boolean | bigint | number ? `${O}`
     : string {
     if (!option) {
       option = {};
@@ -784,12 +791,17 @@ export namespace Jsons {
         }
         return Number(v);
       }
+      if (v instanceof Map) {
+        throw new Error(`Don't stringify a Map , value is ${v}`);
+      }
+      if (v instanceof Set) {
+        throw new Error(`Don't stringify a Set , value is ${v}`);
+      }
       return v;
     };
     if (option.mode === undefined || option.mode === "JSON") {
       return JSON.stringify(obj, replacer, option.indent) as any;
-    }
-    // else if (option.mode === "JSON5") {
+    } // else if (option.mode === "JSON5") {
     //   return JSON5.stringify(obj, replacer, option.indent);
     // }
     else {
@@ -815,35 +827,32 @@ export namespace Jsons {
       undefined,
       spaces,
       false,
-      buf_size
+      buf_size,
     );
-    return await Promise.resolve(
-      jsonStream.pipe(Writable.fromWeb(output.writer))
+    const w2 = Writable.fromWeb(output.writer);
+    const r = await Promise.resolve(
+      jsonStream.pipe(w2),
     );
+    await finished(jsonStream);
+    await finished(w2);
+    return r;
     // const stream = nodeReader(jsonStream, "utf-8");
     // const writer_node = nodeWriter(Writable.fromWeb(output.writer));
     // await stream.pipe(writer_node);
   }
 
-  export type ParseJsonValue<T extends string> = T extends `true`
-    ? true
-    : T extends `false`
-    ? false
-    : T extends `null`
-    ? null
-    : T extends `"${string}"`
-    ? string
-    : T extends `${number}`
-    ? number
-    : T extends `${bigint}`
-    ? number
-    : T extends `${boolean}`
-    ? boolean
+  export type ParseJsonValue<T extends string> = T extends `true` ? true
+    : T extends `false` ? false
+    : T extends `null` ? null
+    : T extends `"${string}"` ? string
+    : T extends `${number}` ? number
+    : T extends `${bigint}` ? number
+    : T extends `${boolean}` ? boolean
     : JSONValue;
 
   export function load<T extends string>(
     s: T,
-    opt?: { parse_json5?: boolean }
+    opt?: { parse_json5?: boolean },
   ): ParseJsonValue<T> {
     const start_jsons_load_at = new Date().getTime();
     let value: any;
@@ -862,16 +871,20 @@ export namespace Jsons {
           console.warn("WARN: jsons load too slow", {
             cast_time: `${(end_jsons_load_at - start_jsons_load_at) / 1000} s`,
             // cache_file_name: cache_file.cache_file_name,
-            str_size: `${(
-              (await Promise.resolve(SizeOf.sizeof(s))) /
-              1024 /
-              1024
-            ).toFixed(2)} MB`,
-            object_size: `${(
-              (await Promise.resolve(SizeOf.sizeof(value))) /
-              1024 /
-              1024
-            ).toFixed(2)} MB`,
+            str_size: `${
+              (
+                (await Promise.resolve(SizeOf.sizeof(s))) /
+                1024 /
+                1024
+              ).toFixed(2)
+            } MB`,
+            object_size: `${
+              (
+                (await Promise.resolve(SizeOf.sizeof(value))) /
+                1024 /
+                1024
+              ).toFixed(2)
+            } MB`,
           });
         }, 10);
       }
@@ -949,15 +962,15 @@ export namespace Jsons {
 // deno-lint-ignore no-namespace
 export namespace Nums {
   export function is_invalid(s: number): s is never {
-    return isNaN(s) || !isFinite(s);
+    return isNaN(s) || !isFinite(s) || typeof s !== "number";
   }
 
   export function take_extreme_value<
     A extends readonly [T, ...T[]],
-    T extends Typings.Comparable | null = A[number]
+    T extends Typings.Comparable | null = A[number],
   >(
     mode: "max" | "min",
-    nums: A
+    nums: A,
   ): Arrays.AllNullable<A> extends false ? NonNullable<T> : T | null {
     let res: T = nums[0];
     for (let i = 0; i < nums.length; i++) {
@@ -1011,9 +1024,8 @@ export namespace Arrays {
   }
 
   export type AllNullable<A> = A extends [infer U, ...infer P]
-    ? null extends U
-      ? AllNullable<P>
-      : false
+    ? null extends U ? AllNullable<P>
+    : false
     : true;
 
   export function first<T>(arr: [T, ...T[]]) {
@@ -1040,23 +1052,21 @@ export namespace Arrays {
     }
   }
 
-  export type ExistStrInUnionArraySecondArg<A extends string[]> =
-    A extends (infer T)[] ? (string extends T ? never : T) : string;
+  export type ExistStrInUnionArraySecondArg<A extends string[]> = A extends
+    (infer T)[] ? (string extends T ? never : T) : string;
 
   export type ExistStrInUnionArray<
     A extends string[],
-    S extends ExistStrInUnionArraySecondArg<A>
+    S extends ExistStrInUnionArraySecondArg<A>,
   > = A extends (infer T)[]
-    ? Array<S> extends Array<T>
-      ? string extends T
-        ? never
-        : A
-      : never
+    ? Array<S> extends Array<T> ? string extends T ? never
+      : A
+    : never
     : never;
 
   export function exist_str_in_union_array<
     A extends string[],
-    S extends A extends (infer T)[] ? (string extends T ? never : T) : string
+    S extends A extends (infer T)[] ? (string extends T ? never : T) : string,
   >(arr: A, str: S): arr is ExistStrInUnionArray<A, S> {
     return arr.indexOf(str) >= 0;
   }
@@ -1071,9 +1081,9 @@ export namespace Mappings {
    * https://stackoverflow.com/a/76176570/21185704
    */
   export const object_from_entries = <
-    const T extends ReadonlyArray<readonly [PropertyKey, unknown]>
+    const T extends ReadonlyArray<readonly [PropertyKey, unknown]>,
   >(
-    entries: T
+    entries: T,
   ): { [K in T[number] as K[0]]: K[1] } => {
     return Object.fromEntries(entries) as { [K in T[number] as K[0]]: K[1] };
   };
@@ -1086,13 +1096,13 @@ export namespace Mappings {
    * https://stackoverflow.com/a/76176570/21185704
    */
   export const object_entries = <T extends Record<PropertyKey, any>>(
-    obj: T
+    obj: T,
   ): NonNullable<{ [K in keyof T]: [K, T[K]] }[keyof T]>[] => {
     return Object.entries(obj);
   };
 
   export const object_keys = <T extends Record<string, any>>(
-    obj: T
+    obj: T,
   ): (string & Typings.AvailableKeys<T>)[] => {
     return Object.keys(obj) as any;
   };
@@ -1129,23 +1139,22 @@ export namespace Mappings {
   export function filter_keys<
     T extends Record<string, any>,
     OPT extends "omit" | "pick",
-    KS extends (keyof T)[]
+    KS extends (keyof T)[],
   >(
     obj: T,
     opt: OPT,
-    keys: KS
-  ): typeof opt extends "omit"
-    ? Omit<T, (typeof keys)[number]>
+    keys: KS,
+  ): typeof opt extends "omit" ? Omit<T, (typeof keys)[number]>
     : Pick<T, (typeof keys)[number]> {
     return object_from_entries(
       object_entries(obj).filter(([k, _]) =>
         opt === "omit" ? keys.indexOf(k) < 0 : keys.indexOf(k) >= 0
-      )
+      ),
     ) as any;
   }
 
   export function map_to_record<K extends keyof any, V>(
-    m: Map<K, V>
+    m: Map<K, V>,
   ): Record<K, V> {
     const obj: Record<K, V> = {} as any;
     for (const [key, value] of m) {
@@ -1177,13 +1186,12 @@ export namespace Mappings {
     Empty extends Empty ? "success" : "failed",
     Empty extends _EmptyInterface ? 1 : 0,
     Empty extends _EmptyRecord ? 1 : 0,
-    Empty extends _EmptyObj ? 1 : 0
+    Empty extends _EmptyObj ? 1 : 0,
   ];
 
   export type IsNotConcreteEmpty<T> = T extends Empty
-    ? Empty extends Typings.Concrete<T>
-      ? never
-      : T
+    ? Empty extends Typings.Concrete<T> ? never
+    : T
     : T;
 
   // should be never
@@ -1205,22 +1213,26 @@ export namespace Mappings {
 
   export type HasKeys<
     T,
-    KS extends Array<Typings.AvailableKeys<T>> = Array<Typings.AvailableKeys<T>>
-  > = {
-    [P in KS[number]]: Extract<
-      T,
-      | {
+    KS extends Array<Typings.AvailableKeys<T>> = Array<
+      Typings.AvailableKeys<T>
+    >,
+  > =
+    & {
+      [P in KS[number]]: Extract<
+        T,
+        | {
           [P2 in P]?: any;
         }
-      | {
+        | {
           [P2 in P]: any;
         }
-    >[P];
-  } & T;
+      >[P];
+    }
+    & T;
 
   export function has_keys<
     T extends object,
-    KS extends Array<Typings.AvailableKeys<T>>
+    KS extends Array<Typings.AvailableKeys<T>>,
   >(t: T, keys: KS): t is HasKeys<T, KS> {
     if (!is_not_concrete_empty(t)) {
       return false;
@@ -1239,10 +1251,9 @@ export namespace Trees {
   export type ChildrenType<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? N | _TreesChildrenType._ChildrenType_1<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? N | _TreesChildrenType._ChildrenType_1<N, K>
+      : N
+      : R);
 
   export function* travel_node_dfs<R, K extends string & keyof R>(param: {
     root: R;
@@ -1293,7 +1304,7 @@ export namespace DataClean {
   }
 
   export function url_use_https_emptyable<S extends string>(
-    url: S | null | undefined
+    url: S | null | undefined,
   ) {
     if (Strs.is_not_blank(url)) {
       return url_use_https_noempty(url);
@@ -1385,11 +1396,11 @@ export namespace DataClean {
 
     const english2Number = function (english: string) {
       let current, exponent, i, int, len, product, total, word, words, negative;
-      if (!isNaN((int = parseInt(english, 10)))) {
+      if (!isNaN(int = parseInt(english, 10))) {
         return int;
       }
-      negative =
-        english.indexOf("negative") === 0 || english.indexOf("-") === 0;
+      negative = english.indexOf("negative") === 0 ||
+        english.indexOf("-") === 0;
       words = english
         .replace(/\sand\s/g, " ")
         .replace(/^negative\s/, "")
@@ -1444,28 +1455,28 @@ export namespace DataClean {
       | "raise"
       | "allow_nan"
       | ((
-          source_value: string | number | null,
-          cause_value: string | number
-        ) => R) = "raise",
+        source_value: string | number | null,
+        cause_value: string | number,
+      ) => R) = "raise",
     source_value: string | number | null = null,
-    debug: null | ((text: string) => void) = null
+    debug: null | ((text: string) => void) = null,
   ): R | number {
     if (on_nan === "raise") {
       on_nan = (__source_value, cause_value) => {
         if (debug) {
           debug(
-            `not a number sourced ${__source_value} cause by ${cause_value}`
+            `not a number sourced ${__source_value} cause by ${cause_value}`,
           );
         }
         throw new Error(
-          `Disallow NaN on parse_number : sourced ${__source_value} cause by ${cause_value}`
+          `Disallow NaN on parse_number : sourced ${__source_value} cause by ${cause_value}`,
         );
       };
     } else if (on_nan === "allow_nan") {
       on_nan = (__source_value, cause_value) => {
         if (debug) {
           debug(
-            `not a number sourced ${__source_value} cause by ${cause_value}`
+            `not a number sourced ${__source_value} cause by ${cause_value}`,
           );
         }
         return NaN as R;
@@ -1474,10 +1485,9 @@ export namespace DataClean {
     if (typeof value === "number") {
       return value;
     }
-    const source_value_v2 =
-      source_value === null || source_value === undefined
-        ? value
-        : source_value;
+    const source_value_v2 = source_value === null || source_value === undefined
+      ? value
+      : source_value;
     if (source_value_v2 === null || source_value_v2 === undefined) {
       throw new Error("BUG");
     }
@@ -1502,13 +1512,13 @@ export namespace DataClean {
       if (!Nums.is_invalid(parse_float_res)) {
         if (debug) {
           debug(
-            `parsed float number sourced ${source_value_v2} from ${value} to ${parse_float_res}`
+            `parsed float number sourced ${source_value_v2} from ${value} to ${parse_float_res}`,
           );
         }
         return parse_float_res;
       } else {
         throw new Error(
-          `Parse should be success , why failed ? source_value_v2 is ${source_value_v2}`
+          `Parse should be success , why failed ? source_value_v2 is ${source_value_v2}`,
         );
       }
     }
@@ -1516,7 +1526,7 @@ export namespace DataClean {
     if (typeof intl_number === "number" && !Nums.is_invalid(intl_number)) {
       if (debug) {
         debug(
-          `parsed intl number sourced ${source_value_v2} from ${value} to ${intl_number}`
+          `parsed intl number sourced ${source_value_v2} from ${value} to ${intl_number}`,
         );
       }
       return intl_number;
@@ -1528,7 +1538,7 @@ export namespace DataClean {
     ) {
       if (debug) {
         debug(
-          `parsed chinese number sourced ${source_value_v2} from ${value} to ${chinese_number}`
+          `parsed chinese number sourced ${source_value_v2} from ${value} to ${chinese_number}`,
         );
       }
       return chinese_number;
@@ -1542,7 +1552,7 @@ export namespace DataClean {
         ) {
           if (debug) {
             debug(
-              `parsed english number sourced ${source_value_v2} from ${value} to ${english_number}`
+              `parsed english number sourced ${source_value_v2} from ${value} to ${english_number}`,
             );
           }
           return english_number;
@@ -1561,15 +1571,17 @@ export namespace DataClean {
       ["万", 10000],
       ["亿", 10000_0000],
     ] as const;
-    for (const [
-      chinese_quantifier,
-      chinese_quantifier_multi,
-    ] of chinese_quantifier_endings) {
+    for (
+      const [
+        chinese_quantifier,
+        chinese_quantifier_multi,
+      ] of chinese_quantifier_endings
+    ) {
       if (Strs.endswith(value, chinese_quantifier)) {
         const x = Strs.remove_suffix(value, chinese_quantifier);
         if (debug) {
           debug(
-            `recursion call parsed number sourced ${source_value_v2} , x = ${x}`
+            `recursion call parsed number sourced ${source_value_v2} , x = ${x}`,
           );
         }
         return (
@@ -1587,7 +1599,7 @@ export namespace DataClean {
   export function strip_html(html_text: string) {
     const doc = new DOMParser().parseFromString(
       `<p>${html_text}</p>`,
-      "text/html"
+      "text/html",
     );
     return doc.textContent;
   }
@@ -1638,11 +1650,13 @@ export namespace DataClean {
 
       return v2;
     };
-    for (const content_text of [
-      ...(content_text_detail_uncleaned_timeline.length > 0
-        ? content_text_detail_uncleaned_timeline
-        : content_text_summary_uncleaned_timeline),
-    ]) {
+    for (
+      const content_text of [
+        ...(content_text_detail_uncleaned_timeline.length > 0
+          ? content_text_detail_uncleaned_timeline
+          : content_text_summary_uncleaned_timeline),
+      ]
+    ) {
       const _value_cleand = clean_text(content_text.value);
       if (_value_cleand === null) {
         continue;
@@ -1710,13 +1724,13 @@ export namespace DataClean {
     const obj_deleted_first = content_text_timeline.find(is_deleted) ?? null;
     const context_text_latest =
       content_text_timeline.findLast((it) => !is_deleted(it))?.value.text ??
-      null;
+        null;
     let content_text_resume_after_deleted: boolean;
 
     if (Arrays.length_greater_then_0(content_text_timeline)) {
       // 如果有被删除的元素，但最后一个元素没有被删除，说明被恢复了。
-      content_text_resume_after_deleted =
-        obj_deleted_first != null && !is_deleted(content_text_timeline[0]);
+      content_text_resume_after_deleted = obj_deleted_first != null &&
+        !is_deleted(content_text_timeline[0]);
     } else {
       content_text_resume_after_deleted = false;
     }
@@ -1725,8 +1739,8 @@ export namespace DataClean {
       content_text_timeline_count: content_text_timeline.length,
       context_text_latest_str_length: context_text_latest?.length ?? 0,
       context_text_latest,
-      content_text_deleted_at_least_once:
-        content_text_timeline.length > 0 && obj_deleted_first !== null,
+      content_text_deleted_at_least_once: content_text_timeline.length > 0 &&
+        obj_deleted_first !== null,
       content_text_deleted_first_time: obj_deleted_first?.time ?? null,
       content_text_resume_after_deleted,
       content_text_timeline,
@@ -1762,8 +1776,7 @@ export namespace DataClean {
       }
     }
 
-    const match_before_days =
-      /\s(.+?)天前/.exec(" " + text) ??
+    const match_before_days = /\s(.+?)天前/.exec(" " + text) ??
       /\s([0-9a-zA-Z\s]+?)+day[s]?[\s]+ago/.exec(" " + text);
 
     if (datetime === null && match_before_days) {
@@ -1869,7 +1882,7 @@ export namespace DataMerge {
    */
   export function merge_and_sort_timeline<
     V,
-    T extends Timeline<V> = Timeline<V>
+    T extends Timeline<V> = Timeline<V>,
   >(param: { old: T; timeline: T }) {
     const { old, timeline } = param;
     const arr = [...old, ...timeline];
@@ -1878,7 +1891,7 @@ export namespace DataMerge {
       const bt = b.time === "unknown" ? 0 : b.time.epochMilliseconds;
       return at - bt;
     });
-    for (let i = 0; i < arr.length; ) {
+    for (let i = 0; i < arr.length;) {
       const a = arr[i];
       if (i >= arr.length - 1) {
         break;
@@ -1894,15 +1907,25 @@ export namespace DataMerge {
   }
 
   export function timeline_to_json<V>(timeline: Timeline<V>) {
-    return timeline.map((it) => {
-      return {
-        time:
-          it.time === "unknown"
+    try {
+      return timeline.map((it) => {
+        return {
+          time: it.time === "unknown"
             ? "unknown"
             : it.time.toZonedDateTimeISO("UTC").toString(),
-        value: it.value,
-      };
-    });
+          value: it.value,
+        };
+      });
+    } catch (err) {
+      throw new Error(
+        `Failed cast timeline to json , timeline is ${timeline} ==> to json is ${
+          Jsons.dump(timeline, { indent: 2 })
+        }`,
+        {
+          cause: err,
+        },
+      );
+    }
   }
 }
 
@@ -1911,17 +1934,16 @@ export namespace DataCleanJsHtmlTree {
   type _HasClassVarTypes<
     T,
     _VAR1_NODE = Typings.HasNonnullProperty<T, "attrs">,
-    _VAR2_NODE_ATTR = _VAR1_NODE extends { attrs?: any }
-      ? _VAR1_NODE["attrs"]
+    _VAR2_NODE_ATTR = _VAR1_NODE extends { attrs?: any } ? _VAR1_NODE["attrs"]
       : unknown,
     _VAR3_NODE_ATTR = Typings.HasNonnullProperty<_VAR2_NODE_ATTR, "class">,
     _VAR4_NODE_ATTR = Mappings.IsNotConcreteEmpty<_VAR3_NODE_ATTR>,
     _VAR5_NODE_ATTR_CLASS = _VAR4_NODE_ATTR extends { class?: any }
       ? Mappings.IsNotConcreteEmpty<_VAR4_NODE_ATTR["class"]>
       : unknown,
-    _VAR6_NODE_ATTR_CLASS extends string[] = _VAR5_NODE_ATTR_CLASS extends string[]
-      ? _VAR5_NODE_ATTR_CLASS
-      : never
+    _VAR6_NODE_ATTR_CLASS extends string[] = _VAR5_NODE_ATTR_CLASS extends
+      string[] ? _VAR5_NODE_ATTR_CLASS
+      : never,
   > = {
     t: T;
     var1: _VAR1_NODE;
@@ -1946,15 +1968,12 @@ export namespace DataCleanJsHtmlTree {
           class?: undefined;
         };
       }
-    >
+    >,
   > = _Var1 extends { attrs?: { class?: (infer T)[] } }
-    ? string extends C
-      ? _Var1
-      : string extends T
-      ? never
-      : C extends T
-      ? _Var1
-      : never
+    ? string extends C ? _Var1
+    : string extends T ? never
+    : C extends T ? _Var1
+    : never
     : never;
 
   type _Test_HasClassFilterAttrsClass = _HasClassFilterAttrsClass<
@@ -1975,10 +1994,9 @@ export namespace DataCleanJsHtmlTree {
     C extends Arrays.ExistStrInUnionArraySecondArg<_VARS["var6"]>,
     _VARS extends _HasClassVarTypes<T> = _HasClassVarTypes<T>,
     Attrs = _VARS["var4"] & {
-      class: never extends C
-        ? string[]
+      class: never extends C ? string[]
         : Arrays.ExistStrInUnionArray<_VARS["var6"], C>;
-    }
+    },
   > = _HasClassFilterAttrsClass<_VARS["var1"], C> & {
     attrs: Attrs; // & Mappings.HasKeys<Attrs>;
   };
@@ -1986,7 +2004,7 @@ export namespace DataCleanJsHtmlTree {
   export function has_class<
     T,
     C extends Arrays.ExistStrInUnionArraySecondArg<_VARS["var6"]>,
-    _VARS extends _HasClassVarTypes<T> = _HasClassVarTypes<T>
+    _VARS extends _HasClassVarTypes<T> = _HasClassVarTypes<T>,
   >(node: T, classname: C): node is HasClass<T, C> {
     if (
       Typings.has_nonnull_property(node, "attrs") &&
@@ -2004,7 +2022,7 @@ export namespace DataCleanJsHtmlTree {
   export function has_class_no_typeguard<
     T,
     C extends Arrays.ExistStrInUnionArraySecondArg<_VARS["var6"]>,
-    _VARS extends _HasClassVarTypes<T> = _HasClassVarTypes<T>
+    _VARS extends _HasClassVarTypes<T> = _HasClassVarTypes<T>,
   >(node: T, classname: C | string): node is HasClass<T, C> {
     return has_class(node, classname as any);
   }
@@ -2022,9 +2040,9 @@ export namespace ProcessBar {
           completed: number;
           total: number;
           text: string;
-        }[]
+        }[],
       ) => Promise<void>;
-    }) => Promise<R>
+    }) => Promise<R>,
   ) {
     const { title } = setting;
     const bars = new MultiProgressBar({
@@ -2077,11 +2095,11 @@ export namespace ProcessBar {
     P = unknown,
     Tasks extends ((param: P, bar: SingleBarSetter) => Promise<R>)[] = ((
       param: P,
-      bar: SingleBarSetter
-    ) => Promise<R>)[]
+      bar: SingleBarSetter,
+    ) => Promise<R>)[],
   >(
     tasks: Tasks,
-    bars_render: Parameters<Parameters<typeof create_scope>[1]>[0]["render"]
+    bars_render: Parameters<Parameters<typeof create_scope>[1]>[0]["render"],
   ) {
     const render_params_handler: {
       value: null | Parameters<typeof bars_render>[0];
@@ -2171,7 +2189,7 @@ export namespace ProcessBar {
    */
   export function bind_all<R, Tasks extends (() => Promise<R>)[]>(
     tasks: Tasks,
-    bars_render: Parameters<Parameters<typeof create_scope>[1]>[0]["render"]
+    bars_render: Parameters<Parameters<typeof create_scope>[1]>[0]["render"],
   ) {
     let completed = 0;
     return tasks.map((task) => {
@@ -2189,12 +2207,9 @@ export namespace ProcessBar {
 export namespace Streams {
   export type MapItemsType<A extends Iterable<unknown>, R> = A extends Iterable<
     infer T
-  >
-    ? A extends []
-      ? never[]
-      : A extends Array<T>
-      ? Array<R>
-      : Iterable<R>
+  > ? A extends [] ? never[]
+    : A extends Array<T> ? Array<R>
+    : Iterable<R>
     : never;
 
   // type _MapItemsType_Test_1 = MapItemsType<number[], string>;
@@ -2205,15 +2220,13 @@ export namespace Streams {
 
   export type SubArray<A extends Iterable<unknown>> = A extends Iterable<
     infer T
-  >
-    ? A extends []
-      ? never[]
-      : T[]
+  > ? A extends [] ? never[]
+    : T[]
     : never;
 
   export function* split_array_use_batch_size<T>(
     batch_size: number,
-    arr: readonly T[]
+    arr: readonly T[],
   ) {
     if (batch_size <= 0 || typeof batch_size !== "number") {
       throw new Error(`Invalid batch_size ${batch_size}`);
@@ -2231,7 +2244,7 @@ export namespace Streams {
 
   export function find_first<T>(
     condition: (it: T) => boolean,
-    items: Iterable<T>
+    items: Iterable<T>,
   ) {
     let idx = 0;
     for (const item of items) {
@@ -2248,7 +2261,7 @@ export namespace Streams {
 
   export function filter<T, R extends T>(
     items: Iterable<T>,
-    filter: (it: T) => it is R
+    filter: (it: T) => it is R,
   ): {
     matched: SubArray<MapItemsType<typeof items, R>>;
     not_matched: SubArray<MapItemsType<typeof items, Exclude<T, R>>>;
@@ -2270,7 +2283,7 @@ export namespace Streams {
 
   export function filter2<T>(
     items: Iterable<T>,
-    filter: (it: T) => boolean
+    filter: (it: T) => boolean,
   ): {
     matched: SubArray<typeof items>;
     not_matched: SubArray<typeof items>;
@@ -2292,7 +2305,7 @@ export namespace Streams {
 
   export function deduplicate<T>(
     items: Iterable<T>,
-    is_deep_equal_func: (a: T, b: T) => boolean = is_deep_equal
+    is_deep_equal_func: (a: T, b: T) => boolean = is_deep_equal,
   ): SubArray<typeof items> {
     const res: T[] = [];
     items_loop: for (const item of items) {
@@ -2318,7 +2331,7 @@ export namespace Streams {
         | "reader_end"
         | "write_pop"
         | "writer_end"
-        | "writer_delay_queue_empty"
+        | "writer_delay_queue_empty",
     ) => void;
   }): () => AsyncGenerator<T, void, undefined> {
     const { gen, queue_size, reader_delay_ms, writer_delay_ms, before_event } =
@@ -2388,7 +2401,7 @@ export namespace Errors {
 // deno-lint-ignore no-namespace
 export namespace Jsonatas {
   export function register_common_function_on_exp(
-    jsonata_exp?: null | ReturnType<typeof jsonata>
+    jsonata_exp?: null | ReturnType<typeof jsonata>,
   ) {
     if (jsonata_exp) {
       jsonata_exp.registerFunction(
@@ -2401,17 +2414,21 @@ export namespace Jsonatas {
               "user_code",
               ".tmp",
               "jsonata_deno_eval_scripts",
-              `${new Date()
-                .toISOString()
-                .slice(0, 19)
-                .replaceAll("-", "")
-                .replaceAll(":", "")
-                .replaceAll("T", "")}-${encodeHex(
-                await crypto.subtle.digest(
-                  "SHA-1",
-                  new TextEncoder().encode(str)
+              `${
+                new Date()
+                  .toISOString()
+                  .slice(0, 19)
+                  .replaceAll("-", "")
+                  .replaceAll(":", "")
+                  .replaceAll("T", "")
+              }-${
+                encodeHex(
+                  await crypto.subtle.digest(
+                    "SHA-1",
+                    new TextEncoder().encode(str),
+                  ),
                 )
-              )}.js`
+              }.js`,
             );
             try {
               await Deno.stat(script_filepath);
@@ -2419,11 +2436,13 @@ export namespace Jsonatas {
               // if found existed , wait it delete by other thread
               if (loop_limit++ >= 1000) {
                 throw new Error(
-                  `Why loop limit ? ${Jsons.dump({
-                    loop_limit,
-                    script_filepath,
-                    str,
-                  })}`
+                  `Why loop limit ? ${
+                    Jsons.dump({
+                      loop_limit,
+                      script_filepath,
+                      str,
+                    })
+                  }`,
                 );
               }
             } catch (err) {
@@ -2494,21 +2513,21 @@ export namespace Jsonatas {
             // }
           }
         },
-        "<s:o>"
+        "<s:o>",
       );
       jsonata_exp.registerFunction(
         "is_string",
         (str: Jsons.JSONValue) => {
           return typeof str === "string";
         },
-        "<j:b>"
+        "<j:b>",
       );
       jsonata_exp.registerFunction(
         "parse_ref_works",
         (str: string) => {
           return DataClean.parse_ref_works(str);
         },
-        "<s:(ol)>"
+        "<s:(ol)>",
       );
       jsonata_exp.registerFunction(
         "json_parse",
@@ -2528,7 +2547,7 @@ export namespace Jsonatas {
             };
           }
         },
-        "<s:o>"
+        "<s:o>",
       );
     }
   }
@@ -2537,7 +2556,7 @@ export namespace Jsonatas {
 
   export async function read_jsonata_template_exp(
     template_name: string,
-    opt?: { no_cache?: boolean }
+    opt?: { no_cache?: boolean },
   ) {
     if (opt?.no_cache !== true) {
       const _cached = _cache_jsonata_template_exp.get(template_name);
@@ -2547,8 +2566,8 @@ export namespace Jsonatas {
     }
     const jsonata_template_exp = jsonata(
       await Deno.readTextFile(
-        path.join("jsonata_templates", `${template_name}.jsonata`)
-      )
+        path.join("jsonata_templates", `${template_name}.jsonata`),
+      ),
     );
     Jsonatas.register_common_function_on_exp(jsonata_template_exp);
     _cache_jsonata_template_exp.set(template_name, jsonata_template_exp);
@@ -2599,29 +2618,30 @@ export namespace Jsonatas {
                   const worker = new Worker(
                     new URL(
                       "./workers/evaluate_jsonata_exp.ts",
-                      import.meta.url
+                      import.meta.url,
                     ).href,
                     {
                       type: "module",
                       name: "evaluate_jsonata_exp_worker",
-                    }
+                    },
                   );
                   evaluate_workers.push(worker);
-                  const _EvaluateJsonataExp: any =
-                    Comlink.wrap<EvaluateJsonataExp>(worker);
+                  const _EvaluateJsonataExp: any = Comlink.wrap<
+                    EvaluateJsonataExp
+                  >(worker);
                   arr.push(await new _EvaluateJsonataExp());
                 }
                 _EvaluateJsonataExp_handler["instances"] = arr;
                 console.debug(
                   "_EvaluateJsonataExp_handler['instance']?.length = ",
-                  `${_EvaluateJsonataExp_handler["instances"]?.length}`
+                  `${_EvaluateJsonataExp_handler["instances"]?.length}`,
                 );
               }
               done2(null);
             } catch (err) {
               done2(err as any);
             }
-          }
+          },
         );
       });
     }
@@ -2629,7 +2649,7 @@ export namespace Jsonatas {
     const random_idx = Math.floor(Math.random() * instances.length);
     if (random_idx < 0 || random_idx >= instances.length) {
       throw new Error(
-        `random index out of range : ${random_idx} , instances is ${instances}`
+        `random index out of range : ${random_idx} , instances is ${instances}`,
       );
     }
     const instance = instances[random_idx];
@@ -2677,7 +2697,7 @@ export namespace Jsonatas {
           } catch (err) {
             done2(err as any);
           }
-        }
+        },
       );
     });
   }
@@ -2806,8 +2826,8 @@ export namespace SizeOf {
       } else if (typeof value === "symbol") {
         const isGlobalSymbol = Symbol.keyFor && Symbol.keyFor(obj as any);
         if (isGlobalSymbol) {
-          bytes +=
-            (Symbol.keyFor(obj as any) as any).length * ECMA_SIZES.STRING;
+          bytes += (Symbol.keyFor(obj as any) as any).length *
+            ECMA_SIZES.STRING;
         } else {
           bytes += (obj.toString().length - 8) * ECMA_SIZES.STRING;
         }
@@ -2865,7 +2885,7 @@ export namespace MonkeyPatch {
     obj: any,
     method: string,
     handler: (original: any) => any,
-    context?: any
+    context?: any,
   ) {
     let original = obj[method];
 
@@ -2902,8 +2922,8 @@ export namespace TestUtil {
     try {
       const obj = Jsons.load(
         new TextDecoder().decode(
-          await Deno.readFile(path.join("user_code", "testdevconfig.json"))
-        )
+          await Deno.readFile(path.join("user_code", "testdevconfig.json")),
+        ),
       );
       if (typeof obj === "object" && obj && !Array.isArray(obj)) {
         if (
@@ -2916,21 +2936,24 @@ export namespace TestUtil {
           nocodb_token = obj["nocodb_token"];
         }
       }
+
+      const nocodb_baseurl = DataClean.url_use_https_noempty(nocodb_baseurl2);
+
+      return {
+        nocodb_baseurl,
+        nocodb_token,
+      } as const;
     } catch (err) {
       if (err instanceof Deno.errors.NotFound) {
-        // ignore
+        return {
+          nocodb_baseurl: null,
+          nocodb_token: null,
+        } as const;
       } else {
         console.error("Error on read user_code/testdevconfig.json", err);
         throw err;
       }
     }
-
-    const nocodb_baseurl = DataClean.url_use_https_noempty(nocodb_baseurl2);
-
-    return {
-      nocodb_baseurl,
-      nocodb_token,
-    } as const;
   }
 }
 
@@ -2938,15 +2961,26 @@ export namespace TestUtil {
 export namespace PreventTheScreenSaver {
   export async function subprocess_scope<R>(scope: () => Promise<R>) {
     console.debug("PreventTheScreenSaver enter");
+    const py_path = path.join("..", ".venv", "Scripts", "python");
+    // try {
+    //   await Deno.stat(py_path);
+    // } catch (err) {
+    //   if (err instanceof Deno.errors.NotFound) {
+    //     throw err;
+    //   } else {
+    //     throw err;
+    //   }
+    // }
+
     const command = new Deno.Command(
-      path.join("..", ".venv", "Scripts", "python"),
+      py_path,
       {
         args: [path.join("..", "prevent_the_screen_saver.py")],
         stdin: "null",
         stdout: "inherit",
         stderr: "inherit",
         env: {},
-      }
+      },
     );
     console.debug("PreventTheScreenSaver spawn");
     const proc = command.spawn();
@@ -2963,6 +2997,165 @@ export namespace PreventTheScreenSaver {
   }
 }
 
+// deno-lint-ignore no-namespace
+export namespace Processes {
+  // deno-lint-ignore require-await
+  export async function set_process_title(_title: string, _no_log?: boolean) {
+    // Unsupport now
+    // See:
+    //     https://docs.deno.com/api/node/process/~/Process.title
+    //     https://github.com/denoland/deno/issues/8592
+    return;
+    //     try {
+    //       // deno-lint-ignore no-window,no-window-prefix
+    //       window.name = `deno: ${title}`;
+    //     } catch (err) {
+    //       if (!no_log) {
+    //         console.debug("failed set window.name", err);
+    //       }
+    //     }
+    //     try {
+    //       const process = await import("node:process");
+    //       process.title = `Deno - ${title}`;
+    //     } catch (err) {
+    //       if (!no_log) {
+    //         console.debug("failed set process.title", err);
+    //       }
+    //     }
+    //     try {
+    //       globalThis.name = `Deno: ${title}`;
+    //     } catch (err) {
+    //       if (!no_log) {
+    //         console.debug("failed set globalThis.name", err);
+    //       }
+    //     }
+    //     if (!no_log) {
+    //       console.info(`
+    // +---------------------------------------------------+
+    // |    ${title}
+    // +---------------------------------------------------+
+    // `);
+    //    }
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace SerAny {
+  let _SerAny: any;
+
+  export async function init() {
+    const { deserialize, serialize } = await import(
+      "./serialize-anything/serialize-any.ts"
+    );
+    _SerAny = { deserialize, serialize } as any;
+    _SerAny._custom = function (name: any) {
+      // console.debug("custom name is ", {
+      //   name,
+      // });
+      if (name === "Instant") {
+        return Temporal.Instant.from;
+      }
+      const typeExists = eval("typeof " + name + '!== "undefined"');
+      return typeExists ? eval("new " + name + "()") : null;
+    };
+    _SerAny._ds = _SerAny.deserialize;
+    _SerAny.deserialize = (source: any) => {
+      // console.debug("deser source is ", source);
+      const res = _SerAny._ds(source, _SerAny._custom);
+      // console.debug("deser res is ", res);
+      return res;
+    };
+  }
+
+  export async function ser_to_file(
+    file_path: `${string}.serany.json`,
+    source: unknown,
+    options?: {
+      maxDepth?: number;
+      pretty?: boolean;
+    },
+  ) {
+    await Deno.mkdir(path.dirname(file_path), {
+      recursive: true,
+      mode: 0o700,
+    });
+    try {
+      await Deno.stat(file_path);
+      await Deno.remove(file_path);
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) {
+        //
+      } else {
+        throw err;
+      }
+    }
+    const file = await Deno.open(file_path, {
+      read: true,
+      write: true,
+      createNew: true,
+    });
+
+    const _ser = await serialize(source, options, file.writable);
+  }
+
+  export async function deser_from_file(
+    file_path: `${string}.serany.json`,
+  ): Promise<unknown> {
+    // let text = "(Not read)";
+    try {
+      const file = await Deno.open(file_path);
+      const { readable } = file;
+      const __data__ = await Jsons.load_stream({
+        input_stream: readable,
+      });
+      // await finished(readable);
+      // text = await Deno.readTextFile(file_path);
+
+      return deserialize({
+        __data__,
+      });
+    } catch (err) {
+      throw new Error(
+        `Failed deser from file : ${file_path}`,
+        // `Failed deser from file : ${file_path} , text.length is ${text.length} .${
+        //   text.length < 2000 ? `text is :\n\n${text}` : ""
+        // }`,
+        { cause: err },
+      );
+    }
+  }
+
+  export function serialize<
+    OutputToFileWriter extends
+      | Awaited<ReturnType<typeof Deno.open>>["writable"]
+      | undefined = undefined,
+  >(
+    o: any,
+    options?: {
+      maxDepth?: number;
+      pretty?: boolean;
+    },
+    output_to_file_writer?: OutputToFileWriter,
+  ): undefined extends OutputToFileWriter ? string : Promise<Writable> {
+    return _SerAny.serialize(o, options, output_to_file_writer);
+  }
+
+  export function deserialize(
+    o: string | {
+      __data__: any;
+    },
+  ) {
+    return _SerAny.deserialize(o);
+  }
+}
+
+// deno-lint-ignore no-namespace
+export namespace Paths {
+  export function join2<P2 extends string>(p1: string, p2: P2) {
+    return path.join(p1, p2) as `${string}${P2}`;
+  }
+}
+
 // ---------------------- internal utils ----------------------
 
 // deno-lint-ignore no-namespace
@@ -2970,250 +3163,219 @@ namespace _TreesChildrenType {
   export type _ChildrenType_1<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_2<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_2<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_2<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_3<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_3<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_3<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_4<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_4<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_4<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_5<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_5<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_5<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_6<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_6<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_6<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_7<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_7<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_7<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_8<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_8<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_8<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_9<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_9<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_9<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_10<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_10<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_10<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_11<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_11<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_11<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_12<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_12<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_12<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_13<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_13<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_13<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_14<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_14<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_14<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_15<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_15<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_15<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_16<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_16<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_16<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_17<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_17<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_17<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_18<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_18<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_18<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_19<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_19<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_19<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_20<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_20<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_20<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_21<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_21<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_21<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_22<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_22<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_22<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_23<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_23<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_23<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_24<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_24<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_24<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_25<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_25<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_25<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_26<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_26<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_26<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_27<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_27<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_27<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_28<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_28<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_28<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_29<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_29<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_29<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_30<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_30<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_30<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? _ChildrenType_31<N, K>
-          : N
-        : R);
+      ? K extends keyof N ? _ChildrenType_31<N, K>
+      : N
+      : R);
 
   export type _ChildrenType_31<R, K extends string & keyof R> =
     | R
     | (R[K] extends Array<infer N> | null | undefined
-        ? K extends keyof N
-          ? never
-          : N
-        : R);
+      ? K extends keyof N ? never
+      : N
+      : R);
 
   // raise error on deep 32 ...
 }

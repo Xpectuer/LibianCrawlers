@@ -185,7 +185,7 @@ export interface ChatMessageTable {
   create_date: Date | null;
 }
 
-export async function create_and_init_libian_srawler_database_scope<R>(
+export async function create_and_init_libian_crawler_database_scope<R>(
   scope: (db: Kysely<LibianCrawlerDatabase>) => Promise<R>
 ) {
   const { data_storage } = config.libian_crawler;

@@ -5,7 +5,7 @@
 
 import { InputData, quicktype } from "quicktype-core";
 import { QuickTypeUtil } from "../quicktypeutil.ts";
-import { Jsons, SizeOf } from "../util.ts";
+import { Jsons, Processes, SizeOf } from "../util.ts";
 import path from "node:path";
 
 export type QuicktypeGenParam<T> = Parameters<typeof _quicktype_gen<T>>[0];
@@ -150,5 +150,6 @@ async function _quicktype_gen<T>(param: {
 }
 
 if (import.meta.main) {
+  await Processes.set_process_title("QuicktypeGen", true);
   await _quicktype_gen_main();
 }

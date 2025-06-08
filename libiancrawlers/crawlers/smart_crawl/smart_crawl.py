@@ -4,8 +4,10 @@ import itertools
 import json
 import os.path
 import traceback
+from collections import Counter
 from threading import Thread
 from typing import Literal, Optional, Any, TypedDict, Tuple, Union
+import tempfile
 
 import aiofiles.os
 import aiofiles.ospath
@@ -217,10 +219,11 @@ async def smart_crawl_v1(*,
             if is_insert_to_db:
                 await _insert_to_garbage_table(**(await parse_resp_goto()))
 
-        from libiancrawlers.crawlers.smart_crawl.steps_api import _create_steps_api_functions
+        _download_storage_path: str
 
         if is_save_file:
-            base_dir, tag_version = await _get_base_dir_when_save_file(tag_version=tag_version, output_dir=output_dir,
+            base_dir, tag_version = await _get_base_dir_when_save_file(tag_version=tag_version,
+                                                                       output_dir=output_dir,
                                                                        tag_group=tag_group)
             logger.debug('base dir is {}', base_dir)
             await mkdirs(base_dir)
@@ -228,10 +231,64 @@ async def smart_crawl_v1(*,
             logger.debug('start save _param_json to {}', _param_json_file_path)
             async with aiofiles.open(_param_json_file_path, mode='wt', encoding='utf-8') as f:
                 await f.write(_param_json)
+            _download_storage_path = os.path.join(base_dir, 'download')
+        else:
+            secure_temp_dir = tempfile.mkdtemp(prefix="libian_crawler_download_", suffix="_")
+            _download_storage_path = os.path.join(secure_temp_dir)
+        await mkdirs(_download_storage_path)
 
         _all_steps_run = []
 
         from playwright.async_api import Page
+
+        async def _dump_obj(dump_tag: str, obj: JSON):
+            def get_dumped_obj():
+                return json.loads(json.dumps(dict(
+                    tag_version=tag_version,
+                    tag_group=tag_group,
+                    dump_tag=dump_tag,
+                    all_steps_run=_all_steps_run,
+                    dump_obj=obj,
+                    # page_info_smart_wait=page_info_smart_wait,
+                    # __page_info_smart_wait_insert_to_db__files=__page_info_smart_wait_insert_to_db__files,
+                ), ensure_ascii=True))
+
+            async def _run_save_file():
+                if is_save_file:
+                    logger.debug('start save file')
+                    if base_dir is None:
+                        raise LibianCrawlerBugException('BUG, base_dir should not none')
+
+                    _result_json = json.dumps(
+                        get_dumped_obj(),
+                        indent=save_file_json_indent,
+                        ensure_ascii=False
+                    )
+                    logger.debug('start write to file , _result_json length is {}', len(_result_json))
+                    async with aiofiles.open(
+                            os.path.join(
+                                base_dir,
+                                f"{filename_slugify(f'dump_{dump_tag}', allow_unicode=True)}.json"
+                            ),
+                            mode='wt',
+                            encoding='utf-8') as _f:
+                        await _f.write(_result_json)
+                    logger.debug('finish save file')
+
+            if is_insert_to_db:
+                try:
+                    await _insert_to_garbage_table(
+                        dump_page_info=get_dumped_obj()
+                    )
+                    await _run_save_file()
+                except BaseException:
+                    if not is_save_file:
+                        raise
+                    else:
+                        await _run_save_file()
+                        raise
+            else:
+                await _run_save_file()
 
         async def _dump_page(dump_tag: str, page: Page):
             logger.info('call dump page , tag is {} , page title is {}', dump_tag, await page.title())
@@ -324,6 +381,8 @@ async def smart_crawl_v1(*,
                 await _run_save_file()
             pass
 
+        _global_counter = Counter()
+
         async def _get_devtool_status():
             async with _devtool_status_lock:
                 return _devtool_status
@@ -397,15 +456,14 @@ async def smart_crawl_v1(*,
                             _waited_args = []
                         if _waited_kwargs is None:
                             _waited_kwargs = dict()
-                        fn_map = _create_steps_api_functions(
-                            b_page=b_page,
-                            browser_context=browser_context,
-                            _dump_page=_dump_page,
-                            _process_steps=_process_steps,
-                            _page_ref_lock=_page_ref_lock,
+                        from libiancrawlers.crawlers.smart_crawl.steps_api import StepsApi
+                        steps_api = StepsApi(
+                            b_page=b_page, browser_context=browser_context, _dump_page=_dump_page,
+                            _process_steps=_process_steps, _page_ref_lock=_page_ref_lock,
                             _page_ref=_page_ref,
-                        )
-                        await fn_map[_step['fn']](*_waited_args, **_waited_kwargs)
+                            _download_storage_path=_download_storage_path, _dump_obj=_dump_obj,
+                            _global_counter=_global_counter)
+                        await steps_api[_step['fn']](*_waited_args, **_waited_kwargs)
                         on_success_steps = _step.get('on_success_steps')
                         if on_success_steps is not None:
                             logger.debug('start process on success steps')
@@ -447,7 +505,8 @@ async def smart_crawl_v1(*,
         if debug and not isinstance(err, TargetClosedError):
             await launch_debug(message=f'debug on error , please see console logger . {err}')
         if is_save_file and base_dir is not None:
-            async with aiofiles.open(os.path.join(base_dir, 'error_info.txt'), mode='w') as _error_info_file:
+            async with aiofiles.open(os.path.join(base_dir, 'error_info.txt'), mode='wt',
+                                     encoding='utf-8') as _error_info_file:
                 await _error_info_file.write(traceback.format_exc())
         raise err
     finally:
@@ -462,7 +521,8 @@ async def smart_crawl_v1(*,
         if is_save_file and _is_success_end:
             if base_dir is None:
                 raise Exception('base dir should not null')
-            async with aiofiles.open(os.path.join(base_dir, '.is_success'), mode='w') as _error_info_file:
+            async with aiofiles.open(os.path.join(base_dir, '.is_success'), mode='wt',
+                                     encoding='utf-8') as _error_info_file:
                 await _error_info_file.write('true')
             abs_base_dir = os.path.abspath(base_dir)
             logger.info('Result at : \n\n    {}\n', abs_base_dir)

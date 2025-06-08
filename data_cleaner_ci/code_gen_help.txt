@@ -14,6 +14,9 @@ Help for code_gen.ts:
 --debugopt-logtime
       输出时间花费。
 
+--only-gen-nocodb
+      只生成 nocodb 的类型文件。
+
 -----------------------------------------
 不建议使用的内部参数，建议只在开发调试时使用:
 
@@ -32,4 +35,3 @@ Help for code_gen.ts:
 --batch-size
       覆盖设置每 batch 的最大长度。默认值 100，也可以在 ./data_cleaner_ci_generated/config.json 中的 **.batch_size 设置。
       如果设置过高的值可能导致 quicktype 子进程 OOM 。
-

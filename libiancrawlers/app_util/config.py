@@ -13,18 +13,6 @@ from loguru import logger
 from libiancrawlers.util.fs import mkdirs, aios, aios_symlink
 from libiancrawlers.util.plat import is_windows
 
-CONFIG_VERSION = 1
-CONFIG_TEMPLATE = """
-[crawler]
-
-[crawler.database]
-
-
-[crawler.xiaohongshu]
-cookie=
-
-"""
-
 
 def is_config_truthy(s: Union[None, str, bool]):
     if s is None:
@@ -62,6 +50,7 @@ async def _sys_exit_config() -> NoReturn:
         os._exit(EX_CONFIG)
     else:
         sys.exit(EX_CONFIG)
+    # noinspection
     assert not 'Config error but not exit'
 
 
@@ -95,6 +84,11 @@ async def read_config(*args: str,
         raise
 
 
+async def _get_config_template():
+    async with aiofiles.open('crawler_config_template.cfg', mode='rt', encoding='utf-8') as f:
+        return await f.read()
+
+
 async def _read_config(*, sys_exit: Optional[SysExitExConfig] = None):
     config_dir = os.path.join(os.path.expanduser("~"), '.libian', 'crawler', 'config')
     await mkdirs(config_dir)
@@ -103,7 +97,7 @@ async def _read_config(*, sys_exit: Optional[SysExitExConfig] = None):
     if not await aios.path.exists(config_file_path):
         async with aiofiles.open(config_file_path, mode='w+', encoding='utf-8') as f:
             logger.warning('Not exist config dir , auto create it at {}', config_file_path)
-            await f.write(CONFIG_TEMPLATE)
+            await f.write(await _get_config_template())
         if should_exit:
             logger.warning('Please rewrite config file at {}', config_file_path)
         should_exit = True

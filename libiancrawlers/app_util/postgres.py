@@ -33,10 +33,16 @@ async def get_pool():
     password = await read_config("crawler", "postgres", "password")
     host = await read_config("crawler", "postgres", "host")
     port = await read_config("crawler", "postgres", "port", allow_null=True)
+    ssl = await read_config("crawler", "postgres", "ssl", allow_null=True)
+
     if port is None:
         port = 5432
     if not isinstance(port, int):
         port = int(port)
+
+    if ssl is not None and not isinstance(ssl, bool):
+        ssl = bool(ssl)
+
     global _POOL
     if _POOL is None:
         async with _INIT_POOL_LOCK:
@@ -50,6 +56,7 @@ async def get_pool():
                     password=password,
                     host=host,
                     port=port,
+                    ssl=ssl,
                 )
                 logger.debug('success create global pg pool : {}', _POOL)
     return _POOL

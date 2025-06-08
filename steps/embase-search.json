@@ -1,0 +1,263 @@
+{
+  "$schema": "./schemas/main.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start Embase (or proxy) search"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "gui_confirm",
+      "kwargs": {
+        "title": "need user operate",
+        "message": "LibianCrawler 需要你自行完成登陆和搜索操作，请在完成登录、且跳转到搜索结果列表页面后，方可关闭此对话框。"
+      }
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "switch_page",
+      "args": [
+        -1
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "for_each",
+      "kwargs": {
+        "run_steps": [
+          {
+            "fn": "every_times",
+            "kwargs": {
+              "key": "selectAllOnPage",
+              "div": 19,
+              "before_steps": [
+                {
+                  "fn": "page_click",
+                  "args": [
+                    "label[for='selectAllOnPage']>>nth=0"
+                  ],
+                  "kwargs": {
+                    "method": "dispatch_event_click",
+                    "timeout": 10000,
+                    "timeout_retry": 3,
+                    "force": true
+                  }
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1000
+                  ]
+                }
+              ],
+              "if_steps": [
+                {
+                  "fn": "page_click",
+                  "args": [
+                    ".exportSubmit>>nth=0"
+                  ],
+                  "kwargs": {
+                    "timeout": 10000,
+                    "timeout_retry": 3,
+                    "force": true
+                  }
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1000
+                  ]
+                },
+                {
+                  "fn": "page_click",
+                  "args": [
+                    ".embsDropdownLabel"
+                  ],
+                  "kwargs": {
+                    "timeout": 10000,
+                    "timeout_retry": 3,
+                    "force": true
+                  }
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1000
+                  ]
+                },
+                {
+                  "fn": "page_click",
+                  "args": [
+                    "li span:has-text('CSV')"
+                  ],
+                  "kwargs": {
+                    "timeout": 10000,
+                    "timeout_retry": 3,
+                    "force": true
+                  }
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1000
+                  ]
+                },
+                {
+                  "fn": "page_click",
+                  "args": [
+                    "label[for='fields_by_column']"
+                  ],
+                  "kwargs": {
+                    "method": "dispatch_event_click",
+                    "timeout": 10000,
+                    "timeout_retry": 3,
+                    "force": true
+                  }
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1000
+                  ]
+                },
+                {
+                  "fn": "page_click",
+                  "args": [
+                    ".textSelectAll"
+                  ],
+                  "kwargs": {
+                    "timeout": 10000,
+                    "timeout_retry": 3,
+                    "force": true,
+                    "each_steps_after": [
+                      {
+                        "fn": "sleep",
+                        "args": [
+                          1000
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "fn": "page_click",
+                  "args": [
+                    "#modalConfirmControl"
+                  ],
+                  "kwargs": {
+                    "timeout": 10000,
+                    "timeout_retry": 3,
+                    "force": true
+                  }
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1000
+                  ]
+                },
+                {
+                  "fn": "switch_page",
+                  "args": [
+                    -1
+                  ]
+                },
+                {
+                  "fn": "expect_download",
+                  "kwargs": {
+                    "timeout": 600000,
+                    "run_steps": [
+                      {
+                        "fn": "page_click",
+                        "args": [
+                          "a:has-text('Download')"
+                        ],
+                        "kwargs": {
+                          "timeout": 60000,
+                          "timeout_retry": 10
+                        }
+                      }
+                    ],
+                    "dump_csv": true
+                  }
+                },
+                {
+                  "fn": "page_close"
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1000
+                  ]
+                },
+                {
+                  "fn": "switch_page",
+                  "args": [
+                    -1
+                  ]
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1000
+                  ]
+                },
+                {
+                  "fn": "page_click",
+                  "args": [
+                    "#clearSelection"
+                  ],
+                  "kwargs": {
+                    "timeout": 10000,
+                    "timeout_retry": 3,
+                    "force": true
+                  }
+                }
+              ],
+              "after_steps": [
+                {
+                  "fn": "page_click",
+                  "args": [
+                    "#goNext"
+                  ],
+                  "kwargs": {
+                    "timeout": 10000,
+                    "timeout_retry": 3
+                  }
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    3000
+                  ]
+                }
+              ],
+              "run_if_steps_on_error": true
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

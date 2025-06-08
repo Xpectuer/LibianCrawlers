@@ -17,6 +17,7 @@ import { data_cleaner_ci_generated } from "./consts.ts";
 import path from "node:path";
 import { Nums } from "./util.ts";
 import { delay } from "@std/async/delay";
+import { isDate } from "node:util/types";
 
 export type PostgresConnectionParam = {
   dbname: string;
@@ -32,16 +33,24 @@ export type PostgresTableDefine = {
   tablename: string;
 };
 
+export type ReadPostgresTableSkipExisted = (
+  g_id: number,
+  total: number,
+) => Promise<"skip" | "no-skip">;
+
 export async function* read_postgres_table(
-  params: PostgresConnectionParam &
-    PostgresTableDefine & {
+  params:
+    & PostgresConnectionParam
+    & PostgresTableDefine
+    & {
       batch_size: number;
       idle_timeout?: number;
       on_bar?: (bar_render_param: {
         completed: number;
         total: number;
       }) => Promise<void>;
-    } & {
+    }
+    & {
       cache_by_id: {
         typename: string;
         enable: boolean;
@@ -50,10 +59,10 @@ export async function* read_postgres_table(
       debugopt_logtime: boolean;
       // prevent_oom_batch_mem_size: number;
       on_total?: (total: number) => Promise<"continue" | "return">;
-      code_gen_skip_existed?:
+      skip_existed?:
         | null
-        | ((g_id: number, total: number) => Promise<"skip" | "no-skip">);
-    }
+        | ReadPostgresTableSkipExisted;
+    },
 ) {
   console.debug("Start read postgres table :", params);
   const {
@@ -72,7 +81,7 @@ export async function* read_postgres_table(
     network,
     debugopt_logtime,
     on_total,
-    code_gen_skip_existed,
+    skip_existed,
   } = params;
   // deno-lint-ignore ban-types
   let sql: postgres.Sql<{}>;
@@ -96,7 +105,7 @@ export async function* read_postgres_table(
   const cache_dir = path.join(
     data_cleaner_ci_generated,
     ".cache_by_id",
-    typename
+    typename,
   );
   const get_g_id = (cache_file: Deno.DirEntry) => {
     if (!Strs.endswith(cache_file.name, ".json")) {
@@ -129,7 +138,7 @@ export async function* read_postgres_table(
       }
     } catch (err) {
       console.warn(
-        `Can't read ${cache_dir} , maybe it not exist ... error is ${err}`
+        `Can't read ${cache_dir} , maybe it not exist ... error is ${err}`,
       );
     }
   }
@@ -138,8 +147,8 @@ export async function* read_postgres_table(
   if (network) {
     total = parseInt(
       Object.values(
-        (await sql`SELECT count(*) FROM ${sql(schema)}.${sql(tablename)}`)[0]
-      )[0]
+        (await sql`SELECT count(*) FROM ${sql(schema)}.${sql(tablename)}`)[0],
+      )[0],
     );
   } else {
     total = cached_ids.length;
@@ -184,19 +193,20 @@ export async function* read_postgres_table(
           return a.g_id - b.g_id;
         });
 
-        for (const batch of Streams.split_array_use_batch_size(
-          batch_size,
-          cache_file_list
-        )) {
+        for (
+          const batch of Streams.split_array_use_batch_size(
+            batch_size,
+            cache_file_list,
+          )
+        ) {
           let is_skip: "skip" | "no-skip";
           if (total !== batch.total && batch.total === batch.end) {
             is_skip = "no-skip";
-          } else if (code_gen_skip_existed) {
+          } else if (skip_existed) {
             const check_all_batch_can_skip = await Promise.all(
               batch.sliced.map(
-                async (_, idx) =>
-                  await code_gen_skip_existed(batch.start + idx, total)
-              )
+                async (_, idx) => await skip_existed(batch.start + idx, total),
+              ),
             );
             if (check_all_batch_can_skip.find((it) => it === "no-skip")) {
               is_skip = "no-skip";
@@ -276,7 +286,7 @@ export async function* read_postgres_table(
           gid_list.push(cache_file.g_id);
         } else {
           throw new Error(
-            `obj from load not a object , cache_file.name is ${cache_file.cache_file_name}`
+            `obj from load not a object , cache_file.name is ${cache_file.cache_file_name}`,
           );
         }
 
@@ -301,11 +311,15 @@ export async function* read_postgres_table(
     }
 
     const _create_select_sql = () =>
-      sql`SELECT * FROM ${sql(schema)}.${sql(
-        tablename
-      )} WHERE g_id NOT IN ${sql(
-        cached_ids.length > 0 ? cached_ids : [-114514]
-      )}`;
+      sql`SELECT * FROM ${sql(schema)}.${
+        sql(
+          tablename,
+        )
+      } WHERE g_id NOT IN ${
+        sql(
+          cached_ids.length > 0 ? cached_ids : [-114514],
+        )
+      }`;
 
     if (network) {
       const cursor = _create_select_sql().cursor(batch_size);
@@ -332,10 +346,12 @@ export async function* read_postgres_table(
                   });
                 } else {
                   throw new Error(
-                    `g_id is not number , rows[0] is ${JSON.stringify(rows[0])}`
+                    `g_id is not number , rows[0] is ${
+                      JSON.stringify(rows[0])
+                    }`,
                   );
                 }
-              })
+              }),
             );
           }
         })();
@@ -370,21 +386,25 @@ export async function* read_postgres_table(
   }
 
   console.debug(
-    `\n\nCast time of foreach rows iterator from ${[
-      ...(network ? ["postgres"] : []),
-      ...(cache_by_id.enable
-        ? [`./${data_cleaner_ci_generated}/cache_by_id/${cache_by_id.typename}`]
-        : []),
-    ].join(" and ")}(unit is s):`,
-    (new Date().getTime() - start_at) / 1000.0
+    `\n\nCast time of foreach rows iterator from ${
+      [
+        ...(network ? ["postgres"] : []),
+        ...(cache_by_id.enable
+          ? [
+            `./${data_cleaner_ci_generated}/cache_by_id/${cache_by_id.typename}`,
+          ]
+          : []),
+      ].join(" and ")
+    }(unit is s):`,
+    (new Date().getTime() - start_at) / 1000.0,
   );
 }
 
 export type JsonataTemplate = string;
 
 export async function* read_postgres_table_type_wrap<
-  CodeGenSkipExisted extends boolean,
-  T extends { obj: unknown } = { obj: unknown }
+  SkipExisted extends boolean,
+  T extends { obj: unknown } = { obj: unknown },
 >(param: {
   jsonata_exp?: null | string;
   rows_gen: AsyncGenerator<(postgres.Row | "skip")[], void>;
@@ -392,9 +412,9 @@ export async function* read_postgres_table_type_wrap<
   with_jsonata_template: JsonataTemplate[] | null | undefined;
   debugopt_logtime: boolean;
   high_water_mark: number;
-  code_gen_skip_existed: CodeGenSkipExisted;
+  skip_existed: SkipExisted;
 }): AsyncGenerator<
-  (CodeGenSkipExisted extends true ? "skip" | T : T)[],
+  (SkipExisted extends true ? "skip" | T : T)[],
   void,
   unknown
 > {
@@ -404,26 +424,25 @@ export async function* read_postgres_table_type_wrap<
     with_jsonata_template,
     debugopt_logtime,
     high_water_mark,
-    code_gen_skip_existed,
+    skip_existed: code_gen_skip_existed,
   } = param;
 
-  const rows_gen_queued =
-    high_water_mark <= 0
-      ? rows_gen
-      : Streams.queue_cached({
-          gen: rows_gen,
-          queue_size: high_water_mark,
-          before_event(ev) {
-            if (debugopt_logtime) {
-              if (ev === "reader_delay_queue_full") {
-                console.debug("read_postgres_table_type_wrap queue full");
-              }
-              if (ev === "write_pop") {
-                console.debug("read_postgres_table_type_wrap queue consume");
-              }
-            }
-          },
-        })();
+  const rows_gen_queued = high_water_mark <= 0
+    ? rows_gen
+    : Streams.queue_cached({
+      gen: rows_gen,
+      queue_size: high_water_mark,
+      before_event(ev) {
+        if (debugopt_logtime) {
+          if (ev === "reader_delay_queue_full") {
+            console.debug("read_postgres_table_type_wrap queue full");
+          }
+          if (ev === "write_pop") {
+            console.debug("read_postgres_table_type_wrap queue consume");
+          }
+        }
+      },
+    })();
 
   for await (const rows of rows_gen_queued) {
     const typing_wrap_start_at = new Date().getTime();
@@ -443,8 +462,8 @@ export async function* read_postgres_table_type_wrap<
           const _it: postgres.Row = it;
           const res = { ..._it };
           for (const template_name of with_jsonata_template) {
-            res[`template_${template_name}` as const] =
-              await Jsonatas.evaluate_in_worker({
+            res[`template_${template_name}` as const] = await Jsonatas
+              .evaluate_in_worker({
                 script: { template_name },
                 data: _it,
                 debugopt_logtime_for_jsonata_evalute_too_slow: -1,
@@ -457,11 +476,13 @@ export async function* read_postgres_table_type_wrap<
           if (jsonata_exp) {
             return {
               obj: _after_jsonata_template,
-              [`group__${await Jsonatas.evaluate_in_worker({
-                script: { content: jsonata_exp },
-                data: it,
-                debugopt_logtime_for_jsonata_evalute_too_slow: -1,
-              })}` as const]: _after_jsonata_template,
+              [
+                `group__${await Jsonatas.evaluate_in_worker({
+                  script: { content: jsonata_exp },
+                  data: it,
+                  debugopt_logtime_for_jsonata_evalute_too_slow: -1,
+                })}` as const
+              ]: _after_jsonata_template,
             };
           } else {
             return {
@@ -471,7 +492,7 @@ export async function* read_postgres_table_type_wrap<
         })();
 
         return _after_jsonate_group as T;
-      })
+      }),
     );
     if (debugopt_logtime) {
       console.debug("batch typing wrap status", {
@@ -479,10 +500,9 @@ export async function* read_postgres_table_type_wrap<
         typing_wrap_batch_size: typing_wrap_result.length,
       });
     }
-    const _typing_wrap_result: (CodeGenSkipExisted extends true
-      ? "skip" | T
-      : // deno-lint-ignore no-explicit-any
-        T)[] = typing_wrap_result as any;
+    const _typing_wrap_result: (SkipExisted extends true ? "skip" | T
+      // deno-lint-ignore no-explicit-any
+      : T)[] = typing_wrap_result as any;
     yield _typing_wrap_result;
   }
 }
@@ -505,11 +525,20 @@ export function pg_dto_equal(dto1: object, dto2: object): boolean {
   if (is_deep_equal(dto1, dto2)) {
     return true;
   }
-  const keys = new Set(Object.keys(dto1));
-  if (!is_deep_equal(keys, new Set(Object.keys(dto2)))) {
+  const keys1 = new Set(Object.keys(dto1));
+  const keys2 = new Set(Object.keys(dto2));
+  // for (const keys of [keys1, keys2]) {
+  //   // don't compare keys
+  //   for (const not_cmp of ["id", "__mode__"]) {
+  //     if (keys.has(not_cmp)) {
+  //       keys.delete(not_cmp);
+  //     }
+  //   }
+  // }
+  if (!is_deep_equal(keys1, keys2)) {
     return false;
   }
-  for (const key of keys) {
+  for (const key of keys1) {
     const v1: unknown = dto1[key];
     // deno-lint-ignore no-explicit-any
     const v2: unknown = (dto2 as any)[key];
@@ -529,6 +558,20 @@ export function pg_dto_equal(dto1: object, dto2: object): boolean {
         return false;
       }
       continue;
+    }
+    const _v1: unknown = v1;
+    const _v2: unknown = v2;
+    if (isDate(_v1) && isDate(_v2)) {
+      // 时区问题很难搞
+      const delta = Math.abs(_v1.getTime() - _v2.getTime());
+      if (
+        delta === 0 ||
+        delta === Math.abs(new Date().getTimezoneOffset() * 60 * 1000)
+      ) {
+        continue;
+      } else {
+        return false;
+      }
     }
     return false;
   }

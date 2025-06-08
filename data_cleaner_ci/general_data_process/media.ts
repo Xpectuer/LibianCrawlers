@@ -7,6 +7,7 @@ export enum PlatformEnum {
   知网 = "cnki.net",
   PubMed = "pubmed.ncbi.nlm.nih.gov",
   千牛聊天记录 = "qn.taobao.com/home.htm/app-customer-service/toolpage/Message",
+  Embase或镜像站 = "Embase_Or_Proxy",
 }
 
 export type MediaContentTag = {
@@ -142,9 +143,14 @@ export type MediaContent = {
 
 export type Literature = {
   journal: string | null;
+  issn: string | null;
+  isbn: string | null;
+  publication_type: string | null;
   doi: string | null;
+  pui: string | null;
   category: string | null;
   level_of_evidence: string | null;
+  book_publisher: string | null;
   // album: string | null;
   // theme: string | null;
   // funds: string[] | null;

@@ -1,0 +1,6 @@
+see LICENSE in:
+
+https://github.com/terrymorse58/serialize-anything
+https://github.com/terrymorse58/deep-copy-all
+
+I copy it , because i need monkey patch Temporal.Instant into it ...
