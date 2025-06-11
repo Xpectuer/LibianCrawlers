@@ -1,4 +1,13 @@
-import { DataClean, Jsons, Strs, Typings } from "../util.ts";
+import {
+  Arrays,
+  DataClean,
+  Errors,
+  is_nullish,
+  Jsons,
+  Mappings,
+  Strs,
+  Typings,
+} from "../util.ts";
 
 // deno-lint-ignore no-namespace
 export namespace NocoDBUtil {
@@ -71,49 +80,69 @@ export namespace NocoDBUtil {
   //   | "LastModifiedBy"
   //   | "Order";
 
+  export const ui_types = [
+    ["ID", "string"],
+    ["LinkToAnotherRecord", "unknown"],
+    ["ForeignKey", "unknown"],
+    ["Lookup", "unknown"],
+    ["SingleLineText", "string"],
+    ["LongText", "string"],
+    ["Attachment", "unknown"],
+    ["Checkbox", "unknown"],
+    ["MultiSelect", "unknown"],
+    ["SingleSelect", "unknown"],
+    ["Collaborator", "unknown"],
+    ["Date", "unknown"],
+    ["Year", "unknown"],
+    ["Time", "unknown"],
+    ["PhoneNumber", "unknown"],
+    ["GeoData", "unknown"],
+    ["Email", "unknown"],
+    ["URL", "unknown"],
+    ["Number", "unknown"],
+    ["Decimal", "unknown"],
+    ["Currency", "unknown"],
+    ["Percent", "unknown"],
+    ["Duration", "unknown"],
+    ["Rating", "unknown"],
+    ["Formula", "unknown"],
+    ["Rollup", "unknown"],
+    ["Count", "unknown"],
+    ["DateTime", "unknown"],
+    ["CreatedTime", "unknown"],
+    ["LastModifiedTime", "unknown"],
+    ["AutoNumber", "unknown"],
+    ["Geometry", "unknown"],
+    ["JSON", "unknown"],
+    ["SpecificDBType", "unknown"],
+    ["Barcode", "unknown"],
+    ["QrCode", "unknown"],
+    ["Button", "unknown"],
+    ["Links", "unknown"],
+    ["User", "unknown"],
+    ["CreatedBy", "unknown"],
+    ["LastModifiedBy", "unknown"],
+    ["Order", "unknown"],
+  ] as const; // satisfies Array<keyof UITypes>;
+
+  export function is_ui_types_key(
+    s: string,
+  ): s is typeof ui_types[number][0] {
+    return ui_types.find((it) => it[0] === s) !== undefined;
+  }
+
+  type UITypesValueType<T> = T extends "unknown" ? unknown
+    : T extends "string" ? string | null
+    : never;
+
   export type UITypes = {
-    ID: string;
-    LinkToAnotherRecord: unknown;
-    ForeignKey: unknown;
-    Lookup: unknown;
-    SingleLineText: string;
-    LongText: string;
-    Attachment: unknown;
-    Checkbox: unknown;
-    MultiSelect: unknown;
-    SingleSelect: unknown;
-    Collaborator: unknown;
-    Date: unknown;
-    Year: unknown;
-    Time: unknown;
-    PhoneNumber: unknown;
-    GeoData: unknown;
-    Email: unknown;
-    URL: unknown;
-    Number: unknown;
-    Decimal: unknown;
-    Currency: unknown;
-    Percent: unknown;
-    Duration: unknown;
-    Rating: unknown;
-    Formula: unknown;
-    Rollup: unknown;
-    Count: unknown;
-    DateTime: unknown;
-    CreatedTime: unknown;
-    LastModifiedTime: unknown;
-    AutoNumber: unknown;
-    Geometry: unknown;
-    JSON: unknown;
-    SpecificDBType: unknown;
-    Barcode: unknown;
-    QrCode: unknown;
-    Button: unknown;
-    Links: unknown;
-    User: unknown;
-    CreatedBy: unknown;
-    LastModifiedBy: unknown;
-    Order: unknown;
+    [K in typeof ui_types[number][0]]: UITypesValueType<
+      Extract<
+        typeof ui_types[number],
+        // deno-lint-ignore no-explicit-any
+        Readonly<[K, any]>
+      >[1]
+    >;
   };
 
   export type CreateTableOpt = {
@@ -367,6 +396,14 @@ export namespace NocoDBUtil {
       page_check_offset?: NoPage extends false ? boolean | undefined
         : false | undefined;
       get_route: (page: NoPage extends true ? undefined : number) => Route;
+      on_pageInfo?: NoPage extends false ? (pageInfo: {
+          totalRows: number;
+          page: number;
+          pageSize: number;
+          isFirstPage: boolean;
+          isLastPage: boolean;
+        }) => Promise<void>
+        : undefined;
     },
     typeguard: (it: unknown) => it is T,
   ) {
@@ -394,14 +431,16 @@ export namespace NocoDBUtil {
         //     );
         //   }
         // } else {
-        if (pageInfo && pageInfo.page !== page + 1) {
-          throw new Error(
-            `Page not match , var value is ${page} , but pageInfo is ${
-              JSON.stringify(
-                pageInfo,
-              )
-            }`,
-          );
+        if (pageInfo) {
+          if (pageInfo.page !== page + 1) {
+            Errors.throw_and_format(`Page not match`, {
+              page,
+              pageInfo,
+            });
+          }
+          if (param.on_pageInfo) {
+            await param.on_pageInfo(pageInfo);
+          }
         }
         // }
         const items = _parse_list_field(res_json, typeguard);
@@ -674,6 +713,8 @@ export namespace NocoDBUtil {
               }&limit=${page_size}`,
           };
         },
+        on_pageInfo: async () => {
+        },
       },
       (it): it is { id: string } => {
         return (
@@ -688,7 +729,7 @@ export namespace NocoDBUtil {
 }
 
 // deno-lint-ignore no-namespace
-export namespace NocoDBDataSet {
+export namespace NocoDBDataset {
   type ColumnsMetaApiFromColumns<
     A,
   > = A extends readonly [infer ColHead, ...infer Arr] ? ColHead extends {
@@ -704,16 +745,6 @@ export namespace NocoDBDataSet {
         & ColumnsMetaApiFromColumns<Arr>
     : ColumnsMetaApiFromColumns<Arr>
     : unknown;
-
-  class RowsApiFromColumns<
-    A,
-    _Row extends RowsData<A> = RowsData<A>,
-  > {
-    public map<Row = RowsData<A>>(
-      cb: (row: Row) => void,
-    ) {
-    }
-  }
 
   type RowsData<A> = A extends readonly [infer ColHead, ...infer Arr]
     ? ColHead extends
@@ -735,9 +766,13 @@ export namespace NocoDBDataSet {
       >
     >,
   > {
-    constructor(private ncbases: NcBases) {}
+    constructor(
+      // private ncbases: NcBases,
+      private baseurl: DataClean.HttpUrl,
+      private nocodb_token: string,
+    ) {}
 
-    public select_view<
+    public async select_view<
       BaseTitle extends NcBases[number]["title"],
       TableTitle extends Base["__tables__"][number]["title"],
       ViewTitle extends Table["__views__"][number]["title"],
@@ -751,12 +786,185 @@ export namespace NocoDBDataSet {
       table_title: TableTitle;
       view_title: ViewTitle;
     }) {
-      const columns_meta: ColumnsMetaApi = null as any;
-      const rows: RowsApi = null as any;
-      return {
-        columns_meta,
-        rows,
-      };
+      const { base_title, table_title, view_title } = _param;
+      for await (
+        const ncbase of NocoDBUtil.list_bases({
+          baseurl: this.baseurl,
+          nocodb_token: this.nocodb_token,
+        })
+      ) {
+        if (ncbase.title === base_title) {
+          for await (
+            const nctable of NocoDBUtil.list_tables({
+              baseurl: this.baseurl,
+              nocodb_token: this.nocodb_token,
+            }, ncbase.id)
+          ) {
+            if (nctable.title === table_title) {
+              for await (
+                const ncview of NocoDBUtil.list_views({
+                  baseurl: this.baseurl,
+                  nocodb_token: this.nocodb_token,
+                }, nctable.id)
+              ) {
+                if (ncview.title === view_title) {
+                  const nccolumns: {
+                    fk_column_id: string;
+                    id: string;
+                    __metadata__: unknown;
+                  }[] = [];
+                  for await (
+                    const nccolumn of NocoDBUtil.list_columns({
+                      baseurl: this.baseurl,
+                      nocodb_token: this.nocodb_token,
+                    }, ncview.id)
+                  ) {
+                    const nccolmeta = await NocoDBUtil.get_column_metadata({
+                      baseurl: this.baseurl,
+                      nocodb_token: this.nocodb_token,
+                    }, nccolumn.fk_column_id);
+                    nccolumns.push({
+                      ...nccolumn,
+                      __metadata__: nccolmeta,
+                    });
+                  }
+                  const nccolumn_to_metaapi = (
+                    nccolumn: typeof nccolumns[number],
+                  ) => {
+                    if (
+                      !("__metadata__" in nccolumn) ||
+                      is_nullish(nccolumn.__metadata__) ||
+                      typeof nccolumn.__metadata__ !== "object"
+                    ) {
+                      return null;
+                    }
+                    if (
+                      "column_name" in nccolumn.__metadata__ &&
+                      typeof nccolumn.__metadata__.column_name === "string" &&
+                      "uidt" in nccolumn.__metadata__ &&
+                      typeof nccolumn.__metadata__.uidt === "string" &&
+                      NocoDBUtil.is_ui_types_key(nccolumn.__metadata__.uidt)
+                    ) {
+                      return Arrays.of(
+                        nccolumn.__metadata__.column_name,
+                        {
+                          head: nccolumn,
+                          uidt: nccolumn.__metadata__.uidt,
+                        },
+                      );
+                    } else {
+                      Errors.throw_and_format("Invalid nccolumn", nccolumn);
+                    }
+                  };
+                  const columns_meta_entries = nccolumns.map(
+                    nccolumn_to_metaapi,
+                  ).filter((it) => it !== null);
+                  const columns_meta: ColumnsMetaApi = Mappings
+                    .object_from_entries(
+                      columns_meta_entries,
+                      // deno-lint-ignore no-explicit-any
+                    ) as any;
+
+                  const rows: RowsApi = new RowsApiFromColumns<
+                    View["__columns__"]
+                  >({
+                    baseurl: this.baseurl,
+                    nocodb_token: this.nocodb_token,
+                    ncbase,
+                    nctable,
+                    ncview,
+                    columns_meta_entries,
+                  }) as RowsApi;
+                  return {
+                    columns_meta,
+                    rows,
+                  };
+                }
+              }
+              throw new Error(
+                `Not found ncview titled ${view_title} in ncbase ${base_title} nctable ${table_title}`,
+              );
+            }
+          }
+          throw new Error(
+            `Not found nctitle titled ${table_title} in ncbase ${base_title}`,
+          );
+        }
+      }
+      throw new Error(`Not found ncbase titled ${base_title}`);
+    }
+  }
+
+  type NcApiColEntry = [string, {
+    head: {
+      fk_column_id: string;
+      id: string;
+      __metadata__: unknown;
+    };
+    uidt: keyof NocoDBUtil.UITypes;
+  }];
+
+  class RowsApiFromColumns<
+    A,
+    _Row extends RowsData<A> = RowsData<A>,
+  > {
+    public constructor(
+      private ctx: {
+        baseurl: DataClean.HttpUrl;
+        nocodb_token: string;
+        ncbase: NocoDBUtil.NcBase;
+        nctable: NocoDBUtil.NcTable;
+        ncview: NocoDBUtil.NcView;
+        columns_meta_entries: NcApiColEntry[];
+      },
+    ) {
+    }
+
+    public async map<
+      R,
+      Row = RowsData<A>,
+      QueueSize extends undefined | number = undefined,
+    >(_param: {
+      cb: (row: Row) =>
+        | "filter"
+        | (QueueSize extends undefined ? {
+            result: R;
+          }
+          : {
+            result: R;
+          } | {
+            result_future: Promise<R>;
+          });
+      limit?: number | null;
+      queue_size?: QueueSize;
+    }) {
+      const { cb, limit, queue_size } = _param;
+      let limit_count = 0;
+      const results: (R & { __iter_count__: number })[] = [];
+      if (is_nullish(limit) || limit > 0) {
+        for await (
+          const record of NocoDBUtil.list_table_records(
+            {
+              baseurl: this.ctx.baseurl,
+              nocodb_token: this.ctx.nocodb_token,
+            },
+            this.ctx.nctable.id,
+            this.ctx.ncview.id,
+          )
+        ) {
+          const check_row_data_of_column = () => {
+          };
+
+          try {
+            console.debug("record", record);
+          } finally {
+            limit_count++;
+          }
+          if (!is_nullish(limit) && limit_count >= limit) {
+            break;
+          }
+        }
+      }
     }
   }
 }

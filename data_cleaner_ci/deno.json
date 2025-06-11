@@ -1,13 +1,76 @@
 {
   "tasks": {
-    "init:config": "deno run --allow-sys=homedir --allow-read=data_cleaner_ci_generated,user_code init_config.ts",
-    "init:code_gen": "deno run --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV,NODE_NDEBUG --allow-read=code_gen_help.txt,data_cleaner_ci_generated,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,quicktypeutil.ts,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=user_code,data_cleaner_ci_generated --v8-flags=--max-old-space-size=5120 code_gen.ts",
-    "init:code_gen:allownet": "deno run --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV,NODE_NDEBUG --allow-read=code_gen_help.txt,data_cleaner_ci_generated,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,quicktypeutil.ts,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=user_code,data_cleaner_ci_generated --v8-flags=--max-old-space-size=5120 --allow-net code_gen.ts",
-    "dev:jsonata": "deno run --allow-env --allow-read --allow-run start_dev_jsonata.ts",
-    "step:check": "deno check --all \"**/*.ts\" && deno test --allow-env=NODE_NDEBUG,READABLE_STREAM --allow-read=user_code/testdevconfig.json,user_code/.tmp/.util_test --allow-write=user_code/.tmp/.util_test --allow-net --ignore=./jsonata_templates/jsonata_test.ts --quiet",
-    "step:libian_crawler:clean_and_merge": "deno run --v8-flags=--max-old-space-size=10240 --allow-env=\"PG*\",NODE_NDEBUG,READABLE_STREAM --allow-read=data_cleaner_ci_generated/.cache_by_id,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=data_cleaner_ci_generated,user_code,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache general_data_process/libian_crawler/clean_and_merge.ts",
-    "step:libian_crawler:clean_and_merge:allownet": "deno run --v8-flags=--max-old-space-size=10240 --allow-env=\"PG*\",NODE_NDEBUG,READABLE_STREAM --allow-read=data_cleaner_ci_generated/.cache_by_id,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=data_cleaner_ci_generated,user_code,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache --allow-net general_data_process/libian_crawler/clean_and_merge.ts",
-    "dev:libian_crawler:run_all": "deno task step:check && deno task init:code_gen:allownet --skip-existed && deno task step:check && deno task step:libian_crawler:clean_and_merge:allownet --use-cache"
+    "init:config": {
+      "description": "⭐ 初始化工程。在家目录下生成配置文件并符号链接到工程目录下",
+      "command": "deno run --allow-sys=homedir --allow-read=data_cleaner_ci_generated,user_code init_config.ts"
+    },
+    "init:code_gen": {
+      "description": "⭐ 启动代码生成",
+      "command": "deno run --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV,NODE_NDEBUG --allow-read=code_gen_help.txt,data_cleaner_ci_generated,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,quicktypeutil.ts,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=user_code,data_cleaner_ci_generated --v8-flags=--max-old-space-size=5120 code_gen.ts"
+    },
+    "init:code_gen:allownet": {
+      "description": "启动代码生成(允许网络)",
+      "command": "deno run --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV,NODE_NDEBUG --allow-read=code_gen_help.txt,data_cleaner_ci_generated,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,quicktypeutil.ts,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=user_code,data_cleaner_ci_generated --v8-flags=--max-old-space-size=5120 --allow-net code_gen.ts"
+    },
+    "step:init:code_gen:allownet:cached": {
+      "command": "deno task init:code_gen:allownet --skip-existed",
+      "description": "启动代码生成(允许网络|启用缓存)",
+      "dependencies": [
+        "step:check"
+      ]
+    },
+    "dev:jsonata": {
+      "description": "⭐ 启动便于开发 jsonata 文件的一个小服务",
+      "command": "deno run --allow-env --allow-read --allow-run start_dev_jsonata.ts"
+    },
+    "step:check:type:root": "deno check --frozen=true --doc --all \"*.ts\"",
+    "step:check:type:general_data_process": "deno check --frozen=true --doc --all \"general_data_process/**/*.ts\"",
+    "step:check:type:jsonata_templates": "deno check --frozen=true --doc --all \"jsonata_templates/**/*.ts\"",
+    "step:check:type:serialize-anything": "deno check --frozen=true --doc --all \"serialize-anything/**/*.ts\"",
+    "step:check:type:subproc": "deno check --frozen=true --doc --all \"subproc/**/*.ts\"",
+    "step:check:type:user_code": "deno check --frozen=true --doc --all \"user_code/**/*.ts\"",
+    "step:check:type:workers": "deno check --frozen=true --doc --all \"workers/**/*.ts\"",
+    "step:check:type:data_cleaner_ci_generated:meta": "deno check --frozen=true --doc --all \"data_cleaner_ci_generated/**/meta.ts\"",
+    "step:check:type:data_cleaner_ci_generated:index": {
+      "description": "Ignore it because OOM",
+      "command": "deno check --frozen=true --doc-only \"data_cleaner_ci_generated/**/index.ts\""
+    },
+    "step:check:type:data_cleaner_ci_generated:api": {
+      "description": "Ignore it because OOM",
+      "command": "deno check --frozen=true --doc-only \"data_cleaner_ci_generated/**/api.ts\""
+    },
+    "step:check:type:data_cleaner_ci_generated": {
+      "dependencies": [
+        "step:check:type:data_cleaner_ci_generated:meta",
+        "step:check:type:data_cleaner_ci_generated:index",
+        "step:check:type:data_cleaner_ci_generated:api"
+      ]
+    },
+    "step:check": {
+      "description": "⭐ 检查类型并运行测试",
+      "command": "deno test --allow-env=NODE_NDEBUG,READABLE_STREAM --allow-read=user_code/testdevconfig.json,user_code/.tmp/.util_test --allow-write=user_code/.tmp/.util_test --allow-net --ignore=./jsonata_templates/jsonata_test.ts --quiet",
+      "dependencies": [
+        "step:check:type:root",
+        "step:check:type:general_data_process",
+        "step:check:type:jsonata_templates",
+        "step:check:type:serialize-anything",
+        "step:check:type:subproc",
+        "step:check:type:user_code",
+        "step:check:type:workers",
+        "step:check:type:data_cleaner_ci_generated"
+      ]
+    },
+    "step:libian_crawler:clean_and_merge:allownet": {
+      "description": "⭐ 启动数据清洗(允许网络)",
+      "command": "deno run --v8-flags=--max-old-space-size=10240 --allow-env=\"PG*\",NODE_NDEBUG,READABLE_STREAM --allow-read=data_cleaner_ci_generated/.cache_by_id,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=data_cleaner_ci_generated,user_code,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache --allow-net general_data_process/libian_crawler/clean_and_merge.ts"
+    },
+    "dev:libian_crawler:run_all": {
+      "description": "⭐ 一键启动类型生成和数据清洗(都启用缓存和允许网络)",
+      "command": "deno task step:check && deno task step:libian_crawler:clean_and_merge:allownet --use-cache",
+      "dependencies": [
+        "deno task init:code_gen:allownet"
+      ]
+    }
   },
   "imports": {
     "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.48",
@@ -44,7 +107,6 @@
     "jsonata": "npm:jsonata@^2.0.6",
     "kysely": "npm:kysely@^0.27.5",
     "kysely-postgres-js": "npm:kysely-postgres-js@^2.0.0",
-    "nodejs-polars": "npm:nodejs-polars@^0.16.0",
     "parse-chinese-number": "npm:parse-chinese-number@^1.0.5",
     "postgres": "npm:postgres@^3.4.5",
     "quicktype-core": "npm:quicktype-core@^23.0.170",

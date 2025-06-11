@@ -52,11 +52,11 @@
     "npm:jsonata@^2.0.6": "2.0.6",
     "npm:kysely-postgres-js@2": "2.0.0_kysely@0.27.6_postgres@3.4.5",
     "npm:kysely@~0.27.5": "0.27.6",
-    "npm:nodejs-polars@0.16": "0.16.0",
     "npm:parse-chinese-number@^1.0.5": "1.0.5",
     "npm:postgres@^3.4.5": "3.4.5",
     "npm:quicktype-core@^23.0.170": "23.1.3_encoding@0.1.13",
     "npm:shx@0.4": "0.4.0",
+    "npm:shx@0.4.0": "0.4.0",
     "npm:typescript@^5.7.3": "5.8.3",
     "npm:which-boxed-primitive@^1.1.1": "1.1.1",
     "npm:which-collection@^1.0.2": "1.0.2",
@@ -746,19 +746,6 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
-    "nodejs-polars@0.16.0": {
-      "integrity": "sha512-GNISTlEg0Wv2CxOkzbum2McABkgQLa3z7IjjfB61Wrv6Rszm12CcsQyiQVqJweDK1l9/O7uDc/qu9Hd3eCKaJg==",
-      "optionalDependencies": [
-        "nodejs-polars-android-arm64",
-        "nodejs-polars-darwin-arm64",
-        "nodejs-polars-darwin-x64",
-        "nodejs-polars-linux-arm64-gnu",
-        "nodejs-polars-linux-arm64-musl",
-        "nodejs-polars-linux-x64-gnu",
-        "nodejs-polars-linux-x64-musl",
-        "nodejs-polars-win32-x64-msvc"
-      ]
-    },
     "npm-run-path@2.0.2": {
       "integrity": "sha512-lJxZYlT4DW/bRUtFh1MQIWqmLwQfAxnqWG4HhEdjMlkrJYnJn0Jrr2u3mgxqaWsdiBc76TYkTG/mhrnYTuzfHw==",
       "dependencies": [
@@ -1220,7 +1207,6 @@
       "npm:jsonata@^2.0.6",
       "npm:kysely-postgres-js@2",
       "npm:kysely@~0.27.5",
-      "npm:nodejs-polars@0.16",
       "npm:parse-chinese-number@^1.0.5",
       "npm:postgres@^3.4.5",
       "npm:quicktype-core@^23.0.170",

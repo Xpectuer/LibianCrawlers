@@ -377,9 +377,22 @@ export namespace Typings {
     }[keyof Source]
   >;
 
-  type UnionMap<T, M> = T extends any ? M extends (arg: T) => infer R ? R
-    : never
-    : never;
+  // type UnionMap<T, M> = T extends any ? M extends (arg: T) => infer R ? R
+  //   : never
+  //   : never;
+
+  export type ParamNullishResultNullish<P, R> = _ParamNullishResultNullish<
+    P,
+    _ParamNullishResultNullish<
+      P,
+      R,
+      null
+    >,
+    undefined
+  >;
+
+  type _ParamNullishResultNullish<P, R, N extends Nullish> = N extends P ? R | N
+    : R;
 }
 
 // deno-lint-ignore no-namespace
@@ -697,7 +710,8 @@ export namespace Times {
     time: T,
   ): null extends T ? Date | null : Date {
     if (
-      time === null || Nums.is_invalid(time.epochMilliseconds) ||
+      typeof time === "undefined" || time === null ||
+      Nums.is_invalid(time.epochMilliseconds) ||
       time.epochMilliseconds < 0
     ) {
       return null as any;
@@ -770,6 +784,91 @@ export namespace Jsons {
     indent?: number;
   };
 
+  function create_dump_replacer() {
+    const replacer = function (this: any, k: string, v: any) {
+      const this_v = this[k];
+      const raise = (msg: string): never => {
+        let cons: any;
+        try {
+          cons = this_v?.constructor?.name;
+        } catch (err) {
+          cons = `(Failed call this_v?.constructor?.name , cause by : ${err})`;
+        }
+        let cons2: any;
+        try {
+          cons2 = v?.constructor?.name;
+        } catch (err) {
+          cons2 = `(Failed call v?.constructor?.name , cause by : ${err})`;
+        }
+        throw new Error(
+          `${msg}
+${
+            Errors.add_indent_box(`
+>>> k is ${k}
+>>> this[k] toString : ${this_v}
+>>> this[k] inspect  : ${Deno.inspect(this_v)}
+>>> typeof this[k]   : ${typeof this_v}
+>>> this[k]?.constructor?.name : ${cons}
+>>> typeof v   : ${v}
+>>> v?.constructor?.name : ${cons2}
+>>> JSON.stringify danger v (toString): ${v} 
+>>> JSON.stringify danger v (inspect) : ${Deno.inspect(v)}
+>>> JSON.stringify danger v (toJson)  : ${JSON.stringify(v)}
+>>> this (inspect) : ${Deno.inspect(this)}`)
+          }
+`,
+        );
+      };
+      if (typeof this_v === "number") {
+        if (Nums.is_invalid(this_v)) {
+          raise("Invalid number");
+        }
+      } else {
+        for (
+          const invalid_type of [
+            ["undefined", "undefined"],
+            ["bigint", "bigint"],
+            ["Date", Date],
+            ["RegExp", RegExp],
+            ["Buffer", Buffer],
+            ["Error", Error],
+            ["BigInt", BigInt],
+            ["Map", Map],
+            ["Set", Set],
+            ["Function", Function],
+            ["ArrayBuffer", ArrayBuffer],
+            ["WeakMap", WeakMap],
+            ["WeakSet", WeakSet],
+            ["Uint8ClampedArray", Uint8ClampedArray],
+            ["Uint8Array", Uint8Array],
+            ["Uint16Array", Uint16Array],
+            ["Uint32Array", Uint32Array],
+            ["BigUint64Array", BigUint64Array],
+            ["Int8Array", Int8Array],
+            ["Int16Array", Int16Array],
+            ["Int32Array", Int32Array],
+            ["BigInt64Array", BigInt64Array],
+            ["Float32Array", Float32Array],
+            ["Float64Array", Float64Array],
+            ["Instant", Temporal.Instant],
+            ["ZonedDateTime", Temporal.ZonedDateTime],
+          ] as const
+        ) {
+          const is_invalid = typeof invalid_type[1] === "string"
+            // deno-lint-ignore valid-typeof
+            ? typeof this_v === invalid_type[1]
+            : typeof invalid_type[1] !== "undefined" &&
+              this_v instanceof invalid_type[1];
+          if (is_invalid) {
+            raise(`Don't stringify a ${invalid_type[0]}`);
+          }
+        }
+      }
+      return v;
+    };
+    return replacer;
+  }
+
   export function dump<O>(
     obj: O,
     option?: JsonDumpOption,
@@ -781,26 +880,9 @@ export namespace Jsons {
     if (!option) {
       option = {};
     }
-    const replacer = (_k: string, v: any) => {
-      if (typeof v === "bigint") {
-        if (
-          v > BigInt(Number.MAX_SAFE_INTEGER) ||
-          v < BigInt(Number.MIN_SAFE_INTEGER)
-        ) {
-          throw new Error(`BigInt out of safe number range : ${v}`);
-        }
-        return Number(v);
-      }
-      if (v instanceof Map) {
-        throw new Error(`Don't stringify a Map , value is ${v}`);
-      }
-      if (v instanceof Set) {
-        throw new Error(`Don't stringify a Set , value is ${v}`);
-      }
-      return v;
-    };
+
     if (option.mode === undefined || option.mode === "JSON") {
-      return JSON.stringify(obj, replacer, option.indent) as any;
+      return JSON.stringify(obj, create_dump_replacer(), option.indent) as any;
     } // else if (option.mode === "JSON5") {
     //   return JSON5.stringify(obj, replacer, option.indent);
     // }
@@ -824,7 +906,7 @@ export namespace Jsons {
     const { obj, output, buf_size, spaces } = param;
     const jsonStream = new JsonStreamStringify(
       obj,
-      undefined,
+      create_dump_replacer(),
       spaces,
       false,
       buf_size,
@@ -962,6 +1044,9 @@ export namespace Jsons {
 // deno-lint-ignore no-namespace
 export namespace Nums {
   export function is_invalid(s: number): s is never {
+    if (typeof s === "bigint") {
+      throw new Error(`Type out of guard! s is ${s}`);
+    }
     return isNaN(s) || !isFinite(s) || typeof s !== "number";
   }
 
@@ -1069,6 +1154,10 @@ export namespace Arrays {
     S extends A extends (infer T)[] ? (string extends T ? never : T) : string,
   >(arr: A, str: S): arr is ExistStrInUnionArray<A, S> {
     return arr.indexOf(str) >= 0;
+  }
+
+  export function of<A, B>(a: A, b: B): [A, B] {
+    return [a, b];
   }
 }
 
@@ -2261,7 +2350,7 @@ export namespace Streams {
 
   export function filter<T, R extends T>(
     items: Iterable<T>,
-    filter: (it: T) => it is R,
+    filter_func: (it: T) => it is R,
   ): {
     matched: SubArray<MapItemsType<typeof items, R>>;
     not_matched: SubArray<MapItemsType<typeof items, Exclude<T, R>>>;
@@ -2269,7 +2358,7 @@ export namespace Streams {
     const matched: R[] = [];
     const not_matched: Exclude<T, R>[] = [];
     for (const item of items) {
-      if (filter(item)) {
+      if (filter_func(item)) {
         matched.push(item);
       } else {
         not_matched.push(item as any);
@@ -2283,7 +2372,7 @@ export namespace Streams {
 
   export function filter2<T>(
     items: Iterable<T>,
-    filter: (it: T) => boolean,
+    filter_func: (it: T) => boolean,
   ): {
     matched: SubArray<typeof items>;
     not_matched: SubArray<typeof items>;
@@ -2291,7 +2380,7 @@ export namespace Streams {
     const matched: T[] = [];
     const not_matched: T[] = [];
     for (const item of items) {
-      if (filter(item)) {
+      if (filter_func(item)) {
         matched.push(item);
       } else {
         not_matched.push(item as any);
@@ -2392,9 +2481,72 @@ export namespace Streams {
 
 // deno-lint-ignore no-namespace
 export namespace Errors {
-  export function logerror_and_throw(msg: string, obj: object): never {
-    console.error(msg, obj);
-    throw new Error(`${msg}`, { cause: obj });
+  export function add_indent_box(src: string) {
+    return `
+    +-------------------------------------------
+    | ${src.split("\n").join("\n    | ")}
+    +------------------------------------------------`;
+  }
+
+  export function throw_and_format(
+    msg: string,
+    obj: unknown,
+    ...causes: unknown[]
+  ): never {
+    const get_msg = (_msg: string, _obj: unknown) => {
+      let obj_json: string;
+      try {
+        obj_json = Jsons.dump(_obj, { indent: 2 });
+      } catch (err) {
+        obj_json = `(Can't jsonify : ${add_indent_box(Deno.inspect(err))})`;
+        if (obj_json.length > 100) {
+          obj_json = `(Can't jsonfiy)`;
+        }
+      }
+
+      return `${_msg}
+>>> obj is :${add_indent_box(Deno.inspect(_obj))}
+>>> obj to json is :${add_indent_box(obj_json)}
+`;
+    };
+
+    const res_err: Error = obj instanceof Error
+      ? obj
+      : new Error(get_msg(msg, obj));
+    for (let i = 0; i < causes.length; i++) {
+      const cause = causes[i];
+      let to_set_cause_obj: { cause?: unknown } = res_err;
+      while (1) {
+        if (to_set_cause_obj.cause instanceof Error) {
+          to_set_cause_obj = to_set_cause_obj.cause;
+          continue;
+        } else {
+          if (cause instanceof Error) {
+            // to_set_cause_obj.cause = new Error(
+            //   get_msg(`The error cause by causes[${i}] :`, cause),
+            // );
+
+            if (cause.cause) {
+              to_set_cause_obj.cause = new Error(
+                get_msg(`The error cause by causes[${i}] :`, cause),
+              );
+            } else {
+              to_set_cause_obj.cause = new Error(
+                get_msg(`The error cause by causes[${i}] :`, cause),
+              );
+              // to_set_cause_obj.cause = cause;
+            }
+          } else {
+            to_set_cause_obj.cause = new Error(
+              get_msg(`The error cause by causes[${i}] :`, cause),
+            );
+          }
+          break;
+        }
+      }
+    }
+
+    throw res_err;
   }
 }
 
@@ -2918,6 +3070,10 @@ export namespace TestUtil {
   export async function read_vars() {
     let nocodb_baseurl2: string = "";
     let nocodb_token: string = "";
+    let list_table_records_test_conf: {
+      tableId: string;
+      viewId: null | string;
+    } | null = null;
 
     try {
       const obj = Jsons.load(
@@ -2928,12 +3084,29 @@ export namespace TestUtil {
       if (typeof obj === "object" && obj && !Array.isArray(obj)) {
         if (
           "nocodb_baseurl" in obj &&
-          typeof obj["nocodb_baseurl"] === "string"
+          typeof obj.nocodb_baseurl === "string"
         ) {
-          nocodb_baseurl2 = obj["nocodb_baseurl"];
+          nocodb_baseurl2 = obj.nocodb_baseurl;
         }
-        if ("nocodb_token" in obj && typeof obj["nocodb_token"] === "string") {
-          nocodb_token = obj["nocodb_token"];
+        if ("nocodb_token" in obj && typeof obj.nocodb_token === "string") {
+          nocodb_token = obj.nocodb_token;
+        }
+        if (
+          "list_table_records_test_conf" in obj &&
+          typeof obj.list_table_records_test_conf === "object" &&
+          obj.list_table_records_test_conf
+        ) {
+          const o: object = obj["list_table_records_test_conf"];
+          if (
+            "tableId" in o && typeof o.tableId === "string"
+          ) {
+            list_table_records_test_conf = {
+              tableId: o.tableId,
+              viewId: "viewId" in o && typeof o.viewId === "string"
+                ? o.viewId
+                : null,
+            };
+          }
         }
       }
 
@@ -2942,12 +3115,14 @@ export namespace TestUtil {
       return {
         nocodb_baseurl,
         nocodb_token,
+        list_table_records_test_conf,
       } as const;
     } catch (err) {
       if (err instanceof Deno.errors.NotFound) {
         return {
           nocodb_baseurl: null,
           nocodb_token: null,
+          list_table_records_test_conf: null,
         } as const;
       } else {
         console.error("Error on read user_code/testdevconfig.json", err);
@@ -3152,7 +3327,7 @@ export namespace SerAny {
 // deno-lint-ignore no-namespace
 export namespace Paths {
   export function join2<P2 extends string>(p1: string, p2: P2) {
-    return path.join(p1, p2) as `${string}${P2}`;
+    return path.join(p1, p2) as `${string}${typeof path.sep}${P2}`;
   }
 }
 

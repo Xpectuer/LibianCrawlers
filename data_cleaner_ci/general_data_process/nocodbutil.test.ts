@@ -1,7 +1,8 @@
 import { NocoDBUtil } from "./nocodbutil.ts";
 import { TestUtil } from "../util.ts";
 
-const { nocodb_baseurl, nocodb_token } = await TestUtil.read_vars();
+const { nocodb_baseurl, nocodb_token, list_table_records_test_conf } =
+  await TestUtil.read_vars();
 const ignore = !nocodb_token && !nocodb_baseurl;
 
 Deno.test({
@@ -67,6 +68,10 @@ Deno.test({
     if (ignore) {
       return;
     }
+
+    if (!list_table_records_test_conf) {
+      return;
+    }
     let count = 0;
     for await (
       const item of NocoDBUtil.list_table_records(
@@ -75,8 +80,8 @@ Deno.test({
           nocodb_token,
           logd_fetch_noco: true,
         },
-        "md3tpskh6hxtewp",
-        "vwf12mkf3118bhf1", // vwf12mkf3118bhf1
+        list_table_records_test_conf.tableId,
+        list_table_records_test_conf.viewId,
       )
     ) {
       ++count;
@@ -84,7 +89,7 @@ Deno.test({
         item,
         count,
       });
-      if (count > 200) {
+      if (count > 60) {
         break;
       }
     }

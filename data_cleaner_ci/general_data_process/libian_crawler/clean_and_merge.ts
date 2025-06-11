@@ -30,12 +30,19 @@ async function _main() {
     "debugopt-pause-on-notmatch",
     "debugopt-pause-on-dbupdate",
   ] as const;
+  const _args_str = [
+    "cache-ser-batch-size",
+  ] as const;
   const cmdarg = parseArgs(Deno.args, {
     boolean: [..._args_bool, "help"] as const,
-    default: {} satisfies {
+    string: _args_str,
+    default: {
+      "cache-ser-batch-size": "5000",
+    } satisfies {
       [
-        P in (typeof _args_bool)[number]
-        // | (typeof _args_str)[number]
+        P in
+          | (typeof _args_bool)[number]
+          | (typeof _args_str)[number]
       ]?: P extends (typeof _args_bool)[number] ? true
         : string;
     },
@@ -52,8 +59,34 @@ async function _main() {
     );
     return 0;
   }
+  const _parseInt = <B extends boolean>(
+    allow_null: B,
+    k: (typeof _args_str)[number],
+  ): B extends true ? number | null : number => {
+    // deno-lint-ignore no-explicit-any
+    const _invalid = (): any => {
+      if (allow_null) {
+        return null;
+      } else {
+        throw new Error(`Invalid --${k} : ${Jsons.dump(cmdarg[k])}`);
+      }
+    };
+
+    const s = cmdarg[k];
+    if (typeof s !== "string" || s.trim() == "") {
+      return _invalid();
+    }
+    const v = parseInt(s);
+    if (Nums.is_invalid(v)) {
+      return _invalid();
+    }
+    console.debug(`${k} =`, v);
+    return v;
+  };
   const pause_on_dbupdate = cmdarg["debugopt-pause-on-dbupdate"];
   const use_cache_flag = cmdarg["use-cache"];
+  const cache_ser_batch_size = _parseInt(false, "cache-ser-batch-size");
+
   // deno-lint-ignore prefer-const
   let use_cache_on_ser = use_cache_flag;
   let use_cache_on_deser = use_cache_flag;
@@ -202,7 +235,6 @@ async function _main() {
             maxgid_deser,
             use_cache_on_ser,
           });
-          const cache_ser_batch_size = 5000;
           const cache_ser_count: { value: number } = {
             value: 0,
           };

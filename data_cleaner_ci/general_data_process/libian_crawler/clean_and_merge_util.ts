@@ -448,13 +448,13 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             if (bvid.trim() === "") {
               const _type = search_result.type;
               if (_type.trim() === "" || aid === 0) {
-                Errors.logerror_and_throw("Missing bvid", search_result);
+                Errors.throw_and_format("Missing bvid", search_result);
               } else {
                 platform_duplicate_id = `${_type}__${aid}`;
                 if (_type === "ketang") {
                   content_link_url = DataClean.url_use_https_noempty(arcurl);
                 } else {
-                  Errors.logerror_and_throw(
+                  Errors.throw_and_format(
                     "Missing bvid and invalid type",
                     search_result,
                   );
@@ -639,12 +639,17 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                     );
                   })(),
                   authors: [
-                    ...(row["Author Names"].split(",").map((it) => ({
-                      nickname: it,
-                      avater_url: null,
-                      platform_user_id: `PersonName---${it}`,
-                      home_link_url: null,
-                    }))),
+                    ...(
+                      row["Author Names"].split(",").filter((it) =>
+                        Strs.is_not_blank(it)
+                      )
+                        .map((it) => ({
+                          nickname: it,
+                          avater_url: null,
+                          platform_user_id: `PersonName---${it}`,
+                          home_link_url: null,
+                        }))
+                    ),
                   ],
                   platform: PlatformEnum.Embase或镜像站,
                   platform_duplicate_id:
@@ -1945,7 +1950,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         if (value === undefined) {
           throw new Error(
             `BUG, value_new not found in values , but values id should in existed list , context is : ${
-              Deno.inspect (
+              Deno.inspect(
                 { existed, existed_list, values },
               )
             }`,

@@ -1,6 +1,8 @@
 import {
   DataClean,
+  Errors,
   is_deep_equal,
+  Jsons,
   Mappings,
   Nums,
   Paths,
@@ -15,6 +17,7 @@ import {
   assert,
   assertEquals,
   assertNotEquals,
+  assertStringIncludes,
   assertThrows,
 } from "@std/assert";
 import { MultiProgressBar } from "jsr:@deno-library/progress";
@@ -724,4 +727,121 @@ Deno.test(function iter_test() {
   next("ignore");
   next("ignore2");
   next("ignore3");
+});
+
+Deno.test(function jsons_dump_protect_test() {
+  Jsons.dump({
+    a: 1,
+    b: 2,
+    c: null,
+  });
+  for (
+    const err of [
+      assertThrows(() =>
+        Jsons.dump({
+          a: 1,
+          b: new Date(),
+        })
+      ),
+      assertThrows(() =>
+        Jsons.dump({
+          a: 1,
+          b: BigInt(100),
+        })
+      ),
+      assertThrows(() =>
+        Jsons.dump({
+          a: 1,
+          b: undefined,
+        })
+      ),
+      assertThrows(() =>
+        Jsons.dump({
+          a: 1,
+          b: NaN,
+        })
+      ),
+      assertThrows(() =>
+        Jsons.dump({
+          a: 1,
+          b: Infinity,
+        })
+      ),
+      assertThrows(() =>
+        Jsons.dump({
+          a: 1,
+          b: Temporal.Instant.fromEpochMilliseconds(1234567890000),
+        })
+      ),
+    ]
+  ) {
+    console.debug("-------------------------------");
+    console.debug("err is", err);
+  }
+});
+
+Deno.test(function error_format_test() {
+  const src = "hahahahahhahaha";
+  const err3 = new Error("error 3");
+  const err4 = new Error("error 4", { cause: err3 });
+  const err = assertThrows(() => Jsons.load(src));
+  const err2 = assertThrows(() =>
+    Jsons.dump({
+      a: 1,
+      b: new Date(),
+    })
+  );
+  try {
+    Errors.throw_and_format(
+      "Failed parse json",
+      src,
+      err,
+      err2,
+      new Error("anothor error"),
+      {
+        anothor_ctx: 114514,
+      },
+      err3,
+      err4,
+    );
+  } catch (err_res) {
+    // console.debug(err_res);
+    const err_msg = Deno.inspect(err_res);
+    console.debug(err_msg);
+    const assertStringIncludes2 = (a: string, b: string) => {
+      if (a.indexOf(b) < 0) {
+        throw new Error(
+          `======================================= assertStringIncludes ========================================
+a is:
+
+
+
+${a}
+
+
+
+======================================= assertStringIncludes ========================================
+b is:
+
+
+${b}
+
+
+
+========================================= assertStringIncludes ========================================
+`,
+        );
+      }
+    };
+    assertStringIncludes2(err_msg, "Failed parse json");
+    assertStringIncludes2(err_msg, src);
+    assertStringIncludes2(err_msg, `${err}`);
+    assertStringIncludes2(err_msg, `${err2}`.split("\n")[0]);
+    assertStringIncludes2(err_msg, src);
+    assertStringIncludes2(err_msg, `Date`);
+    assertStringIncludes2(err_msg, "anothor error");
+    assertStringIncludes2(err_msg, "114514");
+    assertStringIncludes2(err_msg, "error 3");
+    assertStringIncludes2(err_msg, "error 4");
+  }
 });

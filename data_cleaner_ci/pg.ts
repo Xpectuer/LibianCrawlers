@@ -4,9 +4,12 @@ import jsonata from "jsonata";
 import {
   Arrays,
   DataClean,
+  Errors,
   is_deep_equal,
   Jsonatas,
   Jsons,
+  Mappings,
+  Paths,
   SizeOf,
   Streams,
   Strs,
@@ -184,6 +187,16 @@ export async function* read_postgres_table(
           if (g_id === "pass") {
             continue;
           }
+          if (!cache_file.isFile) {
+            continue;
+          }
+          const cache_file_path = Paths.join2(cache_dir, cache_file.name);
+          const stat_res = await Deno.stat(cache_file_path);
+          if (stat_res.size <= 0) {
+            // 有时中途异常推出会导致创建空文件。
+            await Deno.remove(cache_file_path);
+            continue;
+          }
           cache_file_list.push({
             g_id,
             cache_file,
@@ -264,17 +277,15 @@ export async function* read_postgres_table(
           if (cache_file.bytes === null) {
             throw new Error("Assert cache_file.bytes not null");
           }
+
           try {
             value = Jsons.load(Strs.parse_utf8(cache_file.bytes));
           } catch (err) {
-            // 有时中途打断操作时可能会创建一个空cache文件。
-            console.warn("Failed parse json from cache_file , delete it", {
+            Errors.throw_and_format("Failed parse json from cache_file", {
               cache_file_path: cache_file.cache_file_path,
               err,
               bytes_len: cache_file.bytes.length,
-            });
-            await Deno.remove(cache_file.cache_file_path);
-            continue;
+            }, err);
           }
         }
         if (
@@ -325,6 +336,14 @@ export async function* read_postgres_table(
       const cursor = _create_select_sql().cursor(batch_size);
       for await (const rows of cursor) {
         completed.value += rows.length;
+        // 将 postgres 日期列的 Date对象 转为字符串，以便 Jsons.dump
+        for (const row of rows) {
+          for (const k of Mappings.object_keys(row)) {
+            if (row[k] instanceof Date) {
+              row[k] = row[k].toISOString();
+            }
+          }
+        }
         if (on_bar) {
           await on_bar({ completed: completed.value, total });
         }
@@ -335,12 +354,13 @@ export async function* read_postgres_table(
               rows.map(async (row) => {
                 const g_id = row["g_id"];
                 if (Nums.is_int(g_id)) {
+                  const json_content = Jsons.dump(row, { indent: 2 });
                   await write_file({
                     file_path: path.join(cache_dir, `${g_id}.json`),
                     creator: {
                       mode: "text",
                       // deno-lint-ignore require-await
-                      content: async () => Jsons.dump(row, { indent: 2 }),
+                      content: async () => json_content,
                     },
                     log_tag: "no",
                   });
