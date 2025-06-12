@@ -66,9 +66,9 @@
     },
     "dev:libian_crawler:run_all": {
       "description": "⭐ 一键启动类型生成和数据清洗(都启用缓存和允许网络)",
-      "command": "deno task step:check && deno task step:libian_crawler:clean_and_merge:allownet --use-cache",
+      "command": "deno task init:code_gen:allownet && deno task step:check && deno task step:libian_crawler:clean_and_merge:allownet --use-cache",
       "dependencies": [
-        "deno task init:code_gen:allownet"
+        "step:check"
       ]
     }
   },
