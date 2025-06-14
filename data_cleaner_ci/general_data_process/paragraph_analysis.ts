@@ -40,4 +40,13 @@ export namespace Paragraphs {
       text_cleaned,
     };
   }
+
+  export function* find_languages_in_text(text: string) {
+    if (text.indexOf("中文") >= 0) {
+      yield "Chinese" as const;
+    }
+    if (text.indexOf("英文") >= 0) {
+      yield "English" as const;
+    }
+  }
 }

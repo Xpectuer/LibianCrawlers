@@ -33,12 +33,14 @@ import { ShopGood } from "../shop_good.ts";
 import {
   ChatMessageTable,
   create_and_init_libian_crawler_database_scope,
+  LiteratureTable,
   MediaPostTable,
   ShopGoodTable,
 } from "./data_storage.ts";
 import { pg_dto_equal } from "../../pg.ts";
 import { ChatMessage } from "../chat_message.ts";
 import { createHash } from "node:crypto";
+import { Literature } from "../literature.ts";
 
 // deno-lint-ignore no-namespace
 export namespace LibianCrawlerCleanAndMergeUtil {
@@ -100,6 +102,19 @@ export namespace LibianCrawlerCleanAndMergeUtil {
   ): string | null {
     const res = new RegExp("'(.+)'\\/exp").exec(search_query);
     return res?.at(1) ?? null;
+  }
+
+  /**
+   * 如果指定issn则使用issn。
+   */
+  export function get_literature_duplicated_id(_param: {
+    issn: DataClean.ISSN;
+  }) {
+    const { issn } = _param;
+    if (Strs.is_not_blank(issn)) {
+      return `ISSN_${issn}` as const;
+    }
+    Errors.throw_and_format(`Can't get literature duplicated id`, { _param });
   }
 
   export type MediaContentMerged =
@@ -675,7 +690,9 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                   literatures: [
                     {
                       journal: null,
-                      issn: Strs.is_not_blank(row.ISSN) ? row.ISSN : null,
+                      issn: Strs.is_not_blank(row.ISSN)
+                        ? DataClean.check_issn(row.ISSN) ? row.ISSN : null
+                        : null,
                       isbn: Strs.is_not_blank(row.ISBN) ? row.ISBN : null,
                       publication_type:
                         Strs.is_not_blank(row["Publication Type"])
@@ -686,6 +703,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                       category: null,
                       level_of_evidence: null,
                       book_publisher: null,
+                      cnsn: null,
                     },
                   ],
                   language: Strs.is_not_blank(row["Article Language"])
@@ -1219,11 +1237,189 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                   publication_type: null,
                   pui: null,
                   book_publisher: null,
+                  cnsn: null,
                 },
               ],
               language: null,
             };
             yield res;
+          }
+          if (
+            template_parse_html_tree.cnki_journal_detail &&
+            "info_dict" in template_parse_html_tree.cnki_journal_detail &&
+            template_parse_html_tree.cnki_journal_detail.info_dict &&
+            typeof template_parse_html_tree.cnki_journal_detail.info_dict ===
+              "object" &&
+            "ISSN" in template_parse_html_tree.cnki_journal_detail.info_dict &&
+            Strs.is_not_blank(
+              template_parse_html_tree.cnki_journal_detail.info_dict.ISSN,
+            )
+          ) {
+            const g_id = smart_crawl.g_id;
+            const { info_dict, title } =
+              template_parse_html_tree.cnki_journal_detail;
+            const issn = Strs.is_not_blank(info_dict.ISSN?.trim())
+              ? info_dict.ISSN.trim()
+              : null;
+            if (!Strs.is_not_blank(title) || !Strs.is_not_blank(issn)) {
+              console.warn("Why title or issn empty ?", {
+                g_id,
+                issn,
+                title,
+                info_dict,
+              });
+            } else {
+              if (!DataClean.check_issn(issn)) {
+                Errors.throw_and_format("Invalid issn", {
+                  issn,
+                  g_id,
+                  title,
+                  info_dict,
+                });
+              }
+              const cnsn = Strs.is_not_blank(info_dict.CN?.trim())
+                ? info_dict.CN.trim()
+                : null;
+              const isbn = null;
+              let impact_factor_latest_year = 1970;
+              let impact_factor_latest: null | number = null;
+              for (const [key, value] of Mappings.object_entries(info_dict)) {
+                if (!Strs.has_text(key, "影响因子" as const)) {
+                  continue;
+                }
+                const v = DataClean.parse_number(value ?? "-1", "allow_nan");
+                if (Nums.is_invalid(v) || v < 0) {
+                  continue;
+                }
+                const year_str = key.match(new RegExp("(\\d{4})"))?.at(1) ??
+                  null;
+                if (!year_str) {
+                  continue;
+                }
+                const year = DataClean.parse_number(year_str);
+                if (year > impact_factor_latest_year) {
+                  impact_factor_latest = v;
+                  impact_factor_latest_year = year;
+                } else if (year === impact_factor_latest_year) {
+                  impact_factor_latest = Math.max(v, impact_factor_latest ?? 0);
+                } else {
+                  continue;
+                }
+              }
+              let keywords: string[] = [];
+              for (
+                const kwds of [info_dict.专辑名称, info_dict.专题名称] as const
+              ) {
+                for (
+                  const kw of Strs.remove_prefix_suffix_recursion(
+                    kwds.trim(),
+                    ";",
+                  ).split(";")
+                ) {
+                  if (Strs.is_not_blank(kw)) {
+                    keywords.push(kw.trim());
+                  }
+                }
+              }
+              keywords = Streams.deduplicate(keywords);
+
+              const res: Literature = {
+                platform: PlatformEnum.文献,
+                last_crawl_time: Times.parse_text_to_instant(
+                  smart_crawl.g_create_time,
+                ),
+                platform_duplicate_id: get_literature_duplicated_id({ issn }),
+                crawl_from_platform: PlatformEnum.知网,
+                title,
+                languages: [
+                  ...Paragraphs.find_languages_in_text(info_dict.语种 ?? ""),
+                  ...Strs.remove_prefix_suffix_recursion(
+                    (info_dict.语种 ?? "").trim().replace("；", ";"),
+                    ";",
+                  ).split(";"),
+                ],
+                create_year: chain(() =>
+                  info_dict.创刊时间
+                    ? DataClean.parse_number(
+                      info_dict.创刊时间,
+                      "allow_nan",
+                    )
+                    : null
+                ).map((it) =>
+                  null === it
+                    ? null
+                    : Nums.is_invalid(it)
+                    ? null
+                    : !Nums.is_int(it)
+                    ? null
+                    : it <= 1000
+                    ? null
+                    : it
+                ).get_value(),
+                international_standard_serial_number: issn,
+                international_standard_book_number: isbn,
+                china_standard_serial_number: cnsn,
+                publication_organizer: info_dict.主办单位 ?? null,
+                publication_place: info_dict.出版地 ?? null,
+                keywords,
+                count_published_documents: chain(() =>
+                  DataClean.parse_number(
+                    Strs.remove_suffix_recursion(
+                      info_dict.出版文献量 ?? "-1",
+                      "篇",
+                    ).trim(),
+                    "allow_nan",
+                  )
+                ).map((it) =>
+                  Nums.is_invalid(it)
+                    ? null
+                    : !Nums.is_int(it)
+                    ? null
+                    : it < 0
+                    ? null
+                    : it
+                ).get_value(),
+                count_download_total: chain(() =>
+                  DataClean.parse_number(
+                    Strs.remove_suffix_recursion(
+                      info_dict.总下载次数 ?? "-1",
+                      "次",
+                    ).trim(),
+                    "allow_nan",
+                  )
+                ).map((it) =>
+                  Nums.is_invalid(it)
+                    ? null
+                    : !Nums.is_int(it)
+                    ? null
+                    : it < 0
+                    ? null
+                    : it
+                ).get_value(),
+                count_citations_total: chain(() =>
+                  DataClean.parse_number(
+                    Strs.remove_suffix_recursion(
+                      info_dict.总被引次数 ?? "-1",
+                      "次",
+                    ).trim(),
+                    "allow_nan",
+                  )
+                ).map((it) =>
+                  Nums.is_invalid(it)
+                    ? null
+                    : !Nums.is_int(it)
+                    ? null
+                    : it < 0
+                    ? null
+                    : it
+                ).get_value(),
+                impact_factor_latest,
+              };
+              yield {
+                __mode__: "literature" as const,
+                ...res,
+              };
+            }
           }
           if (
             template_parse_html_tree.qianniu_message_export &&
@@ -1364,14 +1560,15 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           ) {
             const { template_parse_html_tree, g_create_time, g_search_key } =
               garbage.group__entrez_search_result__lib_biopython;
-            const { ref_works } = template_parse_html_tree;
-            if (!ref_works) {
+            // 我原以为这是 RefWorks 格式，然而不是。
+            const { ref_works: ncbi_fmt } = template_parse_html_tree;
+            if (!ncbi_fmt) {
               throw new Error("Why parse ref_works failed ?");
             }
             const find_value = (
-              label: (typeof ref_works)["entries"][number]["label"],
+              label: (typeof ncbi_fmt)["entries"][number]["label"],
             ) =>
-              ref_works.entries_multiple.find((it) => it.label === label)
+              ncbi_fmt.entries_multiple.find((it) => it.label === label)
                 ?.values_join ?? null;
             const get_doi = () => {
               let line = find_value("LID");
@@ -1385,9 +1582,38 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               line = line.replace("[doi]", "").trim();
               return Strs.is_not_blank(line) ? line : null;
             };
+            const get_issn = () => {
+              const values = ncbi_fmt.entries_multiple.find((it) =>
+                it.label === "IS"
+              )?.values;
+              if (typeof values === "undefined" || values.length <= 0) {
+                return null;
+              }
+              const issn_list = values.map((value) => {
+                return DataClean.check_issn(value) ? value : null;
+              }).filter((it) => it !== null);
+              if (issn_list.length <= 0) {
+                return null;
+              } else if (issn_list.length > 1) {
+                for (const issn of issn_list) {
+                  if (issn !== issn_list[0]) {
+                    Errors.throw_and_format("Why not same issn ?", {
+                      issn_list,
+                      ncbi_fmt,
+                    });
+                  }
+                }
+                return issn_list[0];
+              } else {
+                return issn_list[0];
+              }
+            };
             const pubmed_id = find_value("PMID");
             if (!pubmed_id) {
-              throw new Error("TODO: other platform");
+              Errors.throw_and_format("TODO: other platform", {
+                pubmed_id,
+                ncbi_fmt,
+              });
             }
             const dcom = find_value("DCOM");
             const lr = find_value("LR");
@@ -1402,7 +1628,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               content_text_summary,
               content_text_detail: null,
               content_link_url: `https://pubmed.ncbi.nlm.nih.gov/${pubmed_id}`,
-              authors: ref_works.authors.map((it) => {
+              authors: ncbi_fmt.authors.map((it) => {
                 return {
                   platform_user_id: `PersonName---${it.AU}`,
                   nickname: it.AU,
@@ -1427,7 +1653,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               ),
               update_time: null,
               tags: chain(() =>
-                ref_works.entries_multiple
+                ncbi_fmt.entries_multiple
                   .find((it) => it.label === "OT")
                   ?.values.map((it) => ({ text: it }))
               )
@@ -1448,11 +1674,12 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                   doi: get_doi(),
                   category: null,
                   level_of_evidence: null,
-                  issn: null,
+                  issn: get_issn(),
                   isbn: null,
                   publication_type: null,
                   pui: null,
                   book_publisher: null,
+                  cnsn: null,
                 },
               ],
               language: find_value("LA"),
@@ -1893,6 +2120,108 @@ export namespace LibianCrawlerCleanAndMergeUtil {
     });
   }
 
+  export function create_reducer_for_literature() {
+    return create_reducer_for_type<Literature, Literature>({
+      get_key_prefix: "literature",
+      reduce(prev, cur) {
+        const last_crawl_time = Nums.take_extreme_value("max", [
+          prev?.last_crawl_time ?? null,
+          cur.last_crawl_time,
+        ]);
+        const languages =Streams.deduplicate( [
+          ...(prev?.languages ?? []),
+          ...(cur.languages ?? []),
+        ]);
+        const keywords = Streams.deduplicate([
+          ...(prev?.keywords ?? []),
+          ...(cur.keywords ?? []),
+        ]);
+        const create_year = chain(() =>
+          [prev?.create_year, cur.create_year].map((it) =>
+            typeof it === "number" ? it : -1
+          ).filter((it) => it > 1000)
+        ).map((it) => it.length <= 0 ? null : Math.min(...it)).get_value();
+        const international_standard_serial_number = Arrays.first_or_null([
+          prev?.international_standard_serial_number ?? null,
+          cur.international_standard_serial_number,
+        ].filter((it) => Strs.is_not_blank(it)));
+        const international_standard_book_number = Arrays.first_or_null([
+          prev?.international_standard_book_number ?? null,
+          cur.international_standard_book_number,
+        ].filter((it) => Strs.is_not_blank(it)));
+        const china_standard_serial_number = Arrays.first_or_null([
+          prev?.china_standard_serial_number ?? null,
+          cur.china_standard_serial_number,
+        ].filter((it) => Strs.is_not_blank(it)));
+        const publication_organizer = Arrays.first_or_null([
+          prev?.publication_organizer ?? null,
+          cur.publication_organizer,
+        ].filter((it) => Strs.is_not_blank(it)));
+        const publication_place = Arrays.first_or_null([
+          prev?.publication_place ?? null,
+          cur.publication_place,
+        ].filter((it) => Strs.is_not_blank(it)));
+        const count_published_documents = Nums.take_extreme_value("max", [
+          prev?.count_published_documents ?? null,
+          cur.count_published_documents,
+        ]);
+        const count_download_total = Nums.take_extreme_value("max", [
+          prev?.count_download_total ?? null,
+          cur.count_download_total,
+        ]);
+        const count_citations_total = Nums.take_extreme_value("max", [
+          prev?.count_citations_total ?? null,
+          cur.count_citations_total,
+        ]);
+        let impact_factor_latest: number | null;
+        if (prev?.impact_factor_latest) {
+          const pt = prev?.last_crawl_time;
+          const ct = cur.last_crawl_time;
+          const pv = prev.impact_factor_latest;
+          const cv = cur.impact_factor_latest;
+          if (cv && cv > 0) {
+            if (pt && ct) {
+              impact_factor_latest = Temporal.Instant.compare(pt, ct) < 0
+                ? cv
+                : pv;
+            } else if (pt) {
+              impact_factor_latest = pv;
+            } else if (ct) {
+              impact_factor_latest = cv;
+            } else {
+              impact_factor_latest = pv > cv ? pv : cv;
+            }
+          } else {
+            impact_factor_latest = pv;
+          }
+        } else {
+          const cv = cur.impact_factor_latest;
+          if (cv && cv > 0) {
+            impact_factor_latest = cv;
+          } else {
+            impact_factor_latest = null;
+          }
+        }
+        return {
+          ...cur,
+          last_crawl_time,
+          languages,
+          keywords,
+          create_year,
+          international_standard_serial_number,
+          international_standard_book_number,
+          china_standard_serial_number,
+          publication_organizer,
+          publication_place,
+          count_published_documents,
+          count_download_total,
+          count_citations_total,
+          impact_factor_latest,
+        };
+      },
+    });
+  }
+
   /**
    * 本来想把 kysely 的增删改查也封装的，奈何类型体操令人头晕目眩，所以先不管。
    */
@@ -2204,6 +2533,9 @@ ${Deno.inspect(existed, { depth: 4 })}
         literature_first_category: literature_first?.category ?? null,
         literature_first_level_of_evidence:
           literature_first?.level_of_evidence ?? null,
+        literature_first_issn: literature_first?.issn ?? null,
+        literature_first_isbn: literature_first?.isbn ?? null,
+        literature_first_cnsn: literature_first?.cnsn ?? null,
       } satisfies Omit<
         Parameters<ReturnType<typeof db.insertInto<typeof table>>["values"]>[0],
         "id"
@@ -2438,6 +2770,102 @@ ${Deno.inspect(existed, { depth: 4 })}
       const _res_typecheck = res satisfies Omit<
         // deno-lint-ignore no-explicit-any
         { [P in keyof ChatMessageTable]: any },
+        "id"
+      >;
+      return _res_typecheck;
+    };
+    return await _insert_or_update(values, options, {
+      get_id,
+      is_value_equal_then_value_dto(value, existed_dto) {
+        const value_to_dto: typeof existed_dto = {
+          id: existed_dto.id,
+          ...get_dto_for_insert_or_update(value),
+        };
+        return {
+          result: pg_dto_equal(value_to_dto, existed_dto),
+          value_to_dto,
+        };
+      },
+      read_existed_list: async () => {
+        const existed_list = await db
+          .selectFrom(table)
+          .selectAll()
+          .where("id", "in", [...values.map((value) => get_id(value))])
+          .execute();
+        return existed_list;
+      },
+      exec_update_result: async (ctx2) => {
+        return await db
+          .updateTable(table)
+          .set((_eb) => {
+            return {
+              ...get_dto_for_insert_or_update(ctx2.value),
+            };
+          })
+          .where("id", "=", ctx2.existed.id)
+          .executeTakeFirstOrThrow();
+      },
+      exec_insert_result: async (ctx2) => {
+        return await db
+          .insertInto(table)
+          .values([
+            ...ctx2.not_existed.map((value) => {
+              return {
+                id: get_id(value),
+                ...get_dto_for_insert_or_update(value),
+              };
+            }),
+          ])
+          .execute();
+      },
+    });
+  }
+
+  export async function insert_or_update_literature(
+    db: Parameters<
+      Parameters<typeof create_and_init_libian_crawler_database_scope>[0]
+    >[0],
+    values: Literature[],
+    options: {
+      on_bar_text: (text: string) => Promise<void>;
+      pause_on_dbupdate: boolean;
+    },
+  ) {
+    const get_id = (value: Literature) => {
+      return `${value.platform}___${value.platform_duplicate_id}`;
+    };
+    const table = `libian_crawler_cleaned.literature`;
+    const get_dto_for_insert_or_update = (value: (typeof values)[number]) => {
+      const last_crawl_time = Times.instant_to_date(value.last_crawl_time);
+      const res = {
+        ...Mappings.filter_keys(value, "pick", [
+          "platform",
+          "platform_duplicate_id",
+          "crawl_from_platform",
+          "title",
+          "languages",
+          "create_year",
+          "international_standard_serial_number",
+          "international_standard_book_number",
+          "china_standard_serial_number",
+          "publication_organizer",
+          "publication_place",
+          "keywords",
+          "count_published_documents",
+          "count_download_total",
+          "count_citations_total",
+          "impact_factor_latest",
+        ]),
+        last_crawl_time,
+        languages_joined: (value.languages ?? []).join(","),
+        keywords_joined: (value.keywords ?? []).join(","),
+      } satisfies Omit<
+        Parameters<ReturnType<typeof db.insertInto<typeof table>>["values"]>[0],
+        "id"
+      >;
+      const _res_typecheck = res satisfies Omit<
+        // deno-lint-ignore no-explicit-any
+        { [P in keyof LiteratureTable]: any },
         "id"
       >;
       return _res_typecheck;

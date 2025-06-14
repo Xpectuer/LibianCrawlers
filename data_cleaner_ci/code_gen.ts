@@ -315,6 +315,7 @@ export async function generate_repository_api(
           const ncbases = await NocoDBUtil.fetch_ncbases_all_info({
             baseurl: DataClean.url_use_https_noempty(repository.base_url),
             nocodb_token: repository.token,
+            logd_simple: cmdarg.only_gen_nocodb ? true : false,
           });
           await bar.set_completed(1);
           const api_file_path = path.join(

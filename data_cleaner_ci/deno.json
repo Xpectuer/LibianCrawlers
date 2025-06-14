@@ -46,9 +46,8 @@
         "step:check:type:data_cleaner_ci_generated:api"
       ]
     },
-    "step:check": {
-      "description": "⭐ 检查类型并运行测试",
-      "command": "deno test --allow-env=NODE_NDEBUG,READABLE_STREAM --allow-read=user_code/testdevconfig.json,user_code/.tmp/.util_test --allow-write=user_code/.tmp/.util_test --allow-net --ignore=./jsonata_templates/jsonata_test.ts --quiet",
+    "step:check:type": {
+      "description": "检查类型",
       "dependencies": [
         "step:check:type:root",
         "step:check:type:general_data_process",
@@ -60,6 +59,13 @@
         "step:check:type:data_cleaner_ci_generated"
       ]
     },
+    "step:check": {
+      "description": "⭐ 检查类型并运行测试",
+      "command": "deno test --allow-env=NODE_NDEBUG,READABLE_STREAM --allow-read=user_code/testdevconfig.json,user_code/.tmp/.util_test --allow-write=user_code/.tmp/.util_test --allow-net --ignore=./jsonata_templates/jsonata_test.ts --quiet",
+      "dependencies": [
+        "step:check:type"
+      ]
+    },
     "step:libian_crawler:clean_and_merge:allownet": {
       "description": "⭐ 启动数据清洗(允许网络)",
       "command": "deno run --v8-flags=--max-old-space-size=10240 --allow-env=\"PG*\",NODE_NDEBUG,READABLE_STREAM --allow-read=data_cleaner_ci_generated/.cache_by_id,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=data_cleaner_ci_generated,user_code,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache --allow-net general_data_process/libian_crawler/clean_and_merge.ts"
@@ -69,6 +75,17 @@
       "command": "deno task init:code_gen:allownet --skip-existed && deno task step:check && deno task step:libian_crawler:clean_and_merge:allownet --use-cache",
       "dependencies": [
         "step:check"
+      ]
+    },
+    "init:code_gen:only_nocodb": {
+      "description": "仅启动 nocodb 代码生成(允许网络)",
+      "command": "deno task init:code_gen:allownet --only-gen-nocodb"
+    },
+    "init:nocodb": {
+      "description": "⭐ 初始化 nocodb 数据分析",
+      "command": "deno task step:check:type:data_cleaner_ci_generated:meta && deno task step:check:type:user_code",
+      "dependencies": [
+        "init:code_gen:only_nocodb"
       ]
     }
   },

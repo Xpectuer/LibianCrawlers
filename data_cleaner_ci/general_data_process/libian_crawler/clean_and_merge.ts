@@ -161,6 +161,8 @@ async function _main() {
             .create_reducer_for_shop_good();
           const chat_message = LibianCrawlerCleanAndMergeUtil
             .create_reducer_for_chat_message();
+          const literature = LibianCrawlerCleanAndMergeUtil
+            .create_reducer_for_literature();
 
           //  create_context_of_insert_or_update_reduced_data
           const reducers = [
@@ -194,6 +196,18 @@ async function _main() {
                 ...chat_message,
                 insert_or_update: LibianCrawlerCleanAndMergeUtil
                   .insert_or_update_chat_message,
+              };
+              return {
+                ...r,
+                db_ctx: create_context_of_insert_or_update_reduced_data(r),
+              };
+            })(),
+            (() => {
+              const r = {
+                tag_text: "literature",
+                ...literature,
+                insert_or_update: LibianCrawlerCleanAndMergeUtil
+                  .insert_or_update_literature,
               };
               return {
                 ...r,
@@ -316,6 +330,12 @@ async function _main() {
                   "chat_message" === item.value.__mode__
                 ) {
                   await chat_message.reducer.next(item.value);
+                } else if (
+                  typeof item.value === "object" &&
+                  "__mode__" in item.value &&
+                  "literature" === item.value.__mode__
+                ) {
+                  await literature.reducer.next(item.value);
                 } else if (
                   typeof item.value === "object" &&
                   "related_questions" in item.value &&

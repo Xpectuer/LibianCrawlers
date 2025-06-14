@@ -1,4 +1,4 @@
-import { NocoDBUtil } from "./nocodbutil.ts";
+import { NocoDBDataset, NocoDBUtil } from "./nocodbutil.ts";
 import { TestUtil } from "../util.ts";
 
 const { nocodb_baseurl, nocodb_token, list_table_records_test_conf } =

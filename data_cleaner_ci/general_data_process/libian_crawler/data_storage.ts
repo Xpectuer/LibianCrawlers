@@ -14,6 +14,7 @@ export interface LibianCrawlerDatabase {
   "libian_crawler_cleaned.media_post": MediaPostTable;
   "libian_crawler_cleaned.shop_good": ShopGoodTable;
   "libian_crawler_cleaned.chat_message": ChatMessageTable;
+  "libian_crawler_cleaned.literature": LiteratureTable;
   // "libian_crawler_cleaned.file_storage": FileStorageTable;
   // "libian_crawler_cleaned.image_ocr": ImageOcrTable;
   // "libian_crawler_cleaned.audio_speech_recognition": AudioSpeechRecognitionTable;
@@ -91,6 +92,9 @@ export interface MediaPostTable {
   literature_first_doi: string | null;
   literature_first_category: string | null;
   literature_first_level_of_evidence: string | null;
+  literature_first_issn: string | null;
+  literature_first_isbn: string | null;
+  literature_first_cnsn: string | null;
 }
 
 export interface ShopGoodTable {
@@ -112,6 +116,28 @@ export interface ShopGoodTable {
   link_url: string | null;
 }
 
+export interface LiteratureTable {
+  id: string;
+  platform: typeof PlatformEnum.文献;
+  platform_duplicate_id: string;
+  last_crawl_time: Date | null;
+  crawl_from_platform: PlatformEnum | null;
+  title: string;
+  languages: PostgresColumnType.JSON<string[]>;
+  languages_joined: string | null;
+  create_year: number | null;
+  international_standard_serial_number: string | null;
+  international_standard_book_number: string | null;
+  china_standard_serial_number: string | null;
+  publication_organizer: string | null;
+  publication_place: string | null;
+  keywords: PostgresColumnType.JSON<string[]>;
+  keywords_joined: string | null;
+  count_published_documents: number | null;
+  count_download_total: number | null;
+  count_citations_total: number | null;
+  impact_factor_latest: number | null;
+}
 // export interface FileStorageTable {
 //   id: string;
 //   create_time: Date;
@@ -186,7 +212,7 @@ export interface ChatMessageTable {
 }
 
 export async function create_and_init_libian_crawler_database_scope<R>(
-  scope: (db: Kysely<LibianCrawlerDatabase>) => Promise<R>
+  scope: (db: Kysely<LibianCrawlerDatabase>) => Promise<R>,
 ) {
   const { data_storage } = config.libian_crawler;
   const { connect_param, migration } = data_storage;
@@ -238,9 +264,6 @@ export async function create_and_init_libian_crawler_database_scope<R>(
     ...connect_param,
     ssl,
   };
-  // deno-lint-ignore no-explicit-any
-  // (postgr
-
   const sql = postgres(postgres_options);
   // https://github.com/porsager/postgres/issues/778#issuecomment-2154846646
   console.debug("Test SELECT 1", (await sql.unsafe("SELECT 1")).columns);

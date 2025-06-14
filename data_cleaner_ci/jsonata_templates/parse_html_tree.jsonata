@@ -119,6 +119,22 @@
                 "shop_icon": $shop_icon
             };
             $m
+        ),
+        "cnki_journal_detail": (
+            $map_info_entry := function($it) {(
+                $k := $join($it.children[name="label"].**[str].str);
+                $v := $join($it.children[name="span"].**[str].str);
+
+                {
+                    $k : $v
+                }
+            )};
+            $info_entries := $tags[$contains($join(attrs.class), "hostUnit")].$map_info_entry($);
+            $info_dict := $merge($info_entries);
+            $m := {
+                "title":  $distinct($tags.**[name="title"].str),
+                "info_dict": $info_dict
+            }
         )
     }
 )

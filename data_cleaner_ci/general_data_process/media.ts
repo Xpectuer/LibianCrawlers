@@ -8,6 +8,7 @@ export enum PlatformEnum {
   PubMed = "pubmed.ncbi.nlm.nih.gov",
   千牛聊天记录 = "qn.taobao.com/home.htm/app-customer-service/toolpage/Message",
   Embase或镜像站 = "Embase_Or_Proxy",
+  文献 = "literatures",
 }
 
 export type MediaContentTag = {
@@ -29,7 +30,7 @@ export type MediaContentAuthor = {
    */
   avater_url: DataClean.HttpUrl | null;
   /**
-   * 用户主页链接f
+   * 用户主页链接
    */
   home_link_url: DataClean.HttpUrl | null;
 };
@@ -134,16 +135,16 @@ export type MediaContent = {
   /**
    * 文献相关
    */
-  literatures: Literature[] | null;
+  literatures: LiteratureAbout[] | null;
   /**
    * 语言
    */
   language: string | null;
 };
 
-export type Literature = {
+export type LiteratureAbout = {
   journal: string | null;
-  issn: string | null;
+  issn: DataClean.ISSN | null;
   isbn: string | null;
   publication_type: string | null;
   doi: string | null;
@@ -151,6 +152,7 @@ export type Literature = {
   category: string | null;
   level_of_evidence: string | null;
   book_publisher: string | null;
+  cnsn: string | null;
   // album: string | null;
   // theme: string | null;
   // funds: string[] | null;

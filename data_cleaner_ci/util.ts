@@ -607,6 +607,13 @@ export namespace Strs {
       return text;
     }
   }
+
+  export function has_text<T extends string, H extends string>(
+    text: T,
+    has: H,
+  ): text is Extract<T, `${string}${H}${string}`> {
+    return text.indexOf(has) >= 0;
+  }
 }
 
 // deno-lint-ignore no-namespace
@@ -1088,7 +1095,7 @@ export namespace Nums {
   }
 
   export type NumberLike = number | `${number}`;
-
+  export type Is0to9 = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   export function is_int(s: string | number): s is NumberLike {
     if (typeof s === "number") {
       return !is_invalid(s) && s.toFixed(0) === s.toString();
@@ -1954,6 +1961,41 @@ export namespace DataClean {
       authors,
       entries_multiple,
     };
+  }
+
+  export type ISSN = `${number}-${number}${"X" | number}`;
+
+  export function check_issn(
+    issn: string,
+  ): issn is ISSN {
+    if (issn.length !== 9) {
+      return false;
+    }
+    for (let i = 0; i < 9; i++) {
+      switch (issn[i]) {
+        case "0":
+        case "1":
+        case "2":
+        case "3":
+        case "4":
+        case "5":
+        case "6":
+        case "7":
+        case "8":
+        case "9":
+          continue;
+        case "X":
+          return i === 8;
+        case "-":
+          if (i !== 4) {
+            return false;
+          }
+          continue;
+        default:
+          return false;
+      }
+    }
+    return true;
   }
 }
 

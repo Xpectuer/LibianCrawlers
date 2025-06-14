@@ -2,6 +2,7 @@ import {
   Arrays,
   DataClean,
   Errors,
+  is_deep_equal,
   is_nullish,
   Jsons,
   Mappings,
@@ -98,8 +99,8 @@ export namespace NocoDBUtil {
     ["PhoneNumber", "unknown"],
     ["GeoData", "unknown"],
     ["Email", "unknown"],
-    ["URL", "unknown"],
-    ["Number", "unknown"],
+    ["URL", "string"],
+    ["Number", "number"],
     ["Decimal", "unknown"],
     ["Currency", "unknown"],
     ["Percent", "unknown"],
@@ -108,7 +109,7 @@ export namespace NocoDBUtil {
     ["Formula", "unknown"],
     ["Rollup", "unknown"],
     ["Count", "unknown"],
-    ["DateTime", "unknown"],
+    ["DateTime", "string"],
     ["CreatedTime", "unknown"],
     ["LastModifiedTime", "unknown"],
     ["AutoNumber", "unknown"],
@@ -133,6 +134,7 @@ export namespace NocoDBUtil {
 
   type UITypesValueType<T> = T extends "unknown" ? unknown
     : T extends "string" ? string | null
+    : T extends "number" ? number | null
     : never;
 
   export type UITypes = {
@@ -140,7 +142,7 @@ export namespace NocoDBUtil {
       Extract<
         typeof ui_types[number],
         // deno-lint-ignore no-explicit-any
-        Readonly<[K, any]>
+        Typings.DeepReadonly<[K, any]>
       >[1]
     >;
   };
@@ -224,6 +226,20 @@ export namespace NocoDBUtil {
         "where",
         string
       >;
+    }
+    | {
+      method: "POST";
+      pth: `/api/v2/tables/${string}/records`;
+      body: {
+        [k in string]: unknown;
+      }[];
+    }
+    | {
+      method: "PATCH";
+      pth: `/api/v2/tables/${string}/records`;
+      body: {
+        [k in "Id" | string]: k extends "Id" ? string : unknown;
+      }[];
     };
 
   const _fetch_noco = async <R>(
@@ -618,7 +634,10 @@ export namespace NocoDBUtil {
     return res_json;
   }
 
-  export async function fetch_ncbases_all_info(param: FetchOption) {
+  export async function fetch_ncbases_all_info(
+    param: FetchOption & { logd_simple?: boolean },
+  ) {
+    const { logd_simple } = param;
     const ncbases: Array<
       NocoDBUtil.NcBase & {
         "__tables__": Array<
@@ -641,6 +660,9 @@ export namespace NocoDBUtil {
         ...param,
       })
     ) {
+      if (logd_simple) {
+        console.debug(`Generating base ${ncbase.title} , id is ${ncbase.id}`);
+      }
       const __tables__: typeof ncbases[number]["__tables__"] = [];
       ncbases.push({
         ...Jsons.copy(ncbase),
@@ -651,6 +673,11 @@ export namespace NocoDBUtil {
           ...param,
         }, ncbase.id)
       ) {
+        if (logd_simple) {
+          console.debug(
+            `   Generating table ${nctable.title} , id is ${nctable.id}`,
+          );
+        }
         const __views__:
           typeof ncbases[number]["__tables__"][number]["__views__"] = [];
         __tables__.push({
@@ -663,6 +690,11 @@ export namespace NocoDBUtil {
             ...param,
           }, nctable.id)
         ) {
+          if (logd_simple) {
+            console.debug(
+              `      Generating view ${ncview.title} , id is ${ncview.id}`,
+            );
+          }
           const __columns__:
             typeof ncbases[number]["__tables__"][number]["__views__"][
               number
@@ -694,6 +726,7 @@ export namespace NocoDBUtil {
     param: FetchOption,
     tableId: string,
     viewId: null | string,
+    where?: string,
   ) {
     yield* _read_pages(
       {
@@ -702,29 +735,102 @@ export namespace NocoDBUtil {
         page_check_offset: true,
         get_route(page) {
           const page_size = 25;
+          const pth1 = `/api/v2/tables/${tableId}/records?offset=${
+            page * page_size
+          }&limit=${page_size}` as const;
+          const pth2 = viewId ? `${pth1}&viewId=${viewId}` as const : pth1;
+          const pth3 = where ? `${pth2}&where=${where}` as const : pth2;
           return {
             method: "GET",
-            pth: viewId
-              ? `/api/v2/tables/${tableId}/records?offset=${
-                page * page_size
-              }&limit=${page_size}&viewId=${viewId}`
-              : `/api/v2/tables/${tableId}/records?offset=${
-                page * page_size
-              }&limit=${page_size}`,
+            pth: pth3,
           };
         },
         on_pageInfo: async () => {
         },
       },
-      (it): it is { id: string } => {
+      (it): it is Record<string, unknown> => {
         return (
           typeof it === "object" &&
-          it !== null &&
-          "id" in it &&
-          typeof it.id === "string"
+          it !== null
         );
       },
     );
+  }
+
+  export async function create_table_records(
+    param: FetchOption & {
+      tableId: string;
+      rows: Record<string, unknown>[];
+    },
+  ) {
+    const { rows, tableId } = param;
+    const { res_json, resp } = await _fetch_noco({
+      ...param,
+      route: {
+        method: "POST",
+        pth: `/api/v2/tables/${tableId}/records`,
+        body: rows,
+      },
+    });
+    if (!Array.isArray(res_json)) {
+      Errors.throw_and_format("res_json should be array", { res_json, resp });
+    }
+    for (const item of res_json) {
+      if (
+        typeof item === "object" && item !== null && "Id" in item &&
+        typeof item["Id"] === "number"
+      ) {
+        return {
+          ...item,
+          "Id": item["Id"],
+        };
+      } else {
+        Errors.throw_and_format("Missing Id number in result object", {
+          item,
+          res_json,
+          resp,
+        });
+      }
+    }
+  }
+
+  export async function update_table_records(
+    param: FetchOption & {
+      tableId: string;
+      rows: {
+        [k in "Id" | string]: k extends "Id" ? string : unknown;
+      }[];
+    },
+  ) {
+    const { rows, tableId } = param;
+    const { res_json, resp } = await _fetch_noco({
+      ...param,
+      route: {
+        method: "PATCH",
+        pth: `/api/v2/tables/${tableId}/records`,
+        body: rows,
+      },
+    });
+    if (!Array.isArray(res_json)) {
+      Errors.throw_and_format("res_json should be array", { res_json, resp });
+    }
+    for (const item of res_json) {
+      if (
+        typeof item === "object" && item !== null && "Id" in item &&
+        typeof item["Id"] === "number"
+      ) {
+        return {
+          ...item,
+          "Id": item["Id"],
+        };
+      } else {
+        Errors.throw_and_format("Missing Id number in result object", {
+          item,
+          res_json,
+          resp,
+        });
+      }
+    }
   }
 }
 
@@ -746,16 +852,27 @@ export namespace NocoDBDataset {
     : ColumnsMetaApiFromColumns<Arr>
     : unknown;
 
-  type RowsData<A> = A extends readonly [infer ColHead, ...infer Arr]
-    ? ColHead extends
-      { __metadata__: { title: infer Title extends string; uidt: infer Uidt } }
-      ?
-        & Record<
+  type _ShowIsTrueOrTitleIsId<Show, Title, T, F> = Title extends "id"
+    ? T extends Record<Title, infer V> ? T & Record<Title, NonNullable<V>> & F
+    : T & F
+    : Show extends true ? T & F
+    : F;
+
+  export type RowsData<A> = A extends readonly [infer ColHead, ...infer Arr]
+    ? ColHead extends {
+      show: infer Show;
+      __metadata__: { title: infer Title extends string; uidt: infer Uidt };
+    } ? _ShowIsTrueOrTitleIsId<
+        Show,
+        Title,
+        Record<
           Title,
-          Uidt extends keyof NocoDBUtil.UITypes ? NocoDBUtil.UITypes[Uidt]
+          Uidt extends string & keyof NocoDBUtil.UITypes
+            ? NocoDBUtil.UITypes[Uidt]
             : unknown
-        >
-        & RowsData<Arr>
+        >,
+        RowsData<Arr>
+      >
     : RowsData<Arr>
     : unknown;
 
@@ -839,6 +956,8 @@ export namespace NocoDBDataset {
                       return null;
                     }
                     if (
+                      "show" in nccolumn &&
+                      typeof nccolumn.show === "boolean" &&
                       "column_name" in nccolumn.__metadata__ &&
                       typeof nccolumn.__metadata__.column_name === "string" &&
                       "uidt" in nccolumn.__metadata__ &&
@@ -848,7 +967,10 @@ export namespace NocoDBDataset {
                       return Arrays.of(
                         nccolumn.__metadata__.column_name,
                         {
-                          head: nccolumn,
+                          head: {
+                            ...nccolumn,
+                            show: nccolumn.show,
+                          },
                           uidt: nccolumn.__metadata__.uidt,
                         },
                       );
@@ -878,6 +1000,9 @@ export namespace NocoDBDataset {
                   return {
                     columns_meta,
                     rows,
+                    ncbase: ncbase as Base,
+                    nctable: nctable as Table,
+                    ncview: ncview as View,
                   };
                 }
               }
@@ -899,6 +1024,7 @@ export namespace NocoDBDataset {
     head: {
       fk_column_id: string;
       id: string;
+      show: boolean;
       __metadata__: unknown;
     };
     uidt: keyof NocoDBUtil.UITypes;
@@ -920,12 +1046,103 @@ export namespace NocoDBDataset {
     ) {
     }
 
+    private check_row_data_of_column<Row extends RowsData<A>>(
+      record: unknown,
+    ): record is Row {
+      const { columns_meta_entries } = this.ctx;
+      if (typeof record !== "object" || record === null) {
+        Errors.throw_and_format("record should be object", { record });
+      }
+      const record_keys = Object.keys(record);
+
+      for (const key of record_keys) {
+        const column_meta = columns_meta_entries.find((it) => it[0] === key);
+        if (!column_meta) {
+          Errors.throw_and_format(
+            "There is no column found in record keys",
+            { record, key, columns_meta_entries },
+          );
+        }
+        const [_, { uidt }] = column_meta;
+        const ui_type_entry = NocoDBUtil.ui_types.find((it) => it[0] === uidt);
+        if (!ui_type_entry) {
+          Errors.throw_and_format(
+            "Invalid uidt",
+            { record, key, uidt, column_meta },
+          );
+        }
+        // deno-lint-ignore no-explicit-any
+        const value: unknown = (record as any)[key];
+        switch (ui_type_entry[1]) {
+          case "string":
+            if (
+              !(typeof value === "string" ||
+                (key !== "id" && value === null))
+            ) {
+              Errors.throw_and_format(
+                "TypeError on value",
+                {
+                  record,
+                  key,
+                  value,
+                  uidt,
+                  column_meta,
+                  ui_type_entry,
+                },
+              );
+            }
+            continue;
+          case "unknown":
+            continue;
+          default:
+            Errors.throw_and_format(
+              "Invalid ui_type_entry[1]",
+              {
+                record,
+                key,
+                columns_meta_entries,
+                uidt,
+                column_meta,
+                ui_type_entry,
+              },
+            );
+        }
+      }
+      for (const column_meta of columns_meta_entries) {
+        const [meta_key, col_def] = column_meta;
+        // deno-lint-ignore no-explicit-any
+        const value: unknown = (record as any)[meta_key];
+        if (meta_key === "id" || col_def.head.show) {
+          if (
+            record_keys.indexOf(meta_key) < 0 ||
+            typeof value === "undefined"
+          ) {
+            Errors.throw_and_format(
+              "There has some column should existed in record but not exist",
+              { column_meta, record, value },
+            );
+          }
+        } else {
+          if (
+            record_keys.indexOf(meta_key) >= 0 ||
+            typeof value !== "undefined"
+          ) {
+            Errors.throw_and_format(
+              "There has some column should not existed in record but exist",
+              { column_meta, record, value },
+            );
+          }
+        }
+      }
+      return true;
+    }
+
     public async map<
       R,
-      Row = RowsData<A>,
+      Row extends RowsData<A> = RowsData<A>,
       QueueSize extends undefined | number = undefined,
     >(_param: {
-      cb: (row: Row) =>
+      cb: (row: Row, iter_count: number) =>
         | "filter"
         | (QueueSize extends undefined ? {
             result: R;
@@ -939,9 +1156,13 @@ export namespace NocoDBDataset {
       queue_size?: QueueSize;
     }) {
       const { cb, limit, queue_size } = _param;
-      let limit_count = 0;
-      const results: (R & { __iter_count__: number })[] = [];
+      let iter_count = 0;
+      const results: ({ iter_count: number; result: R })[] = [];
       if (is_nullish(limit) || limit > 0) {
+        const queue: {
+          iter_count: number;
+          result_future: Promise<R>;
+        }[] = [];
         for await (
           const record of NocoDBUtil.list_table_records(
             {
@@ -952,16 +1173,235 @@ export namespace NocoDBDataset {
             this.ctx.ncview.id,
           )
         ) {
-          const check_row_data_of_column = () => {
-          };
+          if (!this.check_row_data_of_column<Row>(record)) {
+            Errors.throw_and_format("check record type falied", { record });
+          }
+          // 上面的类型检查理应保证此处的类型安全。
+          // const _record = record as Row;
 
           try {
-            console.debug("record", record);
+            // console.debug(record);
+            const res = cb(record, iter_count);
+            if (res === "filter") {
+              // ignore
+            } else if ("result" in res) {
+              results.push({
+                iter_count: iter_count,
+                result: res.result,
+              });
+            } else if ("result_future" in res) {
+              if (
+                typeof queue_size === "undefined" || queue_size === null ||
+                queue_size < 0
+              ) {
+                Errors.throw_and_format(
+                  "Queue size invalid but result future received",
+                  {
+                    queue_size,
+                  },
+                );
+              }
+              while (1) {
+                if (queue.length < queue_size) {
+                  queue.push({
+                    iter_count,
+                    result_future: res.result_future,
+                  });
+                  break;
+                } else {
+                  const [out] = queue.splice(0, 1);
+                  const out_res = await out.result_future;
+                  results.push({
+                    iter_count: out.iter_count,
+                    result: out_res,
+                  });
+                }
+              }
+            }
           } finally {
-            limit_count++;
+            iter_count++;
           }
-          if (!is_nullish(limit) && limit_count >= limit) {
+          if (!is_nullish(limit) && iter_count >= limit) {
             break;
+          }
+        }
+        results.push(
+          ...(await Promise.all(
+            queue.map(async (it) => {
+              const out_res = await it.result_future;
+              return {
+                iter_count: it.iter_count,
+                result: out_res,
+              };
+            }),
+          )),
+        );
+      }
+
+      results.sort((a, b) => a.iter_count - b.iter_count);
+      return {
+        columns_meta_entries: this.ctx.columns_meta_entries,
+        results,
+      };
+    }
+
+    public async upsert<
+      Row extends RowsData<A> = RowsData<A>,
+      RowCreate extends Omit<
+        Row,
+        "Id" | "CreatedAt" | "UpdatedAt" | "nc_created_by" | "nc_updated_by"
+      > = Omit<
+        Row,
+        "Id" | "CreatedAt" | "UpdatedAt" | "nc_created_by" | "nc_updated_by"
+      >,
+    >(_param: {
+      duplicate_col:
+        & string
+        & keyof RowCreate;
+      rows: RowCreate[];
+      on_before_create?: (row: RowCreate) => Promise<void>;
+      on_equal?: (
+        _ctx: {
+          existed_content: unknown;
+          row: RowCreate;
+          existed: unknown;
+        },
+      ) => Promise<void>;
+      on_before_update?: (_ctx: {
+        existed_content: unknown;
+        row: RowCreate;
+        existed: unknown;
+      }) => Promise<void>;
+    }) {
+      const {
+        rows,
+        duplicate_col,
+        on_before_create,
+        on_equal,
+        on_before_update,
+      } = _param;
+      const baseurl = this.ctx.baseurl;
+      const nocodb_token = this.ctx.nocodb_token;
+      const tableId = this.ctx.nctable.id;
+
+      const existed_list = await Promise.all(
+        rows.map(async (row) => {
+          if (!(duplicate_col in row)) {
+            Errors.throw_and_format("not found duplicate col in row", {
+              duplicate_col,
+              row,
+            });
+          }
+          const duplicate_value = row[duplicate_col];
+          if (
+            is_nullish(duplicate_value) ||
+            typeof duplicate_value !== "string" &&
+              typeof duplicate_value !== "number"
+          ) {
+            Errors.throw_and_format("Invalid duplicate value", {
+              row,
+              duplicate_col,
+              duplicate_value,
+            });
+          }
+
+          const records: Record<string, unknown>[] = [];
+          for await (
+            const record of NocoDBUtil.list_table_records(
+              {
+                baseurl,
+                nocodb_token,
+              },
+              tableId,
+              null,
+              `(${encodeURIComponent(duplicate_col)},eq,${
+                encodeURIComponent(duplicate_value)
+              })`,
+            )
+          ) {
+            records.push(record);
+          }
+
+          if (records.length <= 0) {
+            return {
+              duplicate_col,
+              duplicate_value,
+              existed: false,
+              row,
+            } as const;
+          } else if (records.length > 1) {
+            Errors.throw_and_format("Duplicated key", {
+              records_length: records.length,
+              records,
+            });
+          } else {
+            const record = records[0];
+            return {
+              duplicate_col,
+              duplicate_value,
+              existed: record,
+              row,
+            } as const;
+          }
+        }),
+      );
+
+      for (
+        const { existed, row } of existed_list
+      ) {
+        if (existed === false) {
+          if (on_before_create) {
+            await on_before_create(row);
+          }
+          await NocoDBUtil.create_table_records({
+            baseurl,
+            nocodb_token,
+            tableId,
+            rows: [row],
+          });
+        } else {
+          const existed_content = Mappings.filter_keys(existed, "omit", [
+            "Id",
+            "CreatedAt",
+            "UpdatedAt",
+            "nc_created_by",
+            "nc_updated_by",
+          ]);
+          if (is_deep_equal(existed_content, row)) {
+            if (on_equal) {
+              await on_equal({
+                existed_content,
+                row,
+                existed,
+              });
+            }
+          } else {
+            if (on_before_update) {
+              await on_before_update({
+                existed_content,
+                row,
+                existed,
+              });
+            }
+            if (
+              !("Id" in existed) ||
+              typeof existed["Id"] !== "number"
+            ) {
+              Errors.throw_and_format("Why Id not in existed", {
+                existed_content,
+                row,
+                existed,
+              });
+            }
+            await NocoDBUtil.update_table_records({
+              baseurl,
+              nocodb_token,
+              tableId,
+              rows: [{
+                Id: existed["Id"],
+                ...row,
+              }],
+            });
           }
         }
       }
