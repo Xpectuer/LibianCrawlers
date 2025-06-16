@@ -5,11 +5,11 @@
       "command": "deno run --allow-sys=homedir --allow-read=data_cleaner_ci_generated,user_code init_config.ts"
     },
     "init:code_gen": {
-      "description": "⭐ 启动代码生成",
+      "description": "⭐ 启动代码生成(--help 查看帮助)",
       "command": "deno run --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV,NODE_NDEBUG --allow-read=code_gen_help.txt,data_cleaner_ci_generated,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,quicktypeutil.ts,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=user_code,data_cleaner_ci_generated --v8-flags=--max-old-space-size=5120 code_gen.ts"
     },
     "init:code_gen:allownet": {
-      "description": "启动代码生成(允许网络)",
+      "description": "启动代码生成(允许网络)(--help 查看帮助)",
       "command": "deno run --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV,NODE_NDEBUG --allow-read=code_gen_help.txt,data_cleaner_ci_generated,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,quicktypeutil.ts,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=user_code,data_cleaner_ci_generated --v8-flags=--max-old-space-size=5120 --allow-net code_gen.ts"
     },
     "step:init:code_gen:allownet:cached": {
@@ -67,7 +67,7 @@
       ]
     },
     "step:libian_crawler:clean_and_merge:allownet": {
-      "description": "⭐ 启动数据清洗(允许网络)",
+      "description": "⭐ 启动数据清洗(允许网络)(--help 查看帮助)",
       "command": "deno run --v8-flags=--max-old-space-size=10240 --allow-env=\"PG*\",NODE_NDEBUG,READABLE_STREAM --allow-read=data_cleaner_ci_generated/.cache_by_id,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=data_cleaner_ci_generated,user_code,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache --allow-net general_data_process/libian_crawler/clean_and_merge.ts"
     },
     "dev:libian_crawler:run_all": {

@@ -8,14 +8,18 @@ Help for code_gen.ts:
 
 --skip-existed
       跳过已经生成的类型文件。
-      如果你确信 jsonata_tampletes 没有更改、garbage 表只新增不修改；
+      
+      如果你确信 jsonata_tampletes 没有更改、garbage 表只新增不修改，
       那么你可以使用此选项节省大量时间。
+
+      否则，你可以不启用此选项，脚本也会“局部更新式”的修改已存在的类型文件，
+      只是全量计算将会耗费大量时间。
 
 --debugopt-logtime
       输出时间花费。
 
 --only-gen-nocodb
-      只生成 nocodb 的类型文件。
+      只生成 nocodb mate 的类型文件。
 
 -----------------------------------------
 不建议使用的内部参数，建议只在开发调试时使用:

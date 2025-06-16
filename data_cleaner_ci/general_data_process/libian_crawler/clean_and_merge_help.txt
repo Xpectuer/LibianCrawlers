@@ -7,7 +7,26 @@ Help for general_data_process/libian_crawler/clean_and_merge.ts:
       显示帮助。
 
 --use-cache
-      启用缓存。
+      启用缓存。缓存的内容是 Merge 之后的各 reducer 的全部数据。
+      缓存结果默认存放于 `.data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache` 。
 
 --update-cache
       更新缓存。
+      
+      旧的 max_gid 不同的缓存文件夹 会被覆盖式的依次写入 （但默认情况下，使用的仍是 max_gid 最大的缓存文件夹）。
+
+      如果使用 --use-cache 或 使用 --update-cache ，将会写入缓存。
+      如果使用 --use-cache 且 不使用 --update-cache ，将会读取旧缓存。
+
+-----------------------------------------
+不建议使用的内部参数，建议只在开发调试时使用:
+
+--debugopt-pause-on-notmatch
+      在读取 garbage 时如果遇到不知道如何归类的垃圾数据，则暂停并打印。
+      通常使用此法去巡查旧数据是否被正确归类。
+
+--debugopt-pause-on-dbupdate
+      在更新结果到数据库时暂停。
+      通常使用此法去检查数据库的数据和将要写入的数据有何不同:
+            （由于Kysely框架的限制，一些数值列的InsertType和SelectType会不一致，
+            在 is_dto_equal 时要特殊处理）
