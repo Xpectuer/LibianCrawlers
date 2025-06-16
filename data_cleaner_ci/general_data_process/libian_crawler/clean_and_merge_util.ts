@@ -690,9 +690,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                   literatures: [
                     {
                       journal: null,
-                      issn: Strs.is_not_blank(row.ISSN)
-                        ? DataClean.check_issn(row.ISSN) ? row.ISSN : null
-                        : null,
+                      issn: DataClean.find_issn(row.ISSN),
                       isbn: Strs.is_not_blank(row.ISBN) ? row.ISBN : null,
                       publication_type:
                         Strs.is_not_blank(row["Publication Type"])
@@ -1258,9 +1256,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             const g_id = smart_crawl.g_id;
             const { info_dict, title } =
               template_parse_html_tree.cnki_journal_detail;
-            const issn = Strs.is_not_blank(info_dict.ISSN?.trim())
-              ? info_dict.ISSN.trim()
-              : null;
+            const issn = DataClean.find_issn(info_dict.ISSN ?? "");
             if (!Strs.is_not_blank(title) || !Strs.is_not_blank(issn)) {
               console.warn("Why title or issn empty ?", {
                 g_id,
@@ -1590,7 +1586,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                 return null;
               }
               const issn_list = values.map((value) => {
-                return DataClean.check_issn(value) ? value : null;
+                return DataClean.find_issn(value);
               }).filter((it) => it !== null);
               if (issn_list.length <= 0) {
                 return null;
@@ -2128,7 +2124,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           prev?.last_crawl_time ?? null,
           cur.last_crawl_time,
         ]);
-        const languages =Streams.deduplicate( [
+        const languages = Streams.deduplicate([
           ...(prev?.languages ?? []),
           ...(cur.languages ?? []),
         ]);

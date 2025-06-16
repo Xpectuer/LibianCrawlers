@@ -530,8 +530,10 @@ async def smart_crawl_v1(*,
             if debug and is_windows():
                 from libiancrawlers.util.shell import explore_windows
                 explore_windows(abs_base_dir)
+        # noinspection PyInconsistentReturns
         if _should_init_app:
             from libiancrawlers.app_util.app_init import exit_app
+            # noinspection PyInconsistentReturns
             await exit_app()
 
 

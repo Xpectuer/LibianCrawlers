@@ -238,6 +238,7 @@ class StepsApi:
                         logger.warning('bring to front failed')
                         raise
                     logger.debug('bring to front timeout , retry {} ...', retry)
+                    # noinspection PyInconsistentReturns
                     continue
                 raise
 

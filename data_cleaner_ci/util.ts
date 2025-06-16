@@ -1997,6 +1997,21 @@ export namespace DataClean {
     }
     return true;
   }
+
+  export function find_issn(text: string) {
+    const matched = text.match(
+      new RegExp(`([0-9][0-9][0-9][0-9][-][0-9][0-9][0-9][X0-9])`),
+    );
+    if (!matched) {
+      return null;
+    }
+    const issn = matched[1];
+    if (check_issn(issn)) {
+      return issn;
+    } else {
+      Errors.throw_and_format("Why not issn", { issn, matched });
+    }
+  }
 }
 
 // deno-lint-ignore no-namespace

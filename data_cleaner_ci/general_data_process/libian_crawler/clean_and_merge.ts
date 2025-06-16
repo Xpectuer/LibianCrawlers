@@ -27,6 +27,7 @@ import { data_cleaner_ci_generated } from "../../consts.ts";
 async function _main() {
   const _args_bool = [
     "use-cache",
+    "update-cache",
     "debugopt-pause-on-notmatch",
     "debugopt-pause-on-dbupdate",
   ] as const;
@@ -85,11 +86,12 @@ async function _main() {
   };
   const pause_on_dbupdate = cmdarg["debugopt-pause-on-dbupdate"];
   const use_cache_flag = cmdarg["use-cache"];
+  const update_cache_flag = cmdarg["update-cache"];
   const cache_ser_batch_size = _parseInt(false, "cache-ser-batch-size");
 
   // deno-lint-ignore prefer-const
-  let use_cache_on_ser = use_cache_flag;
-  let use_cache_on_deser = use_cache_flag;
+  let use_cache_on_ser = use_cache_flag || update_cache_flag;
+  let use_cache_on_deser = use_cache_flag && !update_cache_flag;
   let maxgid_deser: number | null = null;
   const cm_cache_dir = path.join(
     data_cleaner_ci_generated,

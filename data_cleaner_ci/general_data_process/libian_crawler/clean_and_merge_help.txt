@@ -9,3 +9,5 @@ Help for general_data_process/libian_crawler/clean_and_merge.ts:
 --use-cache
       启用缓存。
 
+--update-cache
+      更新缓存。
