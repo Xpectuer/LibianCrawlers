@@ -70,11 +70,25 @@
       "description": "⭐ 启动数据清洗(允许网络)(--help 查看帮助)",
       "command": "deno run --v8-flags=--max-old-space-size=10240 --allow-env=\"PG*\",NODE_NDEBUG,READABLE_STREAM --allow-read=data_cleaner_ci_generated/.cache_by_id,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=data_cleaner_ci_generated,user_code,data_cleaner_ci_generated/.libian_crawler_clean_and_merge_cache --allow-net general_data_process/libian_crawler/clean_and_merge.ts"
     },
+    "dev:libian_crawler:run_code_gen:no_check": {
+      "command": "deno task init:code_gen:allownet --skip-existed"
+    },
+    "dev:libian_crawler:run_code_gen": {
+      "description": "⭐ 一键启动类型生成(启用缓存和允许网络)",
+      "command": "deno task step:check",
+      "dependencies": [
+        "dev:libian_crawler:run_code_gen:no_check"
+      ]
+    },
+    "dev:libian_crawler:run_clean": {
+      "description": "⭐ 一键启动数据清洗(启用缓存和允许网络)",
+      "command": "deno task step:check && deno task step:libian_crawler:clean_and_merge:allownet --use-cache"
+    },
     "dev:libian_crawler:run_all": {
       "description": "⭐ 一键启动类型生成和数据清洗(都启用缓存和允许网络)",
-      "command": "deno task init:code_gen:allownet --skip-existed && deno task step:check && deno task step:libian_crawler:clean_and_merge:allownet --use-cache",
+      "command": "deno task dev:libian_crawler:run_clean",
       "dependencies": [
-        "step:check"
+        "dev:libian_crawler:run_code_gen"
       ]
     },
     "init:code_gen:only_nocodb": {

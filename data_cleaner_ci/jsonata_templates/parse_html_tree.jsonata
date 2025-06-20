@@ -74,7 +74,7 @@
             $doi := $tags[name="li" and "DOI：" in **.str].*[name="p"].str;
             $journal := $tags["top-tip" in attrs.class].**[bs4_type="<class 'bs4.element.Tag'>" and name="a"][0].str;
 
-            $m := { 
+            $m := {
                 "title": $trim($join($distinct($title))),
                 "authors": $authors,
                 "author_organizations": $author_organizations,
@@ -135,6 +135,23 @@
                 "title":  $distinct($tags.**[name="title"].str),
                 "info_dict": $info_dict
             }
+        ),
+        "wos_journal": (
+            $blocks := $tags[children.*[$contains($join(attrs.class), "col-md")]];
+        
+            $blocks.**[$contains($join(attrs.class), "col-md")][$.**[str].$join(str)].(
+                $is_title := $contains($join(attrs.class), "title");
+                $is_content := $contains($join(attrs.class), "content");
+                $text := $trim($join($.**[str].str));
+                {   
+                    "is_title": $is_title,
+                    "is_content": $is_content,
+                    "title": $is_title ? $trim($replace($text, ":", "")) : null,
+                    "content": $is_content ? $text : null,
+                    "text": $text,
+                    "href": $trim($join($.**[attrs.href].attrs.href))
+                }
+            )[title or content]
         )
     }
 )

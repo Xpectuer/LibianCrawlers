@@ -611,7 +611,8 @@ export namespace Strs {
   export function has_text<T extends string, H extends string>(
     text: T,
     has: H,
-  ): text is Extract<T, `${string}${H}${string}`> {
+  ): text is string extends T ? T & `${string}${H}${string}`
+    : Extract<T, `${string}${H}${string}`> {
     return text.indexOf(has) >= 0;
   }
 }

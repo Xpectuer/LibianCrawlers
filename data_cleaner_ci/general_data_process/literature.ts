@@ -19,4 +19,5 @@ export interface Literature {
   count_download_total: number | null;
   count_citations_total: number | null;
   impact_factor_latest: number | null;
+  eissn: string | null;
 }

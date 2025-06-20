@@ -6,7 +6,9 @@ import {
   is_nullish,
   Jsons,
   Mappings,
+  Streams,
   Strs,
+  Times,
   Typings,
 } from "../util.ts";
 
@@ -37,49 +39,6 @@ export namespace NocoDBUtil {
     nocodb_token: string;
     logd_fetch_noco?: boolean;
   };
-  // export type UITypesStr =
-  //   | "ID"
-  //   | "LinkToAnotherRecord"
-  //   | "ForeignKey"
-  //   | "Lookup"
-  //   | "SingleLineText"
-  //   | "LongText"
-  //   | "Attachment"
-  //   | "Checkbox"
-  //   | "MultiSelect"
-  //   | "SingleSelect"
-  //   | "Collaborator"
-  //   | "Date"
-  //   | "Year"
-  //   | "Time"
-  //   | "PhoneNumber"
-  //   | "GeoData"
-  //   | "Email"
-  //   | "URL"
-  //   | "Number"
-  //   | "Decimal"
-  //   | "Currency"
-  //   | "Percent"
-  //   | "Duration"
-  //   | "Rating"
-  //   | "Formula"
-  //   | "Rollup"
-  //   | "Count"
-  //   | "DateTime"
-  //   | "CreatedTime"
-  //   | "LastModifiedTime"
-  //   | "AutoNumber"
-  //   | "Geometry"
-  //   | "JSON"
-  //   | "SpecificDBType"
-  //   | "Barcode"
-  //   | "QrCode"
-  //   | "Button"
-  //   | "Links"
-  //   | "User"
-  //   | "CreatedBy"
-  //   | "LastModifiedBy"
-  //   | "Order";
 
   export const ui_types = [
     ["ID", "string"],
@@ -101,7 +60,7 @@ export namespace NocoDBUtil {
     ["Email", "unknown"],
     ["URL", "string"],
     ["Number", "number"],
-    ["Decimal", "unknown"],
+    ["Decimal", "number"],
     ["Currency", "unknown"],
     ["Percent", "unknown"],
     ["Duration", "unknown"],
@@ -240,6 +199,13 @@ export namespace NocoDBUtil {
       body: {
         [k in "Id" | string]: k extends "Id" ? string : unknown;
       }[];
+    }
+    | {
+      method: "DELETE";
+      pth: `/api/v2/tables/${string}/records`;
+      body: {
+        Id: number;
+      }[];
     };
 
   const _fetch_noco = async <R>(
@@ -255,18 +221,29 @@ export namespace NocoDBUtil {
     const fetch_url = `${baseurl}${route.pth}` as const;
     const req_body = "body" in route ? Jsons.dump(route.body) : null;
     const raise_err = (reason: string, cause?: unknown) => {
-      throw new Error(
-        `${reason} , code is ${resp.status}, fetch url is ${fetch_url} , req body is ${
-          Jsons.dump(req_body)
-        } , ${
-          res_json_success
-            ? `response json is ${Jsons.dump(res_json)} , `
-            : "parse response json failed , "
-        }route is ${Jsons.dump(param.route)}`,
-        {
-          cause,
-        },
-      );
+      Errors.throw_and_format(reason, {
+        status: resp.status,
+        route: param.route,
+        fetch_url,
+        req_body,
+        res_json_success,
+        res_json,
+        param,
+        resp,
+      }, cause);
+
+      // throw new Error(
+      //   `${reason} , code is ${resp.status}, fetch url is ${fetch_url} , req body is ${
+      //     Jsons.dump(req_body)
+      //   } , ${
+      //     res_json_success
+      //       ? `response json is ${Jsons.dump(res_json)} , `
+      //       : "parse response json failed , "
+      //   }route is ${Jsons.dump(param.route)}`,
+      //   {
+      //     cause,
+      //   },
+      // );
     };
 
     const resp = await fetch(fetch_url, {
@@ -727,14 +704,26 @@ export namespace NocoDBUtil {
     tableId: string,
     viewId: null | string,
     where?: string,
+    other_options?: {
+      page_size?: null | number;
+    },
   ) {
+    const page_size = other_options?.page_size ?? 25;
+    if (page_size <= 0) {
+      Errors.throw_and_format("Invalid page size", {
+        other_options,
+        param,
+        tableId,
+        viewId,
+        where,
+      });
+    }
     yield* _read_pages(
       {
         ...param,
         no_page: false,
         page_check_offset: true,
         get_route(page) {
-          const page_size = 25;
           const pth1 = `/api/v2/tables/${tableId}/records?offset=${
             page * page_size
           }&limit=${page_size}` as const;
@@ -809,6 +798,43 @@ export namespace NocoDBUtil {
         method: "PATCH",
         pth: `/api/v2/tables/${tableId}/records`,
         body: rows,
+      },
+    });
+    if (!Array.isArray(res_json)) {
+      Errors.throw_and_format("res_json should be array", { res_json, resp });
+    }
+    for (const item of res_json) {
+      if (
+        typeof item === "object" && item !== null && "Id" in item &&
+        typeof item["Id"] === "number"
+      ) {
+        return {
+          ...item,
+          "Id": item["Id"],
+        };
+      } else {
+        Errors.throw_and_format("Missing Id number in result object", {
+          item,
+          res_json,
+          resp,
+        });
+      }
+    }
+  }
+
+  export async function delete_table_records(
+    param: FetchOption & {
+      tableId: string;
+      ids: { Id: number }[];
+    },
+  ) {
+    const { ids, tableId } = param;
+    const { res_json, resp } = await _fetch_noco({
+      ...param,
+      route: {
+        method: "DELETE",
+        pth: `/api/v2/tables/${tableId}/records`,
+        body: ids,
       },
     });
     if (!Array.isArray(res_json)) {
@@ -958,14 +984,14 @@ export namespace NocoDBDataset {
                     if (
                       "show" in nccolumn &&
                       typeof nccolumn.show === "boolean" &&
-                      "column_name" in nccolumn.__metadata__ &&
-                      typeof nccolumn.__metadata__.column_name === "string" &&
+                      "title" in nccolumn.__metadata__ &&
+                      typeof nccolumn.__metadata__.title === "string" &&
                       "uidt" in nccolumn.__metadata__ &&
                       typeof nccolumn.__metadata__.uidt === "string" &&
                       NocoDBUtil.is_ui_types_key(nccolumn.__metadata__.uidt)
                     ) {
                       return Arrays.of(
-                        nccolumn.__metadata__.column_name,
+                        nccolumn.__metadata__.title,
                         {
                           head: {
                             ...nccolumn,
@@ -1092,6 +1118,23 @@ export namespace NocoDBDataset {
               );
             }
             continue;
+          case "number":
+            if (
+              typeof value !== "number" && value !== null
+            ) {
+              Errors.throw_and_format(
+                "TypeError on value",
+                {
+                  record,
+                  key,
+                  value,
+                  uidt,
+                  column_meta,
+                  ui_type_entry,
+                },
+              );
+            }
+            continue;
           case "unknown":
             continue;
           default:
@@ -1154,8 +1197,16 @@ export namespace NocoDBDataset {
           });
       limit?: number | null;
       queue_size?: QueueSize;
+      page_size?: number | null;
     }) {
       const { cb, limit, queue_size } = _param;
+      let { page_size } = _param;
+      if (
+        typeof page_size === "number" && typeof limit === "number" &&
+        limit > 0 && page_size > limit
+      ) {
+        page_size = limit;
+      }
       let iter_count = 0;
       const results: ({ iter_count: number; result: R })[] = [];
       if (is_nullish(limit) || limit > 0) {
@@ -1171,6 +1222,10 @@ export namespace NocoDBDataset {
             },
             this.ctx.nctable.id,
             this.ctx.ncview.id,
+            undefined,
+            {
+              page_size,
+            },
           )
         ) {
           if (!this.check_row_data_of_column<Row>(record)) {
@@ -1221,7 +1276,7 @@ export namespace NocoDBDataset {
           } finally {
             iter_count++;
           }
-          if (!is_nullish(limit) && iter_count >= limit) {
+          if (!is_nullish(limit) && queue.length + results.length >= limit) {
             break;
           }
         }
@@ -1259,6 +1314,8 @@ export namespace NocoDBDataset {
         & string
         & keyof RowCreate;
       rows: RowCreate[];
+      batch_size_find_existed?: number | null;
+      batch_size_upsert?: number | null;
       on_before_create?: (row: RowCreate) => Promise<void>;
       on_equal?: (
         _ctx: {
@@ -1271,6 +1328,23 @@ export namespace NocoDBDataset {
         existed_content: unknown;
         row: RowCreate;
         existed: unknown;
+        not_equal_reason: unknown;
+      }) => Promise<void>;
+      on_before_map_row_to_existed_info_batch?: (_ctx: {
+        existed_slice: {
+          start: number;
+          end: number;
+          total: number;
+          sliced: RowCreate[];
+        };
+      }) => Promise<void>;
+      on_before_create_rows?: (_ctx: {
+        rows: RowCreate[];
+      }) => Promise<void>;
+      on_before_update_rows?: (_ctx: {
+        rows: (RowCreate & {
+          Id: number;
+        })[];
       }) => Promise<void>;
     }) {
       const {
@@ -1279,72 +1353,181 @@ export namespace NocoDBDataset {
         on_before_create,
         on_equal,
         on_before_update,
+        on_before_map_row_to_existed_info_batch,
+        on_before_create_rows,
+        on_before_update_rows,
       } = _param;
       const baseurl = this.ctx.baseurl;
       const nocodb_token = this.ctx.nocodb_token;
       const tableId = this.ctx.nctable.id;
 
-      const existed_list = await Promise.all(
-        rows.map(async (row) => {
-          if (!(duplicate_col in row)) {
-            Errors.throw_and_format("not found duplicate col in row", {
-              duplicate_col,
-              row,
-            });
-          }
-          const duplicate_value = row[duplicate_col];
-          if (
-            is_nullish(duplicate_value) ||
-            typeof duplicate_value !== "string" &&
-              typeof duplicate_value !== "number"
-          ) {
-            Errors.throw_and_format("Invalid duplicate value", {
-              row,
-              duplicate_col,
-              duplicate_value,
-            });
-          }
+      const batch_size_find_existed = _param.batch_size_find_existed ?? 10;
+      if (batch_size_find_existed <= 0) {
+        Errors.throw_and_format("Invalid batch_size_find_existed", { _param });
+      }
+      const batch_size_upsert = _param.batch_size_upsert ?? 25;
+      if (batch_size_upsert <= 0) {
+        Errors.throw_and_format("Invalid batch_size_upsert", { _param });
+      }
+      const _map_row_to_existed_info = async (row: typeof rows[number]) => {
+        if (!(duplicate_col in row)) {
+          Errors.throw_and_format("not found duplicate col in row", {
+            duplicate_col,
+            row,
+          });
+        }
+        const duplicate_value = row[duplicate_col];
+        if (
+          is_nullish(duplicate_value) ||
+          typeof duplicate_value !== "string" &&
+            typeof duplicate_value !== "number"
+        ) {
+          Errors.throw_and_format("Invalid duplicate value", {
+            row,
+            duplicate_col,
+            duplicate_value,
+          });
+        }
 
-          const records: Record<string, unknown>[] = [];
-          for await (
-            const record of NocoDBUtil.list_table_records(
-              {
-                baseurl,
-                nocodb_token,
-              },
-              tableId,
-              null,
-              `(${encodeURIComponent(duplicate_col)},eq,${
-                encodeURIComponent(duplicate_value)
-              })`,
-            )
-          ) {
-            records.push(record);
-          }
+        const records: Record<string, unknown>[] = [];
+        for await (
+          const record of NocoDBUtil.list_table_records(
+            {
+              baseurl,
+              nocodb_token,
+            },
+            tableId,
+            null,
+            `(${encodeURIComponent(duplicate_col)},eq,${
+              encodeURIComponent(duplicate_value)
+            })`,
+          )
+        ) {
+          records.push(record);
+        }
 
-          if (records.length <= 0) {
-            return {
-              duplicate_col,
-              duplicate_value,
-              existed: false,
-              row,
-            } as const;
-          } else if (records.length > 1) {
+        if (records.length <= 0) {
+          return {
+            duplicate_col,
+            duplicate_value,
+            existed: false,
+            row,
+          } as const;
+        } else if (records.length > 1) {
+          let err: Error;
+          try {
             Errors.throw_and_format("Duplicated key", {
               records_length: records.length,
               records,
             });
-          } else {
-            const record = records[0];
-            return {
-              duplicate_col,
-              duplicate_value,
-              existed: record,
-              row,
-            } as const;
+          } catch (_err) {
+            err = _err as Error;
           }
-        }),
-      );
+          const delete_res = await NocoDBUtil.delete_table_records({
+            baseurl,
+            nocodb_token,
+            tableId,
+            ids: records.slice(1).map((record) => {
+              if ("Id" in record && typeof record["Id"] === "number") {
+                return {
+                  Id: record["Id"],
+                };
+              } else {
+                throw err;
+              }
+            }),
+          });
+          const record = records[0];
+          console.warn("Success delete duplicated key records : ", {
+            delete_res,
+            duplicate_col,
+            duplicate_value,
+          });
+          return {
+            duplicate_col,
+            duplicate_value,
+            existed: record,
+            row,
+          } as const;
+        } else {
+          const record = records[0];
+          return {
+            duplicate_col,
+            duplicate_value,
+            existed: record,
+            row,
+          } as const;
+        }
+      };
+      const deduplicete_values = new Set();
+      const existed_list: Array<
+        Awaited<ReturnType<typeof _map_row_to_existed_info>>
+      > = [];
+      for await (
+        const existed_slice of Streams.split_array_use_batch_size(
+          batch_size_find_existed,
+          rows,
+        )
+      ) {
+        const existed_list_slice = await Promise.all(
+          existed_slice.sliced.map(_map_row_to_existed_info),
+        );
+        if (on_before_map_row_to_existed_info_batch) {
+          await on_before_map_row_to_existed_info_batch({
+            existed_slice,
+          });
+        }
+        for (const existed_item of existed_list_slice) {
+          if (deduplicete_values.has(existed_item.duplicate_value)) {
+            continue;
+          }
+          existed_list.push(existed_item);
+          deduplicete_values.add(existed_item.duplicate_value);
+        }
+      }
+
+      const rows_to_create: Array<typeof existed_list[number]["row"]> = [];
+      const rows_to_update: Array<
+        typeof existed_list[number]["row"] & { Id: number }
+      > = [];
+
+      const create_rows = async () => {
+        if (rows_to_create.length <= 0) {
+          return;
+        }
+        const rows = rows_to_create.splice(0, rows_to_create.length);
+        if (rows.length <= 0) {
+          return;
+        }
+        if (on_before_create_rows) {
+          await on_before_create_rows({ rows });
+        }
+        await NocoDBUtil.create_table_records({
+          baseurl,
+          nocodb_token,
+          tableId,
+          rows,
+        });
+      };
+
+      const update_rows = async () => {
+        if (rows_to_update.length <= 0) {
+          return;
+        }
+        const rows = rows_to_update.splice(0, rows_to_update.length);
+        if (rows.length <= 0) {
+          return;
+        }
+        if (on_before_update_rows) {
+          await on_before_update_rows({ rows });
+        }
+        await NocoDBUtil.update_table_records({
+          baseurl,
+          nocodb_token,
+          tableId,
+          rows,
+        });
+      };
 
       for (
         const { existed, row } of existed_list
@@ -1353,12 +1536,10 @@ export namespace NocoDBDataset {
           if (on_before_create) {
             await on_before_create(row);
           }
-          await NocoDBUtil.create_table_records({
-            baseurl,
-            nocodb_token,
-            tableId,
-            rows: [row],
-          });
+          rows_to_create.push(row);
+          if (rows_to_create.length >= batch_size_upsert) {
+            await create_rows();
+          }
         } else {
           const existed_content = Mappings.filter_keys(existed, "omit", [
             "Id",
@@ -1367,7 +1548,86 @@ export namespace NocoDBDataset {
             "nc_created_by",
             "nc_updated_by",
           ]);
-          if (is_deep_equal(existed_content, row)) {
+
+          const is_not_equal = (
+            _ex: Record<string, unknown>,
+            _row: Record<string, unknown>,
+          ) => {
+            for (const key of Mappings.object_keys(_row)) {
+              if (!(key in _ex) || typeof _ex[key] === "undefined") {
+                return {
+                  reason: "key_not_match",
+                  key,
+                } as const;
+              }
+              const _ex_value = _ex[key];
+              const _row_value = _row[key];
+              const col_meta = this.ctx.columns_meta_entries.find((it) =>
+                it[0] === key
+              );
+              if (!col_meta) {
+                Errors.throw_and_format("Not found col_meta for key", {
+                  key,
+                  col_meta,
+                  _row,
+                  _ex,
+                  "this.ctx.columns_meta_entries":
+                    this.ctx.columns_meta_entries,
+                });
+              }
+              const { uidt } = col_meta[1];
+              if (is_deep_equal(_ex_value, _row_value)) {
+                continue;
+              }
+
+              if (
+                (uidt === "Date" || uidt === "DateTime") &&
+                typeof _ex_value === "string" && typeof _row_value === "string"
+              ) {
+                const _parse_inst = (v: string) => {
+                  try {
+                    return Times.parse_text_to_instant(v);
+                  } catch (_err) {
+                    return null;
+                  }
+                };
+                const _ex_time = _parse_inst(_ex_value);
+                const _row_time = _parse_inst(_row_value);
+                if (_ex_time && _row_time) {
+                  if (
+                    uidt === "DateTime" &&
+                    _ex_time.epochMilliseconds === _row_time.epochMilliseconds
+                  ) {
+                    continue;
+                  }
+                  if (uidt === "Date") {
+                    const to_ymd = (inst: Temporal.Instant) => {
+                      const d = Times.instant_to_date(inst);
+                      return [
+                        d.getUTCFullYear(),
+                        d.getUTCMonth(),
+                        d.getUTCDate(),
+                      ] as const;
+                    };
+                    if (is_deep_equal(to_ymd(_ex_time), to_ymd(_row_time))) {
+                      continue;
+                    }
+                  }
+                }
+              }
+              return {
+                reason: "value not match",
+                key,
+                _ex_value,
+                _row_value,
+              } as const;
+            }
+            return false;
+          };
+
+          const not_equal_reason = is_not_equal(existed_content, row);
+
+          if (!not_equal_reason) {
             if (on_equal) {
               await on_equal({
                 existed_content,
@@ -1375,36 +1635,45 @@ export namespace NocoDBDataset {
                 existed,
               });
             }
-          } else {
-            if (on_before_update) {
-              await on_before_update({
-                existed_content,
-                row,
-                existed,
-              });
-            }
-            if (
-              !("Id" in existed) ||
-              typeof existed["Id"] !== "number"
-            ) {
-              Errors.throw_and_format("Why Id not in existed", {
-                existed_content,
-                row,
-                existed,
-              });
-            }
-            await NocoDBUtil.update_table_records({
-              baseurl,
-              nocodb_token,
-              tableId,
-              rows: [{
-                Id: existed["Id"],
-                ...row,
-              }],
+            continue;
+          }
+
+          if (on_before_update) {
+            await on_before_update({
+              existed_content,
+              row,
+              existed,
+              not_equal_reason,
             });
+          }
+          if (
+            !("Id" in existed) ||
+            typeof existed["Id"] !== "number"
+          ) {
+            Errors.throw_and_format("Why Id not in existed", {
+              existed_content,
+              row,
+              existed,
+              not_equal_reason,
+            });
+          }
+          rows_to_update.push({
+            Id: existed["Id"],
+            ...row,
+          });
+          if (rows_to_update.length >= batch_size_upsert) {
+            // Errors.throw_and_format("Why update", {
+            //   existed_content,
+            //   row,
+            //   not_equal_reason,
+            // });
+            await update_rows();
           }
         }
       }
+
+      await create_rows();
+      await update_rows();
     }
   }
 }

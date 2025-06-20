@@ -88,26 +88,6 @@ async def abstract_search(*,
 
     def _check_no_content_crawling(*, kwd: str):
         pass
-        # note_ids = get_note_links_which_no_content_crawling(keyword=kwd, force_all=False)
-        # logger.info("Exist {} note which searched by {} but not crawling content , start crawling...",
-        #             len(note_ids), kwd)
-        # _unknown_reason_continuous_failed_counter = 0
-        # for n in []:
-        #     try:
-        #         on_get_content()
-        #         # get_note(note_id=n.note_id,
-        #         #          xsec_token=n.xsec_token,
-        #         #          fetch_all_comment=fetch_all_comment,
-        #         #          guess_title=n.title,
-        #         #          detail_logd=False)
-        #         _unknown_reason_continuous_failed_counter = 0
-        #     except UnknownReasonContinuousFailed as e:
-        #         if _unknown_reason_continuous_failed_counter > 6:
-        #             raise UnknownReasonContinuousFailed('Maybe account be BAN') from e
-        #         _unknown_reason_continuous_failed_counter += 1
-        #         logger.warning('Fetch content failed , unknown reason , counter = {} ...',
-        #                        _unknown_reason_continuous_failed_counter)
-        #         continue
 
     _err_ref = None
 
@@ -150,14 +130,16 @@ async def abstract_search(*,
                         await insert_to_garbage_table(**_output)
                     if is_save_file:
                         await mkdirs(output_dir)
+                        result_file_path = os.path.join(
+                            output_dir,
+                            f'{filename_slugify(int(datetime.datetime.utcnow().timestamp() * 1000), allow_unicode=True)}.json'
+                        )
                         async with aiofiles.open(
-                                os.path.join(
-                                    output_dir,
-                                    f'{filename_slugify(int(datetime.datetime.utcnow().timestamp() * 1000), allow_unicode=True)}.json'
-                                ),
+                                result_file_path,
                                 mode='wt',
                                 encoding='utf-8') as f:
                             await f.write(json.dumps(_output, ensure_ascii=False, indent=2))
+                            logger.debug('result file :\n    {}\n', result_file_path)
 
                     if not res.get('has_more'):
                         logger.debug('continue to fetch page because has_more = {}', res.get('has_more'))

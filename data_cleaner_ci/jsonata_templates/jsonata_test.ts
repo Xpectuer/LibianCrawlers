@@ -11,8 +11,9 @@ async function run_tests() {
     // "test_cnki",
     // "test_entrez_search",
     // "test_qianniu_message_export",
-    "test_cnki_journal_detail",
-    "test_cnki_journal_detail_2",
+    // "test_cnki_journal_detail",
+    // "test_cnki_journal_detail_2",
+    "test_wos_journal",
   ]) {
     let target_file: string;
     const func_config_file = path.join(

@@ -24,7 +24,7 @@ pytest-asyncio = "^0.25.1"
 filetype = "^1.2.0"
 gooey = "^1.0.8.1"
 wxpython = "^4.2.2"
-camoufox = {extras = ["geoip"], version = "^0.4.11"}
+camoufox = { extras = ["geoip"], version = "^0.4.11" }
 aiofiles = "^24.1.0"
 python-magic = "0.4.27"
 pypiwin32 = { version = "^223", platform = "win32" }
@@ -41,6 +41,9 @@ python-dateutil = "^2.9.0.post0"
 typing-extensions = "^4.13.2"
 pydantic = "^2.11.3"
 urllib3 = "^2.4.0"
+jsonschema = { extras = ["format"], version = "^4.24.0" }
+pybliometrics = "^4.3"
+js2py = "^0.74"
 
 
 [tool.poetry.group.dev]
@@ -58,23 +61,21 @@ optional = true
 [tool.poetry.group.apicrawler-entrezapi.dependencies]
 biopython = "^1.85"
 
-
 [tool.poetry.group.apicrawler-bilibili]
 optional = true
 
 [tool.poetry.group.apicrawler-bilibili.dependencies]
 bilibili-api-python = "^17.1.4"
 
+[tool.poetry.group.apicrawler-impactfactor]
+optional = true
+
+[tool.poetry.group.apicrawler-impactfactor.dependencies]
+impact-factor = "^1.1.2"
+
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
-
-
-
-
-
-
-
 
 
 
@@ -97,6 +98,9 @@ smart-crawl = "libiancrawlers.crawlers.smart_crawl.smart_crawl:cli"
 start-worker-ui = "libiancrawlers.worker.ui:cli"
 start-worker-core = "libiancrawlers.worker.core:cli"
 api-crawl-entrezapi-search = "libiancrawlers.crawlers.apilib.entrezapi.search:cli"
+api-crawl-impactfactor-search = "libiancrawlers.crawlers.apilib.impactfactor.search:cli"
+smart-crawl-urls = "libiancrawlers.crawlers.smart_crawl.smart_crawl_urls:cli"
+version = "libiancrawlers.app_util.print_version:cli"
 
 [[tool.poetry.source]]
 name = "tsinghua"

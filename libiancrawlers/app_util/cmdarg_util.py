@@ -10,14 +10,9 @@ from libiancrawlers.app_util.types import JSON
 async def parse_json_or_read_file_json_like(t: JSON) -> JSON:
     if not isinstance(t, str):
         return t
-    j, j5 = parse_json(t)
-    if j is not None:
-        return j
-    if j5 is not None:
-        return j5
     if t.startswith('jsonfile:'):
         try:
-            from libiancrawlers.app_util.playwright_util import url_parse_to_dict
+            from libiancrawlers.app_util.obj2dict_util import url_parse_to_dict
             url_info = url_parse_to_dict(t)
             logger.debug('json file url info is {}', url_info)
             async with aiofiles.open(url_info['path'], 'rt', encoding='utf-8') as f:
@@ -39,6 +34,11 @@ async def parse_json_or_read_file_json_like(t: JSON) -> JSON:
             return await parse_json_or_read_file_json_like(t2)
         except BaseException as err:
             raise ValueError(f'Invalid --steps input : {err}') from err
+    j, j5 = parse_json(t)
+    if j is not None:
+        return j
+    if j5 is not None:
+        return j5
     raise ValueError(f'Invalid json : {t}')
 
 

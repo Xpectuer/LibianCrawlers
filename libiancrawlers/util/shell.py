@@ -30,7 +30,7 @@ class ShellRunFailedException(LibianCrawlerException):
         self.cmd = cmd
 
 
-class PipeclnrShellRunDenyException(LibianCrawlerPermissionException):
+class LibianCrawlerShellRunDenyException(LibianCrawlerPermissionException):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 

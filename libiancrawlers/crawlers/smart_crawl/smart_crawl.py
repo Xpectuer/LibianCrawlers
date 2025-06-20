@@ -15,8 +15,9 @@ from loguru import logger
 
 from libiancrawlers.app_util.networks import update_proxies
 from libiancrawlers.app_util.networks.iputil import get_my_public_ip_info
+from libiancrawlers.app_util.obj2dict_util import url_parse_to_dict
 from libiancrawlers.app_util.playwright_util import get_browser, response_to_dict, \
-    page_info_to_dict, BlobOutput, url_parse_to_dict, frame_tree_to_dict, ResultOfPageInfoToDict
+    page_info_to_dict, BlobOutput, frame_tree_to_dict, ResultOfPageInfoToDict
 from libiancrawlers.app_util.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException, JSON
 from libiancrawlers.util.coroutines import sleep
@@ -97,13 +98,6 @@ async def smart_crawl_v1(*,
         raise ValueError(
             f'Invalid steps , not iterable , typeof steps is {type(steps)} , param is {___steps_param} , but parsed value is {steps}')
 
-    _appium_url_prefix = 'appium://'
-    if url.startswith(_appium_url_prefix):
-        appium_url = url[len(_appium_url_prefix):]
-        logger.debug('appium_url is {}', appium_url)
-    else:
-        appium_url = None
-
     from libiancrawlers.app_util.types import Initiator
     from libiancrawlers.app_util.app_init import init_app
     from libiancrawlers.app_util.magic_util import get_magic_info
@@ -131,6 +125,12 @@ async def smart_crawl_v1(*,
 
     b_page = None
     browser_context = None
+
+    if url.startswith('appium://'):
+        appium_url = url[len('appium://'):]
+        logger.debug('appium_url is {}', appium_url)
+    else:
+        appium_url = None
 
     _devtool_status: DevtoolStatus = {
         'stop': False,
@@ -496,7 +496,7 @@ async def smart_crawl_v1(*,
             return 'stop'
 
         await _dump_page(dump_tag='__at_last__', page=b_page)
-
+        await sleep(3)
     except BaseException as err:
         _is_success_end = False
         logger.exception('Raise error')

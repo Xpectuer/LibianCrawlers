@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 from dataclasses import dataclass
-from typing import Union, Mapping, List
+from typing import Union, Mapping, List, Optional
 
 JSONRaw = Union[str, int, float, bool, None]
 JSONArray = List['JSON']
@@ -19,7 +19,7 @@ class Initiator:
 
 @dataclass(frozen=True)
 class LaunchBrowserParam:
-    browser_data_dir_id: str
+    browser_data_dir_id: Optional[str]
 
 
 class LibianCrawlerException(Exception):

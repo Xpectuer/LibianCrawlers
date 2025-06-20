@@ -9,6 +9,8 @@ export enum PlatformEnum {
   千牛聊天记录 = "qn.taobao.com/home.htm/app-customer-service/toolpage/Message",
   Embase或镜像站 = "Embase_Or_Proxy",
   文献 = "literatures",
+  lib_impact_factor = "github__suqingdong__impact_factor",
+  wos_journal = "wos-journal.info",
 }
 
 export type MediaContentTag = {

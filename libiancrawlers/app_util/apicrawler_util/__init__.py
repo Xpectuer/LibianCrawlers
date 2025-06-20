@@ -7,8 +7,12 @@ from typing import Any
 from loguru import logger
 
 
-async def on_before_retry_default():
-    await asyncio.sleep(60)
+async def on_before_retry_default(retry_count: int) -> bool:
+    if retry_count < 3:
+        await asyncio.sleep(30)
+        return True
+    else:
+        return False
 
 
 def log_debug_which_object_maybe_very_length(*, prefix: str, obj: Any, max_output_length: int):
