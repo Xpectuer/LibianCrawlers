@@ -87,16 +87,6 @@ async def get_best_launch_options(
         locale=locale if proxy is None else None,
         debug=debug,
         enable_cache=need_page_go_back_go_forward,
-        config={
-            'screen.availWidth': 1824,
-            'screen.availHeight': 988,
-            'screen.width': 1920,
-            'screen.height': 1080,
-            'screen.colorDepth': 24,
-            'screen.pixelDepth': 24,
-            'screen.availTop': 0,
-            'screen.availLeft': 0,
-        },
         firefox_user_prefs={
         },
     )

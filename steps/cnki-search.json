@@ -64,7 +64,7 @@
     {
       "fn": "logi",
       "args": [
-        "如果你想略过一些分页，你可以趁这个debug进行操作 :)"
+        "如果你想略过一些分页，或是手动更改查询条件，你可以趁这个debug进行操作 :)"
       ]
     },
     "debug",
@@ -81,88 +81,58 @@
               "page_click_if_found": {
                 "locator": "td.name > a",
                 "duplicated_only_text": true,
-                "check_selector_exist_after_click": "#authorpart",
-                "on_before_click_check_steps": [
-                  {
-                    "fn": "sleep",
-                    "args": [
-                      500
-                    ]
-                  },
-                  {
-                    "fn": "switch_page",
-                    "args": [
-                      -1
-                    ]
-                  },
+                "close_new_page": true,
+                "on_new_page": [
                   {
                     "fn": "page_click",
+                    "description": "跳转到期刊页面",
                     "args": [
                       ".top-tip a>>nth=0"
                     ],
                     "kwargs": {
                       "timeout": 6000,
-                      "timeout_retry": 3
-                    },
-                    "description": "跳转到期刊页面",
-                    "on_success_steps": [
-                      {
-                        "fn": "page_click",
-                        "args": [
-                          "#J_sumBtn-stretch"
-                        ],
-                        "kwargs": {
-                          "timeout": 6000,
-                          "timeout_retry": 3
+                      "timeout_retry": 3,
+                      "force": true,
+                      "close_new_page": true,
+                      "on_new_page": [
+                        {
+                          "fn": "sleep",
+                          "args": [
+                            1000
+                          ]
                         },
-                        "description": "点击期刊页面的 “更多介绍” 按钮，没有的话也没事。",
-                        "on_timeout_steps": "continue"
-                      },
-                      {
-                        "fn": "dump_page_with_uuid",
-                        "args": [
-                          "dump_journal_page"
-                        ]
-                      },
-                      {
-                        "fn": "page_close",
-                        "description": "关闭期刊页面"
-                      }
-                    ],
+                        {
+                          "fn": "page_click",
+                          "args": [
+                            "#J_sumBtn-stretch"
+                          ],
+                          "kwargs": {
+                            "timeout": 6000,
+                            "timeout_retry": 3,
+                            "force": true,
+                            "only_main_frame": false
+                          },
+                          "description": "点击期刊页面的 “更多介绍” 按钮，没有的话也没事。",
+                          "on_timeout_steps": "continue"
+                        },
+                        {
+                          "fn": "dump_page_with_uuid",
+                          "args": [
+                            "dump_journal_page"
+                          ]
+                        }
+                      ]
+                    },
                     "on_timeout_steps": "continue"
-                  }
-                ],
-                "on_found_after_click_steps": [
-                  {
-                    "fn": "switch_page",
-                    "args": [
-                      -1
-                    ]
                   },
                   {
                     "fn": "page_scroll_down",
+                    "description": "在文献页面向下滚动",
                     "kwargs": {
                       "page_click_if_found": {
                         "locator": "#ChDivSummaryMore"
                       }
                     }
-                  },
-                  {
-                    "fn": "sleep",
-                    "args": [
-                      1000
-                    ]
-                  }
-                ],
-                "on_found_after_click_and_dump_steps": [
-                  {
-                    "fn": "page_close"
-                  },
-                  {
-                    "fn": "sleep",
-                    "args": [
-                      1000
-                    ]
                   }
                 ]
               }
@@ -172,56 +142,14 @@
         "after_dump_steps": [
           {
             "fn": "page_click",
+            "description": "点击下一页",
             "args": [
               "#PageNext"
             ],
             "kwargs": {
-              "timeout": 10000,
+              "timeout": 5000,
               "timeout_retry": 3
-            },
-            "on_timeout_steps": [
-              {
-                "fn": "logw",
-                "args": [
-                  "Timeout on page click next page , retry !"
-                ]
-              },
-              {
-                "fn": "page_click",
-                "args": [
-                  "#PageNext"
-                ],
-                "kwargs": {
-                  "timeout": 10000,
-                  "timeout_retry": 3
-                },
-                "on_timeout_steps": [
-                  {
-                    "fn": "logw",
-                    "args": [
-                      "Timeout on page click next page , maybe it is end ? Close debug box will continue"
-                    ]
-                  },
-                  "debug",
-                  {
-                    "fn": "sleep",
-                    "args": [
-                      1000
-                    ]
-                  },
-                  {
-                    "fn": "page_click",
-                    "args": [
-                      "#PageNext"
-                    ],
-                    "kwargs": {
-                      "timeout": 10000,
-                      "timeout_retry": 3
-                    }
-                  }
-                ]
-              }
-            ]
+            }
           }
         ],
         "after_dump_break_by_timeout": true

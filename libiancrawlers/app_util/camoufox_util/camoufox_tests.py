@@ -21,8 +21,11 @@ def to_check_go_back_button_available():
 
 
 async def goto_website(urls: Union[list[str]]):
-    from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options, read_proxy_server
     from libiancrawlers.app_util.app_init import init_app, Initiator, exit_app
+
+    init_app(Initiator(playwright=True, postgres=False))
+
+    from libiancrawlers.app_util.camoufox_util.best_launch_options import get_best_launch_options, read_proxy_server
     from libiancrawlers.app_util.playwright_util import get_browser
     from libiancrawlers.app_util.types import LaunchBrowserParam
     from libiancrawlers.app_util.networks.iputil import get_my_public_ip_info
@@ -30,7 +33,6 @@ async def goto_website(urls: Union[list[str]]):
     if isinstance(urls, str):
         urls = [urls]
 
-    init_app(Initiator(playwright=True, postgres=False))
     browser_context = None
     try:
         await update_proxies()

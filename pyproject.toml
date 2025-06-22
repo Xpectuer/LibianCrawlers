@@ -42,7 +42,6 @@ typing-extensions = "^4.13.2"
 pydantic = "^2.11.3"
 urllib3 = "^2.4.0"
 jsonschema = { extras = ["format"], version = "^4.24.0" }
-pybliometrics = "^4.3"
 js2py = "^0.74"
 
 
@@ -76,6 +75,7 @@ impact-factor = "^1.1.2"
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+
 
 
 

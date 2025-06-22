@@ -3636,28 +3636,6 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
-name = "pybliometrics"
-version = "4.3"
-description = "Python-based API-Wrapper to access Scopus and ScienceDirect"
-optional = false
-python-versions = "<=3.13,>=3.9"
-groups = ["main"]
-files = [
-    {file = "pybliometrics-4.3-py3-none-any.whl", hash = "sha256:0eb1920938e1ff4ce0a0b46f34ea9ddc6726952dc51d0939284a36f11bbf1a20"},
-    {file = "pybliometrics-4.3.tar.gz", hash = "sha256:47bf01e429ead542f46bde2965f108a9950e3783e2c823b3896b351fbcfb9028"},
-]
-
-[package.dependencies]
-requests = "*"
-tqdm = "*"
-urllib3 = "*"
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
 name = "pycparser"
 version = "2.22"
 description = "C parser in Python"
@@ -6185,4 +6163,4 @@ reference = "tsinghua"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<3.10"
-content-hash = "50d69259e23a32bab25333901522a944024b567527bfea78ee3a7faf35690ce8"
+content-hash = "edc639d50fd14a646ed51720afaaad0de7ae75777682dc8e2719e812bc871042"

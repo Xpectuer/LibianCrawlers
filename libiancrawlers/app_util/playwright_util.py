@@ -8,15 +8,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Literal, Union, Dict, Callable, Awaitable, Any, TypedDict, List, Tuple
 
-
 import aiofiles.os
 import aiofiles.ospath
 
 from libiancrawlers.app_util.networks.proxies import monkey_patch_hook_urllib
 from libiancrawlers.app_util.obj2dict_util import url_parse_to_dict, ResultOfUrlParseToDict
 from libiancrawlers.util.exceptions import is_timeout_error
-
-monkey_patch_hook_urllib()
 
 import playwright.async_api
 
@@ -74,6 +71,7 @@ async def get_browser(*,
                       my_public_ip_info: MyPublicIpInfo,
                       launch_options: Dict[str, Any],
                       ):
+    await monkey_patch_hook_urllib()
     logger.debug('camoufox import')
     from camoufox import AsyncCamoufox
 
@@ -92,9 +90,13 @@ async def get_browser(*,
     else:
         user_data_dir = None
         logger.debug('user data dir no use')
-    firefox_user_prefs = dict()
+    firefox_user_prefs = {
+        # https://www.reddit.com/r/firefox/comments/107fj69/how_can_i_disable_the_efficiency_mode_on_firefox/
+        'dom.ipc.processPriorityManager.backgroundUsesEcoQoS': False
+    }
     if launch_options.get('firefox_user_prefs') is not None:
         firefox_user_prefs.update(launch_options.pop('firefox_user_prefs'))
+    logger.debug('firefox_user_prefs : {}', firefox_user_prefs)
     async_camoufox_launch_options = dict(
         persistent_context=True,
         firefox_user_prefs=firefox_user_prefs,
@@ -112,11 +114,11 @@ async def get_browser(*,
     return browser_context, browser
 
 
-
-
-
 async def _should_not_timeout_async(*,
-                                    func: Callable[[Any], typing.Coroutine[Any, Any, T]],
+                                    func: Union[
+                                        Callable[[Any], typing.Coroutine[Any, Any, T]],
+                                        Callable[[], typing.Coroutine[Any, Any, T]]
+                                    ],
                                     args: Optional[List[Any]] = None,
                                     kwargs: Optional[Dict[str, Any]] = None,
                                     timeout=5,
@@ -143,7 +145,10 @@ async def _should_not_timeout_async(*,
 
 
 async def _should_not_timeout_sync(*,
-                                   func: Callable[[Any], T],
+                                   func: Union[
+                                       Callable[[Any], T],
+                                       Callable[[], T]
+                                   ],
                                    args: Optional[List[Any]] = None,
                                    kwargs: Optional[Dict[str, Any]] = None,
                                    timeout=5,

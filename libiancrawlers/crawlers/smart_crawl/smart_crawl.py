@@ -448,7 +448,10 @@ async def smart_crawl_v1(*,
                     await _enable_devtool()
                     continue
                 try:
-                    logger.debug('🎼 on step : {}', _step)
+                    logger.debug('\n    🎼 on step :\n    {}',
+                                 _step if not isinstance(_step, list) and not isinstance(_step,
+                                                                                         tuple) \
+                                     else '[' + ''.join(map(lambda s: f'\n    {s}', _step)) + '\n    ]')
                     if _step.get('fn') is not None:
                         _waited_args = _step.get('args')
                         _waited_kwargs = _step.get('kwargs')

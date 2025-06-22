@@ -220,7 +220,7 @@ class StepsApi:
         if timeout is None:
             timeout = 3000
         if retry_limit is None:
-            retry_limit = 5
+            retry_limit = 3
         if page is None:
             page = await self._get_page()
 
@@ -360,13 +360,15 @@ class StepsApi:
                          each_steps_before: Optional[StepsBlock] = None,
                          each_steps_after: Optional[StepsBlock] = None,
                          timeout_retry: int = 0,
+                         _on_new_page_dump_callback_func: Optional[Callable[[], Awaitable[None]]] = None,
+                         close_new_page: bool = False,
                          **kwargs):
         if method is None:
             method = 'click'
         if on_new_page is None:
             on_new_page = 'switch_it_and_run_steps_no_matter_which_page'
         if wait_any_page_create_time_limit is None or wait_any_page_create_time_limit < 0:
-            wait_any_page_create_time_limit = 3000
+            wait_any_page_create_time_limit = 3000 if isinstance(on_new_page, str) else 6000
 
         pages_size_old = self._browser_context.pages.__len__()
         logger.debug('on page {} : selector={} , kwargs={}', method, selector, kwargs)
@@ -400,27 +402,32 @@ class StepsApi:
         if isinstance(selector, dict) and 'x' in selector and 'y' in selector:
             await _page.mouse.click(selector.get('x'), selector.get('y'), **kwargs)
         else:
-            if isinstance(selector, str):
-                if only_main_frame:
-                    _loc = _page.locator(
-                        selector=selector,
-                        has_text=has_text,
-                        has_not_text=has_not_text
-                    )
+            async def _get_loc():
+                if isinstance(selector, str):
+                    if only_main_frame:
+                        _loc = _page.locator(
+                            selector=selector,
+                            has_text=has_text,
+                            has_not_text=has_not_text
+                        )
+                    else:
+                        frame, _ = await self.page_wait_for_selector_in_any_frame(selector=selector, timeout=timeout)
+                        _loc = frame.locator(
+                            selector=selector,
+                            has_text=has_text,
+                            has_not_text=has_not_text,
+                        )
                 else:
-                    frame, _ = await self.page_wait_for_selector_in_any_frame(selector=selector, timeout=timeout)
-                    _loc = frame.locator(
-                        selector=selector,
-                        has_text=has_text,
-                        has_not_text=has_not_text,
-                    )
-            else:
-                _loc = selector
+                    _loc = selector
 
-            if kwargs.get('on_locator') is not None:
-                _loc = await self._on_locator(_loc, kwargs.pop('on_locator'))
+                if kwargs.get('on_locator') is not None:
+                    _loc = await self._on_locator(_loc, kwargs.pop('on_locator'))
+                return _loc
 
-            async def _click(_locator: Locator):
+            loc = await _get_loc()
+
+            async def _click(_locator: Locator, *,
+                             retry_get_locator: Optional[Callable[[], Awaitable[Locator]]] = None):
                 retry_count = timeout_retry
                 while True:
                     try:
@@ -444,11 +451,13 @@ class StepsApi:
                             logger.warning('Timeout on page_click , current retry count is {} , _locator is {}',
                                            retry_count, _locator)
                             retry_count -= 1
+                            if retry_get_locator is not None:
+                                _locator = await retry_get_locator()
                         else:
                             raise
 
             if each_steps_before is not None or each_steps_after is not None:
-                _loc_all = await _loc.all()
+                _loc_all = await loc.all()
                 if _loc_all.__len__() <= 0:
                     raise TimeoutError(f'Not found matched , selector is {selector}')
                 for _loc_item in _loc_all:
@@ -458,7 +467,7 @@ class StepsApi:
                     if each_steps_after is not None:
                         await self._process_steps(each_steps_after)
             else:
-                await _click(_loc)
+                await _click(loc, retry_get_locator=_get_loc)
 
         await _debug_window_state(f'after page {method}')
 
@@ -466,25 +475,41 @@ class StepsApi:
             wait_any_page_create_at = datetime.now().timestamp()
             while datetime.now().timestamp() - wait_any_page_create_at < wait_any_page_create_time_limit / 1000.0:
                 if pages_size_old != self._browser_context.pages.__len__():
-                    logger.debug('Some page created , page list is {}', self._browser_context.pages)
+                    logger.debug(
+                        'Some page created :\n    pages_size_old is {}\n    current page list size is {}\n    page list is {}',
+                        pages_size_old,
+                        self._browser_context.pages.__len__(),
+                        self._browser_context.pages)
                     if on_new_page == 'switch_it_and_run_steps_no_matter_which_page':
                         logger.debug('switch to new page , run steps no matter which page')
                         await self.switch_page(-1)
+                        if _on_new_page_dump_callback_func is not None:
+                            await _on_new_page_dump_callback_func()
+                        if close_new_page:
+                            pass  # todo
                     else:
                         old_page = await self._get_page()
+                        logger.info('switch to new page, but i will back')
+                        new_page = await self.switch_page(-1)
                         try:
-                            logger.debug('switch to new page , but i will back')
-                            await self.switch_page(-1)
                             logger.debug('run steps on new page')
                             await self._process_steps(on_new_page)
+                            if _on_new_page_dump_callback_func is not None:
+                                await _on_new_page_dump_callback_func()
                         finally:
+                            if close_new_page:
+                                await self.page_close(_page=new_page)
                             logger.debug('switch back to old page {}', old_page)
                             await self.switch_page(old_page)
-                        pass
+
                     break
                 else:
                     logger.debug('not found new page created after click')
                     await sleep(0.5)
+            else:
+                logger.debug('not continue loop for found new page created after click')
+                if not isinstance(on_new_page, str):
+                    raise ValueError('Assert new page create')
 
     async def page_click_and_expect_element_destroy(self, selector: Union[str, Locator, XY], *,
                                                     on_exist_steps: StepsBlock = None,
@@ -689,7 +714,9 @@ class StepsApi:
 
         curr_height_min = 999999999
 
-        _dump_count = 0
+        _dump_count_ref = {
+            'value': 0
+        }
         _elements_wait_to_click: List[Tuple[str, PageScrollDownElementToClickContext]] = []
         _elements_existed_keys = set()
 
@@ -764,6 +791,8 @@ class StepsApi:
                 detail_logd = page_click_if_found.get('detail_logd', False)
                 on_found_after_click_and_dump_steps = page_click_if_found.get('on_found_after_click_and_dump_steps')
                 on_before_click_steps = page_click_if_found.get('on_before_click_steps')
+                on_new_page = page_click_if_found.get('on_new_page')
+                close_new_page = page_click_if_found.get('close_new_page')
 
                 async def _get_key_txt_ctx_from_element_locator(*,
                                                                 _element_idx: Union[int, Literal['on update']],
@@ -911,7 +940,7 @@ class StepsApi:
                                 _elements_wait_to_click_wait_to_add.insert(0, _element_info)
                                 continue
 
-                            if on_found_after_click_steps is not None:
+                            if on_found_after_click_steps is not None or on_new_page is not None:
                                 _elements_existed_keys.add(_element_key)
                                 # click_x = _ctx['x'] + _ctx['width'] / 2
                                 # click_y = _ctx['y'] + _ctx['height'] / 2
@@ -946,10 +975,35 @@ class StepsApi:
                                     else:
                                         return True
 
+                                _dump_callback_already_call_ref = {
+                                    'value': False
+                                }
+
+                                async def _dump_callback_func():
+                                    try:
+                                        await sleep(0.5)
+                                        _dump_count_ref['value'] += 1
+                                        await self._dump_page(
+                                            f'scroll_click_dump_pre_{_dump_count_ref["value"]}_{_element_key}_')
+                                        if on_found_after_click_steps is not None:
+                                            await self._process_steps(on_found_after_click_steps)
+                                        await sleep(0.5)
+                                        await self._dump_page(
+                                            f'scroll_click_dump_aft_{_dump_count_ref["value"]}_{_element_key}_')
+                                        await sleep(0.5)
+                                        if on_found_after_click_and_dump_steps is not None:
+                                            await self._process_steps(on_found_after_click_and_dump_steps)
+                                            await sleep(0.5)
+                                    finally:
+                                        _dump_callback_already_call_ref['value'] = True
+
                                 try:
                                     await self.page_click(
                                         _ctx['locator'],
-                                        detail_logd=detail_logd
+                                        detail_logd=detail_logd,
+                                        on_new_page=on_new_page,
+                                        _on_new_page_dump_callback_func=_dump_callback_func,
+                                        close_new_page=close_new_page,
                                     )
                                 except BaseException as err:
                                     if not is_timeout_error(err):
@@ -963,22 +1017,13 @@ class StepsApi:
                                 if not await _check_steps():
                                     logger.debug('check steps return False , continue to next element')
                                     continue
+                                await sleep(0.5)
+                                if not _dump_callback_already_call_ref['value']:
+                                    await _dump_callback_func()
 
-                                await sleep(0.5)
-                                _dump_count += 1
-                                await self._dump_page(
-                                    f'scroll_click_dump_pre_{_dump_count}_{_element_key}_')
-                                await self._process_steps(on_found_after_click_steps)
-                                await sleep(0.5)
-                                await self._dump_page(
-                                    f'scroll_click_dump_aft_{_dump_count}_{_element_key}_')
-                                await sleep(0.5)
-                                if on_found_after_click_and_dump_steps is not None:
-                                    await self._process_steps(on_found_after_click_and_dump_steps)
-                                    await sleep(0.5)
                         except BaseException as err:
                             raise Exception(
-                                f'Failed operate , _dump_count = {_dump_count} , _element_info = {_element_info}') from err
+                                f'Failed operate , _dump_count = {_dump_count_ref["value"]} , _element_info = {_element_info}') from err
 
                     _elements_wait_to_click.extend(_elements_wait_to_click_wait_to_add)
                     _elements_wait_to_click = _sort_and_check_elements_wait_to_click(_elements_wait_to_click,
@@ -1112,55 +1157,73 @@ class StepsApi:
             else:
                 logger.debug('url is {} , it not in {} , please set `else_steps`', _page.url, args)
 
-    async def page_close(self):
-        _cur_page = await self._get_page()
+    async def page_close(self, *, _page: Optional[Page] = None):
+        if _page is None:
+            _page = await self._get_page()
         await self.switch_page(-2)
-        await sleep(0.5)
-        await _cur_page.close()
-        await sleep(0.5)
+        await self.sleep(500)
+        logger.debug('Close page : {}', _page)
+        await _page.close()
+        await self.sleep(500)
         await self.switch_page(-1)
 
     async def switch_page(self, to: Union[int, Literal['default'], Page]):
-        try:
-            await sleep(1)
-            if to == 'default':
-                res = self._b_page
-            elif isinstance(to, int):
-                logger.debug('all pages : {}', self._browser_context.pages)
-                len_all_pages = self._browser_context.pages.__len__()
-                res = self._browser_context.pages[
-                    len_all_pages - 1 if to > 0 and to >= len_all_pages else -1
-                    if to < 0 and abs(to) > len_all_pages else to
-                ]
-            elif isinstance(to, Page):
-                res = to
-            else:
-                raise ValueError(f'Invalid param {to}')
-            _old_page = await self._get_page()
-            from_title = await self._get_page_title_ignore_err(_old_page)
-            to_title_prev = await self._get_page_title_ignore_err(res)
-            logger.debug('Start switch page {} : from {} , to title on create {}',
-                         to,
-                         from_title,
-                         to_title_prev,
-                         )
-            await self.page_wait_loaded(page=res)
-            to_title_cur = await self._get_page_title_ignore_err(res)
-            await self._set_page(res)
-            logger.debug('Finish switch page {} : from {} , to title ( {} >>> {} )',
-                         to,
-                         from_title,
-                         to_title_prev,
-                         to_title_cur)
-            await sleep(1)
-            while (await self._get_page()).url != res.url:
-                logger.warning('It seems like ref not change , recall again')
-                await self.switch_page(to)
-        except BaseException as err:
-            if is_timeout_error(err):
-                logger.debug(f'switch page timeout ? maybe system blocking ? we will retry . error is {err}')
-                await self.switch_page(to)
-            raise
+        logger.debug('switch page wait start')
+        await self.sleep(3000)
+        logger.debug('switch page wait end , we check out to page {}', to)
+        retry_count = 0
+        while True:
+            try:
+                await sleep(1)
+                if to == 'default':
+                    res = self._b_page
+                elif isinstance(to, int):
+                    logger.debug('switch page to int value , current all pages :\n{}',
+                                 ''.join(map(lambda it: f'\n    {it}', self._browser_context.pages)))
+                    len_all_pages = self._browser_context.pages.__len__()
+                    res = self._browser_context.pages[
+                        len_all_pages - 1 if to > 0 and to >= len_all_pages else -1
+                        if to < 0 and abs(to) > len_all_pages else to
+                    ]
+                elif isinstance(to, Page):
+                    res = to
+                else:
+                    raise ValueError(f'Invalid param {to}')
+                logger.debug('switch page to : {}', res)
+                _old_page = await self._get_page()
+                from_title = await self._get_page_title_ignore_err(_old_page)
+                to_title_prev = await self._get_page_title_ignore_err(res)
+                logger.debug('Start switch page {} : from {} , to title on create {}',
+                             to,
+                             from_title,
+                             to_title_prev,
+                             )
+                await self.page_wait_loaded(page=res)
+                to_title_cur = await self._get_page_title_ignore_err(res)
+                await self._set_page(res)
+                logger.debug('Finish switch page {} : from {} , to title ( {} >>> {} )',
+                             to,
+                             from_title,
+                             to_title_prev,
+                             to_title_cur)
+                await sleep(1)
+                while (await self._get_page()).url != res.url:
+                    logger.warning('It seems like ref not change , recall again')
+                    retry_count += 1
+                    continue
+                if res is not None:
+                    return res
+                else:
+                    raise ValueError('Why res is None')
+            except BaseException as err:
+                if is_timeout_error(err):
+                    if retry_count < 3:
+                        retry_count += 1
+                        logger.debug(
+                            'switch page timeout ? maybe system blocking ? retry_count is {} ,we will retry . error is {}',
+                            retry_count, err)
+                        continue
+                raise
 
     async def gui_confirm(self, *, title: str, message: str):
         from libiancrawlers.app_util.gui_util import gui_confirm
@@ -1258,6 +1321,11 @@ class StepsApi:
             else:
                 logger.warning('Error on every times, err is {}', err)
             raise
+
+
+def generate_steps_api_documents():
+    # todo
+    pass
 
 
 if __name__ == '__main__':

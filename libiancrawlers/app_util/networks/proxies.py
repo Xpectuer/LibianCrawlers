@@ -184,34 +184,16 @@ async def update_proxies_for_win32(
     raise ValueError("bug")
 
 
-def monkey_patch_hook_urllib():
+async def monkey_patch_hook_urllib():
     import urllib.request
 
     logger.debug('[urllib hooking] start hook')
     from opentelemetry.instrumentation.urllib import URLLibInstrumentor
 
-    import asyncio
-    # running_loop = asyncio.get_running_loop()
-    # if running_loop is not None:
-    #     logger.debug('[urllib hooking] update proxies sync start , loop is {}', running_loop)
-    #     _res = update_proxies()
-    #     logger.debug('[urllib hooking] update proxies sync result : {}', _res)
-    #     while _res.cr_running:
-    #         sleep(0.1)
-    # else:
-    loop = None
-    try:
-        logger.debug('[urllib hooking] new loop start')
-        loop = asyncio.new_event_loop()
-        logger.debug('[urllib hooking] new loop is {}', loop)
-        logger.debug('[urllib hooking] wait to update proxies')
-        _res = loop.run_until_complete(update_proxies())
-        logger.debug('[urllib hooking] success to update proxies , current is {} , result is {}',
-                     _current_schema_proxies, _res)
-    finally:
-        if loop is not None:
-            logger.debug('[urllib hooking] close loop {}', loop)
-            loop.close()
+    logger.debug('[urllib hooking] wait to update proxies')
+    _res = await update_proxies()
+    logger.debug('[urllib hooking] success to update proxies , current is {} , result is {}',
+                 _current_schema_proxies, _res)
 
     # `request_obj` is an instance of urllib.request.Request
     def request_hook(span, request_obj):

@@ -116,7 +116,7 @@ poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以
 ### wos-journal 期刊信息查询
 
 将下方的 `--keys"` 改为你自己的 issn 字符串数组的 json 文件位置，
-你可以使用 `--key2url_jsfunc` 传入 js 函数来 map key 为 url 。 
+你可以使用 `--key2url_jsfunc` 传入 js 函数（仅支持 es5 语法）来映射 key 到 url 。 
 
 ```shell
 poetry run smart-crawl-urls --keys "jsonfile:data_cleaner_ci/user_code/journals_need_search/issn.json" --key2url_jsfunc "function(k){return 'https://wos-journal.info/?jsearch='+k.split(' ').join('+')}" --locale zh-CN --mode save_file
