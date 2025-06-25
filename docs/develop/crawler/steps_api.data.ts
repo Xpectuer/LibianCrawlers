@@ -96,7 +96,7 @@ ${JSON.stringify(typ.json_schema, null, 4)}
             }
 
             arg_content += `::: code-group\n`;
-            if (arg.type.py_hint) {
+            if (arg.type.py_hint && arg.type.py_hint !== "None") {
               arg_content += `\n
 \`\`\`txt [type_hint]
 ${arg.type.py_hint}
