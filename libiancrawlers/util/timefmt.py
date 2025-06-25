@@ -36,7 +36,7 @@ YMD = Tuple[Year, Mouth, Day]
 YMDParam = Union[YMD, List[Union[Year, Mouth, Day]]]
 
 
-def _parse_ymd(t: Union[Literal['now'], datetime, YMDParam]) -> YMD:
+def _parse_ymd(t: Union[Literal['now'], str, datetime, YMDParam]) -> YMD:
     _src_t = t
     if t == 'now':
         _now = datetime.now()
@@ -59,7 +59,7 @@ def _parse_ymd(t: Union[Literal['now'], datetime, YMDParam]) -> YMD:
 
 def days_iter(*,
               start: Union[Literal['now'], YMDParam, str],
-              offset_day:int,
+              offset_day: int,
               stop_until: Union[int, YMDParam]) -> Generator[YMD, Any, None]:
     if offset_day == 0:
         raise ValueError('Invalid offset_month')

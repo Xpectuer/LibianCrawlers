@@ -1,28 +1,145 @@
 # -*- coding: UTF-8 -*-
 import asyncio
+import collections.abc
 import hashlib
+import json
 import os.path
 import random
+import typing
 from collections import Counter
 from datetime import datetime, timedelta
+
 from typing import Optional, Literal, TypedDict, Callable, Awaitable, Union, List, Tuple, Dict
 from uuid import uuid4
 from loguru import logger
-from playwright.async_api import Page, BrowserContext, Locator
+from playwright.async_api import Page, BrowserContext, Locator, Position
 
-from libiancrawlers.app_util.types import JSON
 from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.exceptions import is_timeout_error
-from libiancrawlers.util.timefmt import days_ranges_iter, YMDParam
+from libiancrawlers.util.timefmt import days_ranges_iter
 
-StepsBlock = Union[
-    JSON,
-    List[JSON],
+if typing.TYPE_CHECKING:
+    from libiancrawlers.app_util.types import JSON
+    from libiancrawlers.util.timefmt import YMDParam
+
+    StepsBlock = Union[
+        JSON,
+        List[JSON],
+    ]
+    OnLocatorBlock = JSON
+
+else:
+    JSON = 'JSON'
+    YMDParam = 'YMDParam'
+    StepsBlock = 'StepsBlock'
+    OnLocatorBlock = 'OnLocatorBlock'
+    # PageScrollDownPageClickIfFound = 'PageScrollDownPageClickIfFound'
+
+PageScrollDownPageClickIfFoundRequireKeys = TypedDict('PageScrollDownPageClickIfFoundRequireKeys', {
+    'locator': typing.Annotated[str, '传递给 `page.locator(locator, **kwargs)` 的参数。'],
+})
+
+OnNewPage = Optional[
+    Union[
+        Literal[
+            'switch_it_and_run_steps_no_matter_which_page',
+            'ignore'
+        ],
+        StepsBlock
+    ]
 ]
 
-OnLocatorBlock = JSON
+_on_new_page_desc = """
+当点击之后有新标签页时的处理方法。
 
-PageScrollDownPageClickIfFound = JSON
+- 缺省及默认值为 `"switch_it_and_run_steps_no_matter_which_page"` ，将会自动将当前页面指针指向新页面，但假如没有新页面则无事发生。  
+- `"ignore"` 值将会忽略新页面（且当前页面指针不会指向新页面）。
+- 如果传入 StepsBlock，则先将自动将当前页面指针指向新页面，然后 在新页面中执行此 StepsBlock ，并且会在 StepsBlock 块完毕后自动将当前页面指针指回旧页面 。
+"""
+_close_new_page_desc = '设为 true 时，在 on_new_page 块执行完成后关闭新页面。'
+
+
+class PageScrollDownPageClickIfFound(PageScrollDownPageClickIfFoundRequireKeys, total=False):
+    not_clickable_top_margin: typing.Annotated[
+        Optional[float],
+        """向下滚动中点击元素时，不会点击距离窗口顶部的距离小于此值的位置。通常用于一些有 sticky 顶栏的网站，以免误触到顶栏"""
+    ]
+    duplicated_only_text: typing.Annotated[
+        Optional[bool],
+        """
+在找到满足 `locator` 的全部元素后，需要根据特定的方法，
+来判别多次查询到的元素列表中，“新旧查询中是否为同一个元素”的对应关系。
+
+旧的已经被点击过的元素不会再次点击，“判断是不是旧”的通过这里指定的 key 算法。
+
+如果 `duplicated_only_text` 为 False（默认值），
+则将 `element.inner_text()[0:30] + "_" + md5(element.inner_html())` 作为 key 。
+
+如果 `duplicated_only_text` 为 True，
+则将 `element.inner_text()[0:30]` 作为 key 。
+"""
+    ]
+    on_before_click_steps: typing.Annotated[
+        Optional[StepsBlock],
+        """
+在点击元素之前，执行此回调。
+"""
+    ]
+    check_selector_exist_after_click: typing.Annotated[
+        Optional[str],
+        """
+传入此值后。在点击满足 `locator` 的某元素后，检查页面上是否出现满足此参数 selector 的元素。
+如果存在，则继续执行；如果不存在，则处理下一个元素。
+
+如果不传入此值，则继续执行。
+"""
+    ]
+    on_before_click_check_steps: typing.Annotated[
+        Optional[StepsBlock],
+        """
+在点击元素之后，检查另一个元素是否存在之前，执行此回调。
+不管 `check_selector_exist_after_click` 是否为 True，此回调都会执行。
+"""
+    ]
+    on_before_dump_steps: typing.Annotated[
+        Optional[StepsBlock],
+        """
+在转储页面被调用之前一刹那，执行此回调。
+
+关于自动转储页面的时机:
+- 如果 `on_new_page` 不为 `"ignore"`，且有新页面出现，则:
+    - 如果 `on_new_page` 为缺省值 `"switch_it_and_run_steps_no_matter_which_page"` ，则在 新页面被切换到之后 转储页面。
+    - 如果 `on_new_page` 为回调块，则在 新页面被切换到之后、且回调块执行完之后 转储页面。
+- 如果上述情况均不满足。
+    - 在 `check_selector_exist_after_click` 通过后 转储页面。
+"""
+    ]
+    detail_logd: typing.Annotated[
+        Optional[bool],
+        """输出详细日志。"""
+    ]
+    on_after_dump_steps: typing.Annotated[
+        Optional[StepsBlock],
+        """
+在转储页面被调用之后一刹那，执行此回调。
+"""
+    ]
+    on_new_page: typing.Annotated[
+        Optional[OnNewPage],
+        f"""
+传递给 `self.page_click` 的可选参数。
+
+{_on_new_page_desc}
+"""
+    ]
+    close_new_page: typing.Annotated[
+        Optional[bool],
+        f"""
+传递给 `self.page_click` 的可选参数。
+
+{_close_new_page_desc}
+"""
+    ]
 
 
 class SmartCrawlSignal(BaseException):
@@ -40,6 +157,95 @@ PageRef = TypedDict('PageRef', {'value': Page, })
 PageScrollDownElementToClickContext = TypedDict('PageScrollDownElementToClickContext',
                                                 {'x': float, 'y': float, 'width': float, 'height': float,
                                                  'locator': Locator})
+
+StepsApiArgConfType = Literal['Timeout', 'StepsBlock', 'str', 'float>=0']
+
+StepsApiArgConf = TypedDict('StepsApiArgConf', {
+    'name': str,
+    'hide': bool,
+    'desc': Optional[str],
+    'type': Optional[StepsApiArgConfType],
+    'type_hint': Optional[typing.Any],
+    "examples": Optional[List[JSON]],
+})
+
+_arg_conf_map: Dict[str, List[StepsApiArgConf]] = dict()
+
+
+def arg_conf(name: str, *,
+             hide: bool = False,
+             desc: Optional[str] = None,
+             typ: Optional[StepsApiArgConfType] = None,
+             type_hint: Optional[typing.Any] = None,
+             examples: Optional[List[JSON]] = None):
+    def deco(func):
+        steps_api_confs: List[StepsApiArgConf] = [] \
+            if _arg_conf_map.get(func.__name__) is None \
+            else _arg_conf_map.get(func.__name__)
+        steps_api_confs.append({
+            'name': name,
+            'hide': hide,
+            'desc': desc,
+            'type': typ,
+            'type_hint': type_hint,
+            'examples': examples,
+        })
+        _arg_conf_map[func.__name__] = steps_api_confs
+        return func
+
+    return deco
+
+
+StepsApiFuncConf = TypedDict('StepsApiFuncConf', {
+    'varargs_min': Optional[int],
+    'varargs_conf_types': Optional[Union[typing.Any, List[typing.Any]]]
+})
+
+_func_conf_map: Dict[str, StepsApiFuncConf] = dict()
+
+_selector_desc = """
+playwright 定位元素所使用的 [选择器](https://playwright.dev/docs/locators)。
+"""
+_timeout_desc = """
+超时时间，单位为毫秒。
+"""
+
+_on_locator_allow_methods = [
+    Locator.get_by_text,
+    Locator.get_by_alt_text,
+    Locator.get_by_role,
+]
+_next_line = '\n'
+_on_locator_desc = f"""
+当需要在 `page_or_frame.locator` 的结果上再调用 [`Locator`](https://playwright.dev/docs/api/class-locator)
+的以下函数(均为返回一个新 Locator 的函数)时，可以传入 OnLocatorBlock 进行链式调用:
+
+{f'{_next_line}'.join([f'- `{func.__name__}`' for func in _on_locator_allow_methods])}
+"""
+_on_locator_examples = [
+    {
+        "fn": "get_by_text",
+        "args": ["Sign In"]
+    }, {
+        "fn": "get_by_role",
+        "args": ["banner"]
+    }
+]
+
+_only_main_frame_desc = '只在页面根 iframe 中寻找元素，设为 false 后将会在页面的所有 iframe 中寻找元素。'
+
+
+def func_conf(*,
+              varargs_min: Optional[int] = None,
+              varargs_conf_types: Optional[Union[StepsApiArgConfType, List[StepsApiArgConfType]]] = None):
+    def deco(func):
+        _func_conf_map[func.__name__] = {
+            'varargs_min': varargs_min,
+            'varargs_conf_types': varargs_conf_types,
+        }
+        return func
+
+    return deco
 
 
 # noinspection PyMethodMayBeStatic
@@ -167,13 +373,10 @@ class StepsApi:
                     raise ValueError(
                         f'Invalid fn type in OnLocatorBlock , fn should be literal string ,\n but fn is {fn} ,\n opt is {opt} ,\n opts is {opts}')
 
-                for func in [
-                    loc.get_by_text,
-                    loc.get_by_alt_text,
-                    loc.get_by_role,
-                ]:
+                for func in _on_locator_allow_methods:
                     if func.__name__ == fn:
-                        loc2 = func(*opt.get('args', []), **opt.get('kwargs', dict()))
+                        func: typing.Any = func
+                        loc2 = func(loc, *opt.get('args', []), **opt.get('kwargs', dict()))
                         logger.debug('on locator : \n    call {}\n    from {}\n    to {}', opt, loc, loc2)
                         loc = loc2
                         break
@@ -254,24 +457,47 @@ class StepsApi:
     # ------------------------------------------------------------------
     # Public API
 
+    @arg_conf('total', desc='睡眠时间，单位为毫秒', typ='Timeout')
     async def sleep(self, total: float):
+        """
+        使程序暂停指定毫秒。
+        """
         if total < 10:
             logger.warning('Do you known sleep() unit is millisecond ? (you bypass {})', total)
         await sleep(total / 1000.0)
 
+    @func_conf(varargs_min=1, varargs_conf_types=['str'])
     async def logd(self, *args, **kwargs):
+        """
+        输出debug级别日志。
+        """
         logger.debug(*args, **kwargs)
 
+    @func_conf(varargs_min=1, varargs_conf_types=['str'])
     async def logi(self, *args, **kwargs):
+        """
+        输出info级别日志。
+        """
         logger.info(*args, **kwargs)
 
+    @func_conf(varargs_min=1, varargs_conf_types=['str'])
     async def logw(self, *args, **kwargs):
+        """
+        输出warn级别日志。
+        """
         logger.warning(*args, **kwargs)
 
+    @func_conf(varargs_min=1, varargs_conf_types=['str'])
     async def loge(self, *args, **kwargs):
+        """
+        输出error级别日志。
+        """
         logger.error(*args, **kwargs)
 
     async def page_random_mouse_move(self):
+        """
+        让浏览器光标在视口中胡乱移动，像人似的装模作样。
+        """
         _page = await self._get_page()
         box = await self._get_bounding_box(_page.locator('body'), timeout=1500)
         window_box = await self._get_window_inner_box()
@@ -302,7 +528,12 @@ class StepsApi:
             else:
                 raise
 
-    async def page_wait_loaded(self, *, page: Page = None):
+    @arg_conf('page', hide=True)
+    async def page_wait_loaded(self, *, page: Optional[Page] = None):
+        """
+        这是一个封装好的等待页面加载完成的工具函数。它会调用 `page.wait_for_load_state('domcontentloaded')`、
+        `page.wait_for_load_state('networkidle')`、`page.bring_to_front()` 等多种方式来等待页面加载完成。
+        """
         if page is None:
             page = (await self._get_page())
         from libiancrawlers.util.exceptions import is_timeout_error
@@ -327,7 +558,16 @@ class StepsApi:
         logger.debug('start bring to front at last')
         await self._page_bring_to_front(page=page)
 
+    @arg_conf('selector', desc=_selector_desc)
+    @arg_conf('timeout', desc=_timeout_desc, typ='Timeout')
+    @arg_conf('strict', desc="传递给 `frame.wait_for_selector` 的可选参数", type_hint=typing.Optional[bool])
+    @arg_conf('state', desc="传递给 `frame.wait_for_selector` 的可选参数", type_hint=typing.Optional[
+        Literal["attached", "detached", "hidden", "visible"]
+    ])
     async def page_wait_for_selector_in_any_frame(self, selector: str, *, timeout: Optional[float], **kwargs):
+        """
+        等待指定的 `selector` 在任意 Frame 中出现。
+        """
         from playwright.async_api import Frame
 
         async def fn(*, frame: Frame, loop_timeout: float):
@@ -339,21 +579,93 @@ class StepsApi:
                                           suc_msg_template=f'success found selector {selector} in frame {{}} , result is {{}}')
 
     async def page_wait_for_function(self, *args, **kwargs):
+        """
+        等待执行 js 函数。请参考 Camoufox 文档以区分世界隔离机制: https://camoufox.com/python/main-world-eval
+        """
         return await (await self._get_page()).wait_for_function(*args, **kwargs)
 
+    @arg_conf('selector',
+              desc=_selector_desc)
+    @arg_conf('method',
+              desc="""
+具体点击事件的类型。
+
+- 当 `selector` 传入 XY 对象 时，使用 [`page.mouse.click`](https://playwright.dev/python/docs/api/class-mouse#mouse-click) 触发点击事件。
+- 当 `selector` 传入 字符串 时，先使用 [`page_or_frame.locator`](https://playwright.dev/python/docs/api/class-locator) 定位元素:
+    - 当 method 为 `click` 时，使用 [`Locator.click`](https://playwright.dev/python/docs/api/class-locator#locator-click) 触发点击事件。
+    - 当 method 为 `tap` 时，使用 [`Locator.tap`](https://playwright.dev/python/docs/api/class-locator#locator-tap) 触发点击事件。
+    - 当 method 为 `dispatch_event_click` 时，使用 [`Locator.dispatch_event("click")`](https://playwright.dev/python/docs/api/class-locator#locator-tap) 触发点击事件。
+""")
+    @arg_conf('on_new_page',
+              desc=_on_new_page_desc)
+    @arg_conf('detail_logd',
+              hide=True)
+    @arg_conf('wait_any_page_create_time_limit',
+              desc='观察是否有新页面创建的等待时间，单位为毫秒。',
+              typ='Timeout')
+    @arg_conf('only_main_frame',
+              desc=_only_main_frame_desc)
+    @arg_conf('each_steps_before',
+              desc='（仅当使用`page_or_frame.locator`时有效。）当 `each_steps_before` 或 `each_steps_after` 非空时，将会点击符合 selector 的所有元素。在点击前会执行 `each_steps_before` 块。')
+    @arg_conf('each_steps_after',
+              desc='（仅当使用`page_or_frame.locator`时有效。）当 `each_steps_before` 或 `each_steps_after` 非空时，将会点击符合 selector 的所有元素。在点击后会执行 `each_steps_before` 块。')
+    @arg_conf('timeout_retry',
+              desc='（仅当使用`page_or_frame.locator`时有效。）仅点击操作的超时重试次数。')
+    @arg_conf('close_new_page',
+              desc=_close_new_page_desc)
+    @arg_conf('timeout',
+              desc=_timeout_desc,
+              typ='Timeout')
+    @arg_conf('has_text',
+              desc='（仅当使用`page_or_frame.locator`时有效。）定位包含此文本的元素。',
+              typ='str')
+    @arg_conf('has_no_text',
+              desc='（仅当使用`page_or_frame.locator`时有效。）定位不包含此文本的元素。',
+              typ='str')
+    @arg_conf('delay',
+              desc='传递给 `page.mouse.click` 或 `Locator.click` 或 `Locator.tap` 的可选参数',
+              typ='float>=0')
+    @arg_conf('button',
+              desc='传递给 `page.mouse.click` 或 `Locator.click` 的可选参数',
+              type_hint=typing.Optional[Literal["left", "middle", "right"]])
+    @arg_conf('click_count',
+              desc='传递给 `page.mouse.click` 或 `Locator.click` 的可选参数',
+              type_hint=typing.Optional[int])
+    @arg_conf('on_locator',
+              desc=_on_locator_desc,
+              type_hint=typing.Optional[OnLocatorBlock],
+              examples=_on_locator_examples)
+    @arg_conf('position',
+              desc='传递给 `Locator.click` 或 `Locator.tap` 的可选参数',
+              type_hint=typing.Optional[Position])
+    @arg_conf('force',
+              desc="""
+传递给 `Locator.click` 或 `Locator.tap` 的可选参数。
+设为 true 将不进行 [actionability](https://playwright.dev/docs/actionability) 检查而强行点击。
+""",
+              type_hint=typing.Optional[bool])
+    @arg_conf('no_wait_after',
+              desc="""
+传递给 `Locator.click` 或 `Locator.tap` 的可选参数。
+此参数已经被 playwright 弃用。
+""",
+              type_hint=typing.Optional[bool])
+    @arg_conf('trial',
+              desc="""
+传递给 `Locator.click` 或 `Locator.tap` 的可选参数。
+
+设置为 true 后，此方法仅执行 [actionability](https://playwright.dev/docs/actionability) 检查并跳过操作。
+默认为 false。
+
+这在等待元素准备好执行操作而不执行操作很有用。
+请注意，无论 trial 如何，键盘 修饰键 都会被按下，以允许测试仅在按下这些键时才可见的元素。
+""",
+              type_hint=typing.Optional[bool])
     async def page_click(self,
                          selector: Union[str, Locator, XY],
                          *,
                          method: Literal['click', 'tap', 'dispatch_event_click'] = None,
-                         on_new_page: Optional[
-                             Union[
-                                 Literal[
-                                     'switch_it_and_run_steps_no_matter_which_page',
-                                     'ignore'
-                                 ],
-                                 StepsBlock
-                             ]
-                         ] = None,
+                         on_new_page: OnNewPage = None,
                          detail_logd: bool = False,
                          wait_any_page_create_time_limit: Optional[float] = None,
                          only_main_frame: bool = True,
@@ -363,6 +675,9 @@ class StepsApi:
                          _on_new_page_dump_callback_func: Optional[Callable[[], Awaitable[None]]] = None,
                          close_new_page: bool = False,
                          **kwargs):
+        """
+        通用的页面点击工具函数。
+        """
         if method is None:
             method = 'click'
         if on_new_page is None:
@@ -511,9 +826,15 @@ class StepsApi:
                 if not isinstance(on_new_page, str):
                     raise ValueError('Assert new page create')
 
+    @arg_conf('selector', desc=_selector_desc)
+    @arg_conf('on_exist_steps', desc='当 selector 元素未消失且 `retry_count < retry_limit` 时，执行此块。')
+    @arg_conf('retry_limit', desc='当 selector 元素未消失时，将会重新点击此参数次数。')
     async def page_click_and_expect_element_destroy(self, selector: Union[str, Locator, XY], *,
-                                                    on_exist_steps: StepsBlock = None,
+                                                    on_exist_steps: Optional[StepsBlock] = None,
                                                     retry_limit=5):
+        """
+        点击页面上的 `selector` 元素并期望该 `selector` 元素消失，如果在点击后该 `selector` 元素没有消失将会重新点击。
+        """
         retry_count = 0
         err = None
         while True:
@@ -547,41 +868,123 @@ class StepsApi:
                 logger.debug('Select {} not found , click success', selector)
                 break
 
-    async def page_type(self, *args, **kwargs):
+    @arg_conf('selector', desc=_selector_desc)
+    @arg_conf('text', desc='要输入的值。')
+    @arg_conf('only_main_frame', desc=_only_main_frame_desc, type_hint=Optional[bool])
+    @arg_conf('timeout',
+              desc=_timeout_desc,
+              typ='Timeout')
+    @arg_conf('delay',
+              desc='传递给 `page_or_frame.type` 或 `page_or_frame.fill` 的可选参数',
+              typ='float>=0')
+    @arg_conf('no_wait_after',
+              desc="""
+传递给 `page_or_frame.type` 或 `page_or_frame.fill` 或 `page_or_frame.select_option` 的可选参数。
+此参数已经被 playwright 弃用。
+""",
+              type_hint=typing.Optional[bool])
+    @arg_conf('strict',
+              desc="""传递给 `page_or_frame.type` 或 `page_or_frame.fill` 或 `page_or_frame.select_option` 的可选参数。设为 true 时将确保符合条件的元素只有一个。""",
+              type_hint=typing.Optional[bool])
+    @arg_conf('use_fill', desc='使用 `page_or_frame.fill` 重新填充文本框。', type_hint=Optional[bool])
+    @arg_conf('force',
+              desc="""
+传递给 `page_or_frame.fill` 或 `page_or_frame.select_option` 的可选参数。
+设为 true 将不进行 [actionability](https://playwright.dev/docs/actionability) 检查而强行输入。
+""",
+              type_hint=typing.Optional[bool])
+    @arg_conf('use_select_options', desc='使用 `page_or_frame.select_option` 在 select 标签中选择。',
+              type_hint=Optional[bool])
+    @arg_conf('index',
+              desc="""传递给 `page_or_frame.select_option` 的可选参数。""",
+              type_hint=typing.Optional[int])
+    @arg_conf('label',
+              desc="""传递给 `page_or_frame.select_option` 的可选参数。""",
+              type_hint=typing.Optional[str])
+    async def page_type(self, selector: str, text: str, **kwargs):
+        """
+        通用的输入文本的工具函数。默认使用 `page_or_frame.type` 进行输入（可使用 `use_fill` 或 `use_select_options` 更改）。
+        """
         delay = kwargs.pop('delay', self._page_type_default_delay)
         timeout = kwargs.pop('timeout', self._page_type_default_timeout)
         use_fill = kwargs.pop('use_fill', False)
         use_select_options = kwargs.pop('use_select_options', False)
         force = kwargs.pop('force', False)
         strict = kwargs.get('strict')
-        selector = args[0]
         only_main_frame = kwargs.pop('only_main_frame', True)
         if only_main_frame:
             page = await self._get_page()
             if use_fill:
-                await page.fill(*args, timeout=timeout, strict=strict, force=force)
+                await page.fill(selector, text, timeout=timeout, strict=strict, force=force)
             elif use_select_options:
-                await page.select_option(*args, timeout=timeout, strict=strict, force=force)
+                await page.select_option(selector, text, timeout=timeout, strict=strict, force=force)
             else:
                 await page.focus(selector=selector, timeout=timeout, strict=strict)
-                await page.type(*args, delay=delay, timeout=timeout, **kwargs)
+                await page.type(selector, text, delay=delay, timeout=timeout, **kwargs)
         else:
             logger.debug('wait for selector in any frame to type , selector is {}', selector)
             frame, _ = await self.page_wait_for_selector_in_any_frame(selector=selector,
                                                                       timeout=timeout,
                                                                       strict=strict,
                                                                       state=kwargs.get('state'))
-            logger.debug('existed selector in any frame to type , try type to frame {} , args is {}',
-                         frame, args)
+            logger.debug('existed selector in any frame to type , try type to frame {} , selector is {} , text is {}',
+                         frame, selector, text, )
             if use_fill:
-                await frame.fill(*args, timeout=timeout, strict=strict)
+                await frame.fill(selector, text, timeout=timeout, strict=strict)
             elif use_select_options:
-                await frame.select_option(*args, timeout=timeout, strict=strict, force=force)
+                await frame.select_option(selector, text, timeout=timeout, strict=strict, force=force)
             else:
                 await frame.focus(selector=selector, timeout=timeout, strict=strict)
-                await frame.type(*args, delay=delay, timeout=timeout, **kwargs)
-            logger.debug('Success type to frame')
+                await frame.type(selector, text, delay=delay, timeout=timeout, **kwargs)
+                logger.debug('Success type to frame')
 
+    @arg_conf('start', desc='起始日期，可以传入 `now` 或 YMDParam(形如 `[2025,6,24]` 或 `"2025-6-24" 之类的日期格式)` ',
+              examples=["now", [2025, 3, 31], '2025-4-25'])
+    @arg_conf('offset_day', desc="""
+日期步长。可以传入正整数或负整数，不能传入0。
+
+传入正整数会 yield (今天, 明天),(明天, 后天),... ;
+传入负整数会 yield (今天, 昨天),(昨天, 前天),... ;
+""", examples=[1, -1, 2, -2, 7, -7, 15, -15])
+    @arg_conf('stop_until',
+              desc="""停止日期 或 停止循环次数。传入 integer 为停止循环次数，传入 YMDParam(形如 `[2025,6,24]` 或 `"2025-6-24" 之类的日期格式) 为停止日期。""",
+              examples=[3, 15, 30, 60, [2025, 6, 20], '2025-6-20'])
+    @arg_conf('yield_stop_until_value_if_end_value_not_equal', desc="""
+当停止日期不在步长倍数上时，设为 true 将 yield (最后一步, 停止日期)。默认值为 true
+""")
+    @arg_conf('end_offset', desc="""
+截止时间点的偏移量，单位为天。会令输出变为 (date1, date2+end_offset), (date2, date3+offset), ...
+""", examples=[0, 3, 7, -1])
+    @arg_conf('time_format', desc="""输出时间格式""")
+    @arg_conf('delay',
+              desc='传递给 `self.page_type` 的可选参数',
+              typ='float>=0')
+    @arg_conf('timeout',
+              desc='传递给 `self.page_type` 的可选参数',
+              typ='Timeout')
+    @arg_conf('strict',
+              desc='传递给 `self.page_type` 的可选参数',
+              type_hint=Optional[bool])
+    @arg_conf('only_main_frame',
+              desc='传递给 `self.page_type` 的可选参数',
+              type_hint=Optional[bool])
+    @arg_conf('use_fill',
+              desc='传递给 `self.page_type` 的可选参数',
+              type_hint=Optional[bool])
+    @arg_conf('force',
+              desc='传递给 `self.page_type` 的可选参数',
+              type_hint=Optional[bool])
+    @arg_conf('begin_selector', desc=f'{_selector_desc}。起始日期将会被输入到此元素')
+    @arg_conf('end_selector', desc=f'{_selector_desc}。截止日期将会被输入到此元素')
+    @arg_conf('steps_before_begin',
+              desc=f'输入起始日期之前的回调（起始日期不一定在截止日期之前输入，因为有的日期选择器组件会限制输入）')
+    @arg_conf('steps_after_begin',
+              desc=f'输入起始日期之后的回调（起始日期不一定在截止日期之前输入，因为有的日期选择器组件会限制输入）')
+    @arg_conf('steps_before_end',
+              desc=f'输入截止日期之前的回调（起始日期不一定在截止日期之前输入，因为有的日期选择器组件会限制输入）')
+    @arg_conf('steps_after_end',
+              desc=f'输入截止日期之后的回调（起始日期不一定在截止日期之前输入，因为有的日期选择器组件会限制输入）')
+    @arg_conf('steps_after_type_all', desc=f'两个日期均输入完毕后的回调。')
     async def page_type_days_ranges_iter(self, *,
                                          start: Union[Literal['now'], YMDParam, str],
                                          offset_day: Union[int, str],
@@ -603,6 +1006,10 @@ class StepsApi:
                                          steps_after_end: StepsBlock = None,
                                          steps_after_type_all: StepsBlock = None,
                                          ):
+        """
+        用于在一些日期范围选择器组件中输入日期范围的工具函数。
+        该函数会遍历 `[StartDate, EndDate][]` 并将其输出到日期范围选择器组件中。
+        """
         if not isinstance(offset_day, int):
             offset_day = int(offset_day)
         is_first_input = True
@@ -676,16 +1083,55 @@ class StepsApi:
                 logger.debug('run steps_after_type_all')
                 await self._process_steps(steps_after_type_all)
 
+    @arg_conf('delta_y', desc="""
+每次向下滚动的距离因子。实际向下滚动的距离为其的 0.3~1.6 倍。 默认值 233.0 。
+建议不要修改，容易出 BUG。
+""")
+    @arg_conf('interval', desc="""
+每次向下滚动事件之间的时间间隔因子。实际的间隔时间为它的 0.7~1.3 倍。 默认值 0.5。
+建议不要修改，容易出 BUG。
+""")
+    @arg_conf('max_height',
+              desc="""
+向下滚动的最大高度限制。
+如果你需要 gecko 的网页截图功能，请勿设置过高的值，因为它会引发 [gecko 截图超过像素上限](https://www.google.com.hk/search?q=Cannot+take+screenshot+larger+than+32767) 的问题。
+""")
+    @arg_conf('retry_scroll_down_limit',
+              desc="""
+默认值 2 。当发现滚动后高度和上次一致时，再向下滚动此次数，若还是一致或高度缩短，则认为 没有发现新加载的内容。
+""")
+    @arg_conf('retry_scroll_up_limit',
+              desc="""
+默认值 2 。当 没有发现新加载的内容 时，会 试图向上滚动再向下滚动检查 此次数。
+当该过程中发现了新加载的内容，清空此计数器并继续向下滚动；
+
+直到此计数器超过该值 或 超过高度上限 时，才会认为页面已经滚动到底。
+""")
+    @arg_conf('page_click_if_found',
+              desc="""
+当指定此值时，将会在向下滚动的过程中不断的将 满足 locator 属性的选择器要求的元素 的位置收集入列表中。
+
+仅当同时满足 元素可以被点击、元素出现在视口内、元素的长宽均超过10 时，将会点击此元素。
+如果没满足点击条件，则会保留在列表中，直到满足条件才被点击并移出列表，（或是因已经划过高度而跳过）。
+""")
     async def page_scroll_down(self, *,
                                delta_y=233.0,
                                interval=0.5,
                                max_height: Optional[float] = 20000,
                                retry_scroll_up_limit: int = 2,
                                retry_scroll_down_limit: int = 2,
-                               page_click_if_found: PageScrollDownPageClickIfFound = None,
+                               page_click_if_found: Optional[PageScrollDownPageClickIfFound] = None,
                                ):
+        """
+        将页面向下滚动到底或最大高度。
+        当滚到底部时，会上滚一下再下滚，反复多次后若高度不变（没有加载新玩意）则认为滚动完成。
+        如果指定了 `page_click_if_found` 属性，则会在合适的时机点击每个符合选择器的元素，
+        在点击之后还会转储页面 ，并可以指定转储页面前后运行指定的步骤。
+        """
+
         _page = await self._get_page()
-        logger.debug('start page scroll down , current page title is {}', await self._get_page_title_ignore_err(_page))
+        logger.debug('start page scroll down , current page title is {}',
+                     await self._get_page_title_ignore_err(_page))
 
         _last_scroll_down_time = {
             'value': datetime.now().timestamp()
@@ -699,7 +1145,7 @@ class StepsApi:
         def random_delta_y():
             return delta_y * (random.randint(3, 16) / 10.0)
 
-        prev_height = None
+        prev_height: Optional[int] = None
         prev_height_bottom = {
             'value': -1
         }
@@ -787,9 +1233,9 @@ class StepsApi:
                 check_selector_exist_after_click = page_click_if_found.get('check_selector_exist_after_click')
                 duplicated_only_text = page_click_if_found.get('duplicated_only_text', False)
                 on_before_click_check_steps = page_click_if_found.get('on_before_click_check_steps')
-                on_found_after_click_steps = page_click_if_found.get('on_found_after_click_steps')
+                on_before_dump_steps = page_click_if_found.get('on_before_dump_steps')
                 detail_logd = page_click_if_found.get('detail_logd', False)
-                on_found_after_click_and_dump_steps = page_click_if_found.get('on_found_after_click_and_dump_steps')
+                on_after_dump_steps = page_click_if_found.get('on_after_dump_steps')
                 on_before_click_steps = page_click_if_found.get('on_before_click_steps')
                 on_new_page = page_click_if_found.get('on_new_page')
                 close_new_page = page_click_if_found.get('close_new_page')
@@ -940,7 +1386,7 @@ class StepsApi:
                                 _elements_wait_to_click_wait_to_add.insert(0, _element_info)
                                 continue
 
-                            if on_found_after_click_steps is not None or on_new_page is not None:
+                            if on_before_dump_steps is not None or on_new_page is not None:
                                 _elements_existed_keys.add(_element_key)
                                 # click_x = _ctx['x'] + _ctx['width'] / 2
                                 # click_y = _ctx['y'] + _ctx['height'] / 2
@@ -985,14 +1431,14 @@ class StepsApi:
                                         _dump_count_ref['value'] += 1
                                         await self._dump_page(
                                             f'scroll_click_dump_pre_{_dump_count_ref["value"]}_{_element_key}_')
-                                        if on_found_after_click_steps is not None:
-                                            await self._process_steps(on_found_after_click_steps)
+                                        if on_before_dump_steps is not None:
+                                            await self._process_steps(on_before_dump_steps)
                                         await sleep(0.5)
                                         await self._dump_page(
                                             f'scroll_click_dump_aft_{_dump_count_ref["value"]}_{_element_key}_')
                                         await sleep(0.5)
-                                        if on_found_after_click_and_dump_steps is not None:
-                                            await self._process_steps(on_found_after_click_and_dump_steps)
+                                        if on_after_dump_steps is not None:
+                                            await self._process_steps(on_after_dump_steps)
                                             await sleep(0.5)
                                     finally:
                                         _dump_callback_already_call_ref['value'] = True
@@ -1008,7 +1454,7 @@ class StepsApi:
                                 except BaseException as err:
                                     if not is_timeout_error(err):
                                         raise err
-                                    if on_found_after_click_steps is not None:
+                                    if on_before_dump_steps is not None:
                                         logger.debug('Timeout on page_click , but we will checking ...')
                                     else:
                                         logger.warning(
@@ -1085,7 +1531,19 @@ class StepsApi:
             prev_height = curr_height
             await sleep(random_interval())
 
+    @arg_conf('timeout',
+              desc=_timeout_desc,
+              typ="Timeout")
+    @arg_conf('wait_until',
+              desc='传递给 `page.go_back` 的可选参数。`',
+              type_hint=typing.Optional[
+                  Literal["commit", "domcontentloaded", "load", "networkidle"]
+              ])
     async def page_go_back(self, **kwargs):
+        """
+        调用浏览器导航栏返回功能。
+        https://camoufox.com/python/usage/#enable_cache
+        """
         page = await self._get_page()
         old_url = await self._get_page_url_ignore_err(page)
         logger.debug('page go back , kwargs={} , current url is\n    {}',
@@ -1097,9 +1555,21 @@ class StepsApi:
         res = await page.go_back(timeout=timeout, **kwargs)
         return res
 
+    @arg_conf('tag', desc='标签名')
     async def dump_page_with_uuid(self, tag: str):
+        """
+        直接调用转储页面。
+        转储页面的 tag 为 `f'tag_{tag}_uuid_{uuid4().hex}'`。
+        """
         return await self._dump_page(f'tag_{tag}_uuid_{uuid4().hex}')
 
+    @arg_conf('dump_tag_prefix', desc='标签名')
+    @arg_conf('before_dump_steps', desc='在 转储页面之前 执行此回调')
+    @arg_conf('after_dump_steps', desc='在 转储页面之后 执行此回调')
+    @arg_conf('before_dump_break_by_timeout',
+              desc='设为 true 后，若在 `before_dump_steps` 回调执行时发生超时异常，则退出循环。')
+    @arg_conf('after_dump_break_by_timeout',
+              desc='设为 true 后，若在 `after_dump_steps` 回调执行时发生超时异常，则退出循环。')
     async def dump_page_for_each(self, *,
                                  dump_tag_prefix: str,
                                  before_dump_steps: Optional[StepsBlock],
@@ -1107,6 +1577,10 @@ class StepsApi:
                                  before_dump_break_by_timeout: bool = False,
                                  after_dump_break_by_timeout: bool = False,
                                  ):
+        """
+        不停的执行 `before_dump_steps` 、转储页面、`after_dump_steps` 这三块步骤。
+        历次调用的转储页面的 tag 为 `f'{dump_tag_prefix}_{count}'`。
+        """
         logger.debug('Start dump_page_for_each')
         count = 1
         while True:
@@ -1140,7 +1614,12 @@ class StepsApi:
             logger.debug('[dump_tag = {}] after after_dump_steps', dump_tag)
             count += 1
 
+    @arg_conf('run_steps', desc='在 `args` 数组包含当前页面的 url 时，执行此回调。')
+    @arg_conf('else_steps', desc='在 `args` 数组不包含当前页面的 url 时，执行此回调。')
     async def if_url_is(self, *args, run_steps: StepsBlock = None, else_steps: StepsBlock = None):
+        """
+        如果 `*args` 包含当前页面的 url，则执行 `run_steps` 块，否则执行 `else_steps`块。
+        """
         await sleep(0.3)
         _page = await self._get_page()
         logger.debug('current page url is {}', _page.url)
@@ -1158,6 +1637,9 @@ class StepsApi:
                 logger.debug('url is {} , it not in {} , please set `else_steps`', _page.url, args)
 
     async def page_close(self, *, _page: Optional[Page] = None):
+        """
+        关闭当前页面。
+        """
         if _page is None:
             _page = await self._get_page()
         await self.switch_page(-2)
@@ -1167,7 +1649,17 @@ class StepsApi:
         await self.sleep(500)
         await self.switch_page(-1)
 
+    @arg_conf('to', desc="""
+要切换到的页面序号。可以传入 `"default"` 或 整数。
+
+- 传入 `"default"` 切换至 启动浏览器时 `--url` 中的标签页。
+- 传入 0或正整数 时，切换至对应下标的标签页。超出则切换到最后一个。
+- 传入 负整数 时，切换至对应下标的标签页。超出则切换到最后一个。
+""")
     async def switch_page(self, to: Union[int, Literal['default'], Page]):
+        """
+        切换当前页面指针。
+        """
         logger.debug('switch page wait start')
         await self.sleep(3000)
         logger.debug('switch page wait end , we check out to page {}', to)
@@ -1225,15 +1717,28 @@ class StepsApi:
                         continue
                 raise
 
+    @arg_conf('title', desc="""弹出窗口标题""")
+    @arg_conf('message', desc="""弹出窗口正文""")
     async def gui_confirm(self, *, title: str, message: str):
+        """
+        弹出gui弹窗，请求程序员确认。常用于在网站登录情景下，请求程序员手动操作浏览器并在完成后点击确认。
+        等待的过程中程序会暂停执行。
+        """
         from libiancrawlers.app_util.gui_util import gui_confirm
         return await gui_confirm(title=title, message=message)
 
+    @arg_conf('timeout', desc=_timeout_desc, typ="Timeout")
+    @arg_conf('run_steps', desc="""只有在执行此块时，若发生下载事件才会被捕获。""")
+    @arg_conf('dump_csv', desc="""如果此值为 true 且下载的文件是 csv 文件，则转储 csv 内容对象。""")
+    @arg_conf('dump_obj_meta', desc="""如果发生转储对象，此值将会携带在转储的对象中。""")
     async def expect_download(self, *,
                               timeout: float,
-                              run_steps: StepsBlock = None,
-                              dump_obj_meta=None,
-                              dump_csv=False, ):
+                              run_steps: StepsBlock,
+                              dump_obj_meta: JSON = None,
+                              dump_csv: bool = False, ):
+        """
+        处理浏览器下载事件。
+        """
         logger.debug('expect download')
         _page = await self._get_page()
         async with _page.expect_download(timeout=timeout) as _download_info:
@@ -1244,10 +1749,11 @@ class StepsApi:
                 logger.debug('expect download end steps')
         logger.debug('expect download out scope')
         _download = await _download_info.value
-        logger.debug('expect download done promise:\n    suggested_filename is {}\n    url is {}\n    page title is {}',
-                     _download.suggested_filename,
-                     _download.url,
-                     await self._get_page_title_ignore_err(_download.page))
+        logger.debug(
+            'expect download done promise:\n    suggested_filename is {}\n    url is {}\n    page title is {}',
+            _download.suggested_filename,
+            _download.url,
+            await self._get_page_title_ignore_err(_download.page))
         current_download_count = self._next_download_count()
         logger.debug('current_download_count is {}', current_download_count)
         save_file_path = os.path.join(self._download_storage_path,
@@ -1266,13 +1772,23 @@ class StepsApi:
                 'data': await parse_csv(save_file_path),
             })
 
+    @arg_conf('run_steps', desc="""循环执行此块。""")
     async def for_each(self, *,
-                       run_steps: StepsBlock = None):
+                       run_steps: StepsBlock):
+        """
+        不停的执行 `run_steps` 块。
+        """
         while True:
             await self._process_steps(run_steps)
 
+    @arg_conf('probability', desc="执行 `if_steps` 块的概率，介于 [0,1] 之间。")
+    @arg_conf('if_steps', desc="""`probability` 概率生效时，执行此块""")
+    @arg_conf('else_steps', desc="""`probability` 概率未生效时，执行此块""")
     async def random(self, *,
                      probability: Union[float, str], if_steps: StepsBlock = None, else_steps: StepsBlock = None):
+        """
+        生成 `[0,1)` 之间的随机数，如果此数小于等于 `probability` 则执行 `if_steps` 块，否则执行 `else_steps` 块。
+        """
         if isinstance(probability, str):
             probability = float(probability)
         value = random.random()
@@ -1285,6 +1801,17 @@ class StepsApi:
             if else_steps is not None:
                 await self._process_steps(else_steps)
 
+    @arg_conf('key', desc="全局计数器 key 。调用此函数后，该计数器 +=1 。")
+    @arg_conf('div', desc="""除数""")
+    @arg_conf('expect_mod', desc="""
+当此数等于 全局计数器值 除以 `div` 的余数 时，执行 `if_steps` 块; 否则执行 `else_steps 块。
+""")
+    @arg_conf('before_steps', desc="不论 `expect_mod` 是否匹配，该块都会在 `if_steps` 和 `else_steps` 块之前被执行。")
+    @arg_conf('if_steps', desc="""`expect_mod` 等于 全局计数器值 除数 `div` 的余数 时，此块执行。""")
+    @arg_conf('else_steps', desc="""`expect_mod` 不等于 全局计数器值 除数 `div` 的余数 时，此块执行。""")
+    @arg_conf('after_steps', desc="不论 `expect_mod` 是否匹配，该块都会在 `if_steps` 和 `else_steps` 块之后被执行。")
+    @arg_conf('run_if_steps_on_error',
+              desc="""设为 true 时，如果发生了错误，会仅运行 `if_steps` 块之后（其他块都不运行）再抛出异常。""")
     async def every_times(self, *,
                           key: str,
                           div: int,
@@ -1294,6 +1821,12 @@ class StepsApi:
                           else_steps: StepsBlock = None,
                           after_steps: StepsBlock = None,
                           run_if_steps_on_error=False):
+        """
+        一个根据该函数运行次数来执行不同代码块的工具函数。
+        每调用一次此函数，`key`所对应的全局计数器 +=1。
+        当全局计数器的值除以 `div` 的余数等于 `expect_mod` 时，
+        运行 `if_steps` 块，否则执行 `else_steps` 块。
+        """
         try:
             if before_steps is not None:
                 await self._process_steps(before_steps)
@@ -1323,9 +1856,638 @@ class StepsApi:
             raise
 
 
+StepMemberMetaType = TypedDict('StepMemberMetaType', {
+    'py_hint': Optional[str],
+    'conf_type': Optional[StepsApiArgConfType],
+    'json_schema': Union[dict, list],
+})
+
+StepMemberMetaArg = TypedDict('StepMemberMetaArg', {
+    'name': str,
+    'index': int,
+    'type': StepMemberMetaType,
+    'desc': str,
+    'require': bool,
+    'default': Optional[str],
+})
+
+StepMemberMetaKw = TypedDict('StepMemberMetaKw', {
+    'name': str,
+    'type': StepMemberMetaType,
+    'desc': str,
+    'require': bool,
+    'default': typing.Any,
+})
+
+StepMemberMeta = TypedDict('StepMemberMeta', {
+    'name': str,
+    'desc': str,
+    'varargs': bool,
+    'varargs_types': Optional[Union[StepMemberMetaType, List[StepMemberMetaType]]],
+    'args': List[StepMemberMetaArg],
+    'args_min': Optional[int],
+    'args_max': Optional[int],
+    'kwargs': List[StepMemberMetaKw],
+    'kwargs_min': Optional[int],
+    'kwargs_max': Optional[int],
+})
+
+
+def _trim_desc(text: Optional[str], *, lstrip=False):
+    if text is None or text.strip() == '':
+        return None
+    return '\n'.join(map(lambda it: it.strip() if lstrip else it.rstrip(), text.strip().split('\n')))
+
+
+def _to_json_schema(*,
+                    _conf_type: Optional[StepsApiArgConfType] = None,
+                    _desc: Optional[str] = None,
+                    _hint: Optional[typing.Any] = None,
+                    _args_hint_parent: Optional[List[typing.Any]] = None,
+                    _examples: Optional[List[JSON]] = None) -> typing.Any:
+    _examples_dict = dict(examples=_examples) if _examples is not None and len(_examples) > 0 else dict()
+    try:
+        if _conf_type is not None:
+            if _conf_type == 'Timeout':
+                return {
+                    'type': 'integer',
+                    "minimum": 33,
+                    "maximum": 10 * 60 * 1000,
+                    "description": '超时时间，单位为毫秒。' if _desc is None else _desc
+                }
+            if _conf_type == 'StepsBlock':
+                return {
+                    "$ref": f"#/definitions/{_conf_type}",
+                    **(dict() if _desc is None else dict(description=_desc))
+                }
+            if _conf_type == 'str':
+                return {
+                    'type': 'string',
+                }
+            if _conf_type == 'float>=0':
+                return {
+                    'type': 'number',
+                    "minimum": 0,
+                }
+            raise ValueError(f'Invalid _conf_type {_conf_type}')
+
+        def _is_class(h):
+            return _hint is None or isinstance(h, type)
+
+        # print('_is_class(_hint)', _is_class(_hint), _hint)
+        if _is_class(_hint):
+            _hint: typing.Any = _hint
+            if _hint is None or issubclass(_hint, type(None)):
+                return {
+                    'type': 'null',
+                    **(dict() if _desc is None else dict(description=_desc)),
+                    **_examples_dict,
+                }
+            if issubclass(_hint, str):
+                return {
+                    'type': 'string',
+                    **(dict() if _desc is None else dict(description=_desc)),
+                    **_examples_dict,
+                }
+            if issubclass(_hint, bool):
+                return {
+                    'type': 'boolean',
+                    **(dict() if _desc is None else dict(description=_desc)),
+                    **_examples_dict,
+                }
+            if issubclass(_hint, int):
+                return {
+                    'type': 'integer',
+                    **(dict() if _desc is None else dict(description=_desc)),
+                    **_examples_dict,
+                }
+            if issubclass(_hint, float):
+                return {
+                    'type': 'number',
+                    **(dict() if _desc is None else dict(description=_desc)),
+                    **_examples_dict,
+                }
+            if issubclass(_hint, list):
+                if _args_hint_parent is None:
+                    return {
+                        "type": "array",
+                        **(dict() if _desc is None else dict(description=_desc))
+                    }
+                elif len(_args_hint_parent) != 1:
+                    raise ValueError('why _args_hint length not 1')
+                else:
+                    _res = _to_json_schema(_hint=_args_hint_parent[0])
+                    if _res is None:
+                        return {
+                            "type": "array",
+                            **(dict() if _desc is None else dict(description=_desc)),
+                            **_examples_dict,
+                        }
+                    else:
+                        return {
+                            "type": "array",
+                            **(dict() if _desc is None else dict(description=_desc)),
+                            "items": {
+                                "type": _res
+                            },
+                            **_examples_dict,
+                        }
+            if issubclass(_hint, tuple):
+                return {
+                    "type": "array",
+                    **(dict() if _desc is None else dict(description=_desc)),
+                    "prefixItems": list(
+                        filter(
+                            lambda it: it is not None,
+                            map(
+                                lambda h: _to_json_schema(_hint=h),
+                                _args_hint_parent
+                            )
+                        )
+                    ),
+                    **_examples_dict,
+                }
+            origin = typing.get_origin(_hint)
+            _args_hint = [*typing.get_args(_hint)]
+            if issubclass(_hint, collections.abc.Mapping):
+                try:
+                    _hint.__annotations__.items()
+                    _annotations_in_hint = True
+                except BaseException as _:
+                    _annotations_in_hint = False
+                if _annotations_in_hint:
+                    # noinspection PyUnresolvedReferences
+                    _required = list(_hint.__required_keys__)
+
+                    return {
+                        "type": "object",
+                        **(dict() if _desc is None else dict(description=_desc)),
+                        "additionalProperties": False,
+                        "properties": {k: _to_json_schema(_hint=v) for k, v in _hint.__annotations__.items() \
+                                       if _to_json_schema(_hint=v) is not None},
+                        "required": _required,
+                        **_examples_dict,
+                    }
+                else:
+                    return {
+                        "type": "object",
+                        **(dict() if _desc is None else dict(description=_desc)),
+                        **_examples_dict,
+                    }
+            if str(_hint.__module__).startswith('playwright.') or issubclass(_hint, collections.abc.Callable):
+                return None
+            raise ValueError(
+                f'unknown type , type(_hint) is {type(_hint)} , is_base_type(_hint) is true , origin is {origin} , _args_hint is {_args_hint} , _args_hint_parent is {_args_hint_parent} , _hint is {_hint} , ')
+        else:
+            origin = typing.get_origin(_hint)
+            _args_hint = [*typing.get_args(_hint)]
+            if origin is typing.Union:
+                return {
+                    **(dict() if _desc is None else dict(description=_desc)),
+                    'anyOf': list(
+                        filter(
+                            lambda it: it is not None,
+                            map(
+                                lambda _hint_arg: _to_json_schema(_conf_type=None, _hint=_hint_arg),
+                                _args_hint
+                            )
+                        )
+                    ),
+                    **_examples_dict,
+                }
+            if origin is typing.Literal:
+                return {
+                    "enum": _args_hint,
+                    **(dict() if _desc is None else dict(description=_desc)),
+                    **_examples_dict,
+                }
+            if origin is typing.Annotated:
+                _desc2: Optional[str] = None
+                for item in _args_hint[1:]:
+                    if isinstance(item, str):
+                        _desc2 = _trim_desc(item)
+                return _to_json_schema(_hint=_args_hint[0], _desc=_desc2)
+            if _is_class(origin):
+                return _to_json_schema(_hint=origin, _args_hint_parent=_args_hint)
+            if isinstance(_hint, typing.ForwardRef):
+                return {
+                    "$ref": f"#/definitions/{_hint.__forward_arg__}",
+                    **(dict() if _desc is None else dict(description=_desc)),
+                    **_examples_dict,
+                }
+            raise ValueError(
+                f'unknown type , type(_hint) is {type(_hint)} , is_base_type(_hint) is false , origin is {origin} , _args_hint is {_args_hint} , , _args_hint_parent is {_args_hint_parent} , _hint is {_hint}')
+    except BaseException as err:
+        raise ValueError(
+            f'to_json_schema failed , type(_hint) is {type(_hint)} , _conf_type is {_conf_type} , _hint is {_hint} , _args_hint_parent is {_args_hint_parent} , _desc is {_desc}') from err
+
+
 def generate_steps_api_documents():
-    # todo
-    pass
+    import inspect
+    members_meta_list: List[StepMemberMeta] = []
+    warns: List[str] = []
+    for member in inspect.getmembers(StepsApi):
+        try:
+            member_name, member_obj = member
+            if member_name.startswith("_") or not inspect.isfunction(member_obj):
+                continue
+            print('---------------------')
+            print('member          :', member)
+            sig = inspect.signature(member_obj)
+            print('sig.parameters  :', sig.parameters)
+            hints = typing.get_type_hints(member_obj)
+            print('hints           :', hints)
+            argspec = inspect.getfullargspec(member_obj)
+            print('argspec         :', argspec)
+            # noinspection PyUnresolvedReferences
+            arg_confs: List[StepsApiArgConf] = _arg_conf_map.get(member_name, [])
+            print('arg_confs       :', arg_confs)
+
+            func_doc = _trim_desc(member_obj.__doc__, lstrip=True)
+            if func_doc is None:
+                raise ValueError('doc empty')
+
+            arg_list: List[StepMemberMetaArg] = []
+            kwarg_list: List[StepMemberMetaKw] = []
+
+            _func_conf = _func_conf_map.get(member_name)
+
+            _self_exist = False
+            _existed_param_names: typing.Set[str] = set()
+            for index_with_self, param_entry in enumerate(sig.parameters.items()):
+                try:
+                    param_name, param_def = param_entry
+                    _existed_param_names.add(param_name)
+                    if param_name == 'self':
+                        if index_with_self != 0:
+                            raise ValueError('self should at 0 index')
+                        _self_exist = True
+                        continue
+                    if param_name.startswith('_'):
+                        continue
+                    if argspec.varargs is not None and param_name == argspec.varargs:
+                        continue
+                    if argspec.varkw is not None and param_name == argspec.varkw:
+                        continue
+
+                    _require = param_def.default is inspect.Parameter.empty
+                    _default = param_def.default if param_def.default is not inspect.Parameter.empty else None
+                    _examples: List[JSON] = []
+                    if _default is not None:
+                        _examples.append(_default)
+                    _hint = hints.get(param_name)
+
+                    _type_py_hint = None if _hint is None else f'{_hint}'
+                    steps_api_conf: Optional[StepsApiArgConf] = None
+                    for _steps_api_conf in arg_confs:
+                        if _steps_api_conf['name'] == param_name:
+                            steps_api_conf = _steps_api_conf
+                    if steps_api_conf is not None:
+                        if steps_api_conf['hide']:
+                            if _require:
+                                raise ValueError(
+                                    f'require is {_require} but hide set True , steps_api_conf is {steps_api_conf}')
+                            continue
+                    _conf_type: Optional[StepsApiArgConfType] = None if steps_api_conf is None else \
+                        steps_api_conf['type']
+                    _conf_type_hint = None if steps_api_conf is None else steps_api_conf['type_hint']
+                    _conf_desc = None if steps_api_conf is None else steps_api_conf['desc']
+                    _conf_examples = None if steps_api_conf is None else steps_api_conf['examples']
+                    if _conf_examples is not None:
+                        for _conf_example in _conf_examples:
+                            _examples.append(_conf_example)
+
+                    if _hint is None and _conf_type is None and _conf_type_hint is None:
+                        if param_def.default is not inspect.Parameter.empty and param_def.default is not None:
+                            _hint = type(param_def.default)
+                        else:
+                            raise ValueError(f'Missing hint , default is {param_def.default}')
+
+                    _desc: Optional[str] = None
+                    for __desc in [_conf_desc]:
+                        _desc = __desc
+                    _desc = _trim_desc(_desc)
+                    if _desc is None:
+                        warns.append(f'⚠️ WARN: {member_name}.{param_name} desc empty')
+
+                    _json_schema: typing.Any = _to_json_schema(_conf_type=_conf_type,
+                                                               _hint=_conf_type_hint if _conf_type_hint is not None else _hint,
+                                                               _desc=_desc,
+                                                               _examples=_examples)
+                    _type: StepMemberMetaType = {
+                        'py_hint': _type_py_hint,
+                        'conf_type': _conf_type,
+                        'json_schema': _json_schema
+                    }
+
+                    if param_name in argspec.args:
+                        _arg: StepMemberMetaArg = {
+                            'name': param_name,
+                            'index': argspec.args.index(param_name) - (1 if _self_exist else 0),
+                            'type': _type,
+                            'desc': _desc,
+                            'require': _require,
+                            'default': _default,
+                        }
+                        arg_list.append(_arg)
+                    else:
+                        _kwarg: StepMemberMetaKw = {
+                            'name': param_name,
+                            'type': _type,
+                            'desc': _desc,
+                            'require': _require,
+                            'default': _default,
+                        }
+                        kwarg_list.append(_kwarg)
+                except BaseException as err:
+                    raise ValueError(
+                        f'failed parse param , index_with_self = {index_with_self} , param_entry={param_entry}') from err
+
+            for ac in arg_confs:
+                ac_name = ac['name']
+                if ac_name in _existed_param_names:
+                    continue
+                if argspec.varkw is None:
+                    raise ValueError('disallow arg_conf on no kwargs', ac)
+                _desc = ac['desc']
+                _desc = _trim_desc(_desc)
+                if _desc is None:
+                    warns.append(f'⚠️ WARN: {member_name}.{ac_name} desc empty')
+                _conf_type = ac['type']
+                _json_schema = _to_json_schema(_conf_type=_conf_type, _desc=_desc, _hint=ac['type_hint'])
+                _type: StepMemberMetaType = {
+                    'py_hint': f'{ac["type_hint"]}',
+                    'conf_type': _conf_type,
+                    'json_schema': _json_schema
+                }
+                kw: StepMemberMetaKw = {
+                    'name': ac_name,
+                    'type': _type,
+                    'desc': _desc,
+                    'require': False,
+                    'default': None,
+                }
+                kwarg_list.append(kw)
+
+            varargs = argspec.varargs is not None
+            if not varargs or _func_conf is None or _func_conf['varargs_conf_types'] is None:
+                _vararg_types = None
+                _count_vararg_types = 0
+            else:
+                def _to_meta_type(_func_conf_type: StepsApiArgConfType) -> StepMemberMetaType:
+                    return {
+                        'py_hint': None,
+                        'conf_type': _func_conf_type,
+                        'json_schema': _to_json_schema(_conf_type=_func_conf_type),
+                    }
+
+                if isinstance(_func_conf['varargs_conf_types'], list):
+                    _vararg_types = [
+                        _to_meta_type(_func_conf_type_item) \
+                        for _func_conf_type_item in _func_conf['varargs_conf_types']
+                    ]
+                    _count_vararg_types = len(_vararg_types)
+                else:
+                    _vararg_types = _to_meta_type(_func_conf['varargs_conf_types'])
+                    _count_vararg_types = 1
+            if not varargs and _count_vararg_types > 0:
+                raise ValueError('assert _count_vararg_types == 0 if not varargs')
+
+            _args_min = len([1 for item in arg_list if item['require']]) + (
+                0 if _func_conf is None or _func_conf['varargs_min'] is None else _func_conf['varargs_min']
+            )
+            meta: StepMemberMeta = {
+                'name': member_name,
+                'desc': func_doc,
+                'varargs': varargs,
+                'varargs_types': _vararg_types,
+                'args_min': _args_min,
+                'args_max': len(arg_list) if not varargs else None,
+                'args': arg_list,
+                'kwargs': kwarg_list,
+                'kwargs_min': None,
+                'kwargs_max': None,
+            }
+            print('meta           :', json.dumps(meta, indent=2, ensure_ascii=False))
+            members_meta_list.append(meta)
+        except BaseException as err:
+            raise ValueError(f'failed generate field {member}') from err
+    members_meta_list.sort(key=lambda it: it['name'])
+    _schema = {
+        "$id": "libian_crawler/main/schema/v2",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+            {
+                "type": "object",
+                "properties": {
+                    "steps": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/Step"
+                        }
+                    }
+                }
+            }
+        ],
+        "definitions": {
+            "Step": {
+                "oneOf": [
+                    {
+                        "description": "`continue` 指令不会起任何作用，通常作为回调块的占位符使用，以代替回调块的默认处理。\n\n比如，很多时候可以在 on_timeout 回调命令中使用，来阻止默认的抛出超时异常的行为。\n\n```json\n{\n  fn: \"page_click\",\n  args: [\n    \".cpCloseIcon\",\n  ],\n  on_timeout_steps: \"continue\"\n}\n```",
+                        "type": "string",
+                        "enum": [
+                            "continue"
+                        ]
+                    },
+                    {
+                        "type": "string",
+                        "enum": [
+                            "break"
+                        ]
+                    },
+                    {
+                        "type": "string",
+                        "enum": [
+                            "stop"
+                        ],
+                        "description": "`stop` 指令会通过抛出异常终止爬虫。"
+                    },
+                    {
+                        "type": "string",
+                        "enum": [
+                            "debug"
+                        ],
+                        "description": "仅当命令行 `--debug` 参数启用时，`stop` 指令会暂停爬虫执行，直到接收到确认命令（例如在 gui 界面确认或退出）。"
+                    },
+                    {
+                        "description": "TODO: 这个功能尚未实现",
+                        "type": "string",
+                        "enum": [
+                            "enable_devtool"
+                        ]
+                    },
+                    *[
+                        {
+                            "description": meta['desc'],
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": [
+                                "fn",
+                                *(['args'] if meta['args_min'] is not None and meta['args_min'] > 0 else []),
+                                *(['kwargs'] if meta['kwargs_min'] is not None and meta['kwargs_min'] > 0 else [])
+                            ],
+                            "properties": {
+                                "fn": {
+                                    "type": "string",
+                                    "enum": [
+                                        meta['name']
+                                    ]
+                                },
+                                "args": {
+                                    "type": "array",
+                                    **({
+                                           "minItems": meta['args_min']
+                                       } if meta['args_min'] is not None else {}),
+                                    **({
+                                           "maxItems": meta['args_max']
+                                       } if meta['args_max'] is not None else {}),
+                                    "additionalItems": meta['varargs'],
+                                    **(
+                                        {
+                                            "prefixItems": [arg["type"]["json_schema"] for arg in meta["args"]]
+                                        } if meta["args"] is not None and len(meta["args"]) > 0 else {}
+                                    ),
+                                    **(
+                                        {
+                                            "items": vararg["json_schema"] for vararg in meta["varargs_types"]
+                                        } if isinstance(meta["varargs_types"], list) else {
+                                            "items": meta["varargs_types"]["json_schema"]
+                                        } if meta["varargs_types"] is not None else {
+                                        }
+                                    )
+                                },
+                                "kwargs": {
+                                    "type": "object",
+                                    "additionalProperties": False,
+                                    **({
+                                           "minProperties": meta['kwargs_min'],
+                                       } if meta['kwargs_min'] is not None else {}),
+                                    **({
+                                           "maxProperties": meta['kwargs_max'],
+                                       } if meta['kwargs_max'] is not None else {}),
+                                    "required": [
+                                        kw["name"] for kw in meta['kwargs'] if kw["require"]
+                                    ],
+                                    "properties": {
+                                        kw['name']: kw['type']['json_schema'] for kw in meta['kwargs']
+                                    }
+                                },
+                                "on_success_steps": {
+                                    "$ref": "#/definitions/StepsBlock"
+                                },
+                                "on_timeout_steps": {
+                                    "$ref": "#/definitions/StepsBlock"
+                                },
+                                "description": {
+                                    "type": "string"
+                                }
+                            }
+                        } for meta in members_meta_list
+                    ]
+                ]
+            },
+            "StepsBlock": {
+                "oneOf": [
+                    {
+                        "$ref": "#/definitions/Step"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/Step"
+                        }
+                    }
+                ]
+            },
+            "YMDParam": {
+                "type": "array",
+                "prefixItems": [
+                    {
+                        "type": "integer",
+                    }, {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 12,
+                    }, {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 31,
+                    }
+                ]
+            },
+            "JSON": {
+                "type": ["number", "string", "boolean", "object", "array", "null"]
+            },
+            "OnLocatorBlockItem": {
+                "type": "object",
+                "required": [
+                    "fn",
+                ],
+                "minProperties": 1,
+                "maxProperties": 3,
+                "properties": {
+                    "fn": {
+                        "type": "string",
+                        "enum": [
+                            func.__name__ for func in _on_locator_allow_methods
+                        ]
+                    },
+                    "args": {
+                        "type": "array",
+                    },
+                    "kwargs": {
+                        "type": "object",
+                    }
+                }
+            },
+            "OnLocatorBlock": {
+                "oneOf": [
+                    {
+                        "$ref": "#/definitions/OnLocatorBlockItem"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/OnLocatorBlockItem"
+                        }
+                    }
+                ]
+            },
+            "PageScrollDownPageClickIfFound": {
+                "type": "object",
+            }
+        }
+    }
+    _schema_file_path = os.path.abspath(os.path.join('steps', 'schemas', 'v2.json'))
+    with open(_schema_file_path, mode='wt', encoding='utf-8') as f:
+        json.dump(_schema, f, ensure_ascii=False, indent=2)
+    print('INFO: Output to schema file :', _schema_file_path)
+    from jsonschema import validate
+    for filename in os.listdir(os.path.abspath(os.path.join('steps'))):
+        if not filename.endswith('.json'):
+            continue
+        with open(os.path.join('steps', filename), mode='rt', encoding='utf-8') as f:
+            step_obj = json.load(f)
+        try:
+            validate(step_obj, _schema)
+            warns.append(f'✅ INFO: success validate file {filename}')
+        except BaseException as err:
+            warns.append('\n    '.join(f'❌ ERROR: validate failed for file {filename} : {err}'.splitlines()[0:10]))
+    for warn in warns:
+        print(warn)
+    with open(os.path.abspath(os.path.join('docs', 'develop', 'crawler', 'step_api_metas.json')), mode='wt',
+              encoding='utf-8') as f:
+        json.dump(members_meta_list, f, ensure_ascii=False, indent=2)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 <script setup>
-import { data as schema_str } from './steps_api.data.ts'
+import { data as step_api_metas_html } from './steps_api.data.ts'
 </script>
 
 # Steps API
@@ -46,17 +46,16 @@ import { data as schema_str } from './steps_api.data.ts'
 
 `description` 属性不会起任何作用，它仅用于便于人类阅读。
 
-### `Step` 指令列表
-
-<div v-for="s in JSON.parse(schema_str)['__api_list__']">
-<h4 :id="s['markdown_title']">{{s['markdown_title']}}</h4>
-<div v-html="s['markdown_html']" />
-</div>
-
 ### Ref
 
-#### StepsBlock
+<!-- #### StepsBlock
 
 #### XY
 
-#### LocatorBlock
+#### LocatorBlock -->
+
+### Step 指令列表
+
+<div v-html="step_api_metas_html" />
+
+

@@ -1,5 +1,5 @@
 {
-  "$schema": "./schemas/main.json",
+  "$schema": "./schemas/v2.json",
   "steps": [
     {
       "fn": "page_wait_for_selector_in_any_frame",

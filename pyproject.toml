@@ -101,6 +101,7 @@ api-crawl-entrezapi-search = "libiancrawlers.crawlers.apilib.entrezapi.search:cl
 api-crawl-impactfactor-search = "libiancrawlers.crawlers.apilib.impactfactor.search:cli"
 smart-crawl-urls = "libiancrawlers.crawlers.smart_crawl.smart_crawl_urls:cli"
 version = "libiancrawlers.app_util.print_version:cli"
+generate-steps-api-documents = "libiancrawlers.crawlers.smart_crawl.steps_api:generate_steps_api_documents"
 
 [[tool.poetry.source]]
 name = "tsinghua"

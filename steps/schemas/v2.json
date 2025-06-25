@@ -1,0 +1,2216 @@
+{
+  "$id": "libian_crawler/main/schema/v2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Step"
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "Step": {
+      "oneOf": [
+        {
+          "description": "`continue` 指令不会起任何作用，通常作为回调块的占位符使用，以代替回调块的默认处理。\n\n比如，很多时候可以在 on_timeout 回调命令中使用，来阻止默认的抛出超时异常的行为。\n\n```json\n{\n  fn: \"page_click\",\n  args: [\n    \".cpCloseIcon\",\n  ],\n  on_timeout_steps: \"continue\"\n}\n```",
+          "type": "string",
+          "enum": [
+            "continue"
+          ]
+        },
+        {
+          "type": "string",
+          "enum": [
+            "break"
+          ]
+        },
+        {
+          "type": "string",
+          "enum": [
+            "stop"
+          ],
+          "description": "`stop` 指令会通过抛出异常终止爬虫。"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "debug"
+          ],
+          "description": "仅当命令行 `--debug` 参数启用时，`stop` 指令会暂停爬虫执行，直到接收到确认命令（例如在 gui 界面确认或退出）。"
+        },
+        {
+          "description": "TODO: 这个功能尚未实现",
+          "type": "string",
+          "enum": [
+            "enable_devtool"
+          ]
+        },
+        {
+          "description": "不停的执行 `before_dump_steps` 、转储页面、`after_dump_steps` 这三块步骤。\n历次调用的转储页面的 tag 为 `f'{dump_tag_prefix}_{count}'`。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "dump_page_for_each"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "dump_tag_prefix",
+                "before_dump_steps",
+                "after_dump_steps"
+              ],
+              "properties": {
+                "dump_tag_prefix": {
+                  "type": "string",
+                  "description": "标签名"
+                },
+                "before_dump_steps": {
+                  "description": "在 转储页面之前 执行此回调",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "after_dump_steps": {
+                  "description": "在 转储页面之后 执行此回调",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "before_dump_break_by_timeout": {
+                  "type": "boolean",
+                  "description": "设为 true 后，若在 `before_dump_steps` 回调执行时发生超时异常，则退出循环。",
+                  "examples": [
+                    false
+                  ]
+                },
+                "after_dump_break_by_timeout": {
+                  "type": "boolean",
+                  "description": "设为 true 后，若在 `after_dump_steps` 回调执行时发生超时异常，则退出循环。",
+                  "examples": [
+                    false
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "直接调用转储页面。\n转储页面的 tag 为 `f'tag_{tag}_uuid_{uuid4().hex}'`。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "dump_page_with_uuid"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "additionalItems": false,
+              "prefixItems": [
+                {
+                  "type": "string",
+                  "description": "标签名"
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "一个根据该函数运行次数来执行不同代码块的工具函数。\n每调用一次此函数，`key`所对应的全局计数器 +=1。\n当全局计数器的值除以 `div` 的余数等于 `expect_mod` 时，\n运行 `if_steps` 块，否则执行 `else_steps` 块。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "every_times"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "key",
+                "div"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "全局计数器 key 。调用此函数后，该计数器 +=1 。"
+                },
+                "div": {
+                  "type": "integer",
+                  "description": "除数"
+                },
+                "expect_mod": {
+                  "type": "integer",
+                  "description": "当此数等于 全局计数器值 除以 `div` 的余数 时，执行 `if_steps` 块; 否则执行 `else_steps 块。",
+                  "examples": [
+                    0
+                  ]
+                },
+                "before_steps": {
+                  "description": "不论 `expect_mod` 是否匹配，该块都会在 `if_steps` 和 `else_steps` 块之前被执行。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "if_steps": {
+                  "description": "`expect_mod` 等于 全局计数器值 除数 `div` 的余数 时，此块执行。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "else_steps": {
+                  "description": "`expect_mod` 不等于 全局计数器值 除数 `div` 的余数 时，此块执行。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "after_steps": {
+                  "description": "不论 `expect_mod` 是否匹配，该块都会在 `if_steps` 和 `else_steps` 块之后被执行。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "run_if_steps_on_error": {
+                  "type": "boolean",
+                  "description": "设为 true 时，如果发生了错误，会仅运行 `if_steps` 块之后（其他块都不运行）再抛出异常。",
+                  "examples": [
+                    false
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "处理浏览器下载事件。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "expect_download"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "timeout",
+                "run_steps"
+              ],
+              "properties": {
+                "timeout": {
+                  "type": "integer",
+                  "minimum": 33,
+                  "maximum": 600000,
+                  "description": "超时时间，单位为毫秒。"
+                },
+                "run_steps": {
+                  "$ref": "#/definitions/StepsBlock",
+                  "description": "只有在执行此块时，若发生下载事件才会被捕获。"
+                },
+                "dump_obj_meta": {
+                  "description": "如果发生转储对象，此值将会携带在转储的对象中。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/JSON"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "dump_csv": {
+                  "type": "boolean",
+                  "description": "如果此值为 true 且下载的文件是 csv 文件，则转储 csv 内容对象。",
+                  "examples": [
+                    false
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "不停的执行 `run_steps` 块。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "for_each"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "run_steps"
+              ],
+              "properties": {
+                "run_steps": {
+                  "$ref": "#/definitions/StepsBlock",
+                  "description": "循环执行此块。"
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "弹出gui弹窗，请求程序员确认。常用于在网站登录情景下，请求程序员手动操作浏览器并在完成后点击确认。\n等待的过程中程序会暂停执行。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "gui_confirm"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "message"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "弹出窗口标题"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "弹出窗口正文"
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "如果 `*args` 包含当前页面的 url，则执行 `run_steps` 块，否则执行 `else_steps`块。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "if_url_is"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "additionalItems": true
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "run_steps": {
+                  "description": "在 `args` 数组包含当前页面的 url 时，执行此回调。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "else_steps": {
+                  "description": "在 `args` 数组不包含当前页面的 url 时，执行此回调。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "输出debug级别日志。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "logd"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "additionalItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "输出error级别日志。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "loge"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "additionalItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "输出info级别日志。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "logi"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "additionalItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "输出warn级别日志。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "logw"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "additionalItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "通用的页面点击工具函数。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_click"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "additionalItems": false,
+              "prefixItems": [
+                {
+                  "description": "playwright 定位元素所使用的 [选择器](https://playwright.dev/docs/locators)。",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "method": {
+                  "description": "具体点击事件的类型。\n\n- 当 `selector` 传入 XY 对象 时，使用 [`page.mouse.click`](https://playwright.dev/python/docs/api/class-mouse#mouse-click) 触发点击事件。\n- 当 `selector` 传入 字符串 时，先使用 [`page_or_frame.locator`](https://playwright.dev/python/docs/api/class-locator) 定位元素:\n    - 当 method 为 `click` 时，使用 [`Locator.click`](https://playwright.dev/python/docs/api/class-locator#locator-click) 触发点击事件。\n    - 当 method 为 `tap` 时，使用 [`Locator.tap`](https://playwright.dev/python/docs/api/class-locator#locator-tap) 触发点击事件。\n    - 当 method 为 `dispatch_event_click` 时，使用 [`Locator.dispatch_event(\"click\")`](https://playwright.dev/python/docs/api/class-locator#locator-tap) 触发点击事件。",
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "click",
+                        "tap",
+                        "dispatch_event_click"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "on_new_page": {
+                  "description": "当点击之后有新标签页时的处理方法。\n\n- 缺省及默认值为 `\"switch_it_and_run_steps_no_matter_which_page\"` ，将会自动将当前页面指针指向新页面，但假如没有新页面则无事发生。\n- `\"ignore\"` 值将会忽略新页面（且当前页面指针不会指向新页面）。\n- 如果传入 StepsBlock，则先将自动将当前页面指针指向新页面，然后 在新页面中执行此 StepsBlock ，并且会在 StepsBlock 块完毕后自动将当前页面指针指回旧页面 。",
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "switch_it_and_run_steps_no_matter_which_page",
+                        "ignore"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "wait_any_page_create_time_limit": {
+                  "type": "integer",
+                  "minimum": 33,
+                  "maximum": 600000,
+                  "description": "观察是否有新页面创建的等待时间，单位为毫秒。"
+                },
+                "only_main_frame": {
+                  "type": "boolean",
+                  "description": "只在页面根 iframe 中寻找元素，设为 false 后将会在页面的所有 iframe 中寻找元素。",
+                  "examples": [
+                    true
+                  ]
+                },
+                "each_steps_before": {
+                  "description": "（仅当使用`page_or_frame.locator`时有效。）当 `each_steps_before` 或 `each_steps_after` 非空时，将会点击符合 selector 的所有元素。在点击前会执行 `each_steps_before` 块。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "each_steps_after": {
+                  "description": "（仅当使用`page_or_frame.locator`时有效。）当 `each_steps_before` 或 `each_steps_after` 非空时，将会点击符合 selector 的所有元素。在点击后会执行 `each_steps_before` 块。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "timeout_retry": {
+                  "type": "integer",
+                  "description": "（仅当使用`page_or_frame.locator`时有效。）仅点击操作的超时重试次数。",
+                  "examples": [
+                    0
+                  ]
+                },
+                "close_new_page": {
+                  "type": "boolean",
+                  "description": "设为 true 时，在 on_new_page 块执行完成后关闭新页面。",
+                  "examples": [
+                    false
+                  ]
+                },
+                "trial": {
+                  "description": "传递给 `Locator.click` 或 `Locator.tap` 的可选参数。\n\n设置为 true 后，此方法仅执行 [actionability](https://playwright.dev/docs/actionability) 检查并跳过操作。\n默认为 false。\n\n这在等待元素准备好执行操作而不执行操作很有用。\n请注意，无论 trial 如何，键盘 修饰键 都会被按下，以允许测试仅在按下这些键时才可见的元素。",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "no_wait_after": {
+                  "description": "传递给 `Locator.click` 或 `Locator.tap` 的可选参数。\n此参数已经被 playwright 弃用。",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "force": {
+                  "description": "传递给 `Locator.click` 或 `Locator.tap` 的可选参数。\n设为 true 将不进行 [actionability](https://playwright.dev/docs/actionability) 检查而强行点击。",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "position": {
+                  "description": "传递给 `Locator.click` 或 `Locator.tap` 的可选参数",
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "on_locator": {
+                  "description": "当需要在 `page_or_frame.locator` 的结果上再调用 [`Locator`](https://playwright.dev/docs/api/class-locator)\n的以下函数(均为返回一个新 Locator 的函数)时，可以传入 OnLocatorBlock 进行链式调用:\n\n- `get_by_text`\n- `get_by_alt_text`\n- `get_by_role`",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/OnLocatorBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "click_count": {
+                  "description": "传递给 `page.mouse.click` 或 `Locator.click` 的可选参数",
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "button": {
+                  "description": "传递给 `page.mouse.click` 或 `Locator.click` 的可选参数",
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "left",
+                        "middle",
+                        "right"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "delay": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "has_no_text": {
+                  "type": "string"
+                },
+                "has_text": {
+                  "type": "string"
+                },
+                "timeout": {
+                  "type": "integer",
+                  "minimum": 33,
+                  "maximum": 600000,
+                  "description": "超时时间，单位为毫秒。"
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "点击页面上的 `selector` 元素并期望该 `selector` 元素消失，如果在点击后该 `selector` 元素没有消失将会重新点击。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_click_and_expect_element_destroy"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "additionalItems": false,
+              "prefixItems": [
+                {
+                  "description": "playwright 定位元素所使用的 [选择器](https://playwright.dev/docs/locators)。",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "on_exist_steps": {
+                  "description": "当 selector 元素未消失且 `retry_count < retry_limit` 时，执行此块。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "retry_limit": {
+                  "type": "integer",
+                  "description": "当 selector 元素未消失时，将会重新点击此参数次数。",
+                  "examples": [
+                    5
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "关闭当前页面。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_close"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "调用浏览器导航栏返回功能。\nhttps://camoufox.com/python/usage/#enable_cache",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_go_back"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "wait_until": {
+                  "description": "传递给 `page.go_back` 的可选参数。`",
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "commit",
+                        "domcontentloaded",
+                        "load",
+                        "networkidle"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "timeout": {
+                  "type": "integer",
+                  "minimum": 33,
+                  "maximum": 600000,
+                  "description": "超时时间，单位为毫秒。"
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "让浏览器光标在视口中胡乱移动，像人似的装模作样。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_random_mouse_move"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "将页面向下滚动到底或最大高度。\n当滚到底部时，会上滚一下再下滚，反复多次后若高度不变（没有加载新玩意）则认为滚动完成。\n如果指定了 `page_click_if_found` 属性，则会在合适的时机点击每个符合选择器的元素，\n在点击之后还会转储页面 ，并可以指定转储页面前后运行指定的步骤。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_scroll_down"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "delta_y": {
+                  "type": "number",
+                  "description": "每次向下滚动的距离因子。实际向下滚动的距离为其的 0.3~1.6 倍。 默认值 233.0 。\n建议不要修改，容易出 BUG。",
+                  "examples": [
+                    233.0
+                  ]
+                },
+                "interval": {
+                  "type": "number",
+                  "description": "每次向下滚动事件之间的时间间隔因子。实际的间隔时间为它的 0.7~1.3 倍。 默认值 0.5。\n建议不要修改，容易出 BUG。",
+                  "examples": [
+                    0.5
+                  ]
+                },
+                "max_height": {
+                  "description": "向下滚动的最大高度限制。\n如果你需要 gecko 的网页截图功能，请勿设置过高的值，因为它会引发 [gecko 截图超过像素上限](https://www.google.com.hk/search?q=Cannot+take+screenshot+larger+than+32767) 的问题。",
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "examples": [
+                    20000
+                  ]
+                },
+                "retry_scroll_up_limit": {
+                  "type": "integer",
+                  "description": "默认值 2 。当 没有发现新加载的内容 时，会 试图向上滚动再向下滚动检查 此次数。\n当该过程中发现了新加载的内容，清空此计数器并继续向下滚动；\n\n直到此计数器超过该值 或 超过高度上限 时，才会认为页面已经滚动到底。",
+                  "examples": [
+                    2
+                  ]
+                },
+                "retry_scroll_down_limit": {
+                  "type": "integer",
+                  "description": "默认值 2 。当发现滚动后高度和上次一致时，再向下滚动此次数，若还是一致或高度缩短，则认为 没有发现新加载的内容。",
+                  "examples": [
+                    2
+                  ]
+                },
+                "page_click_if_found": {
+                  "description": "当指定此值时，将会在向下滚动的过程中不断的将 满足 locator 属性的选择器要求的元素 的位置收集入列表中。\n\n仅当同时满足 元素可以被点击、元素出现在视口内、元素的长宽均超过10 时，将会点击此元素。\n如果没满足点击条件，则会保留在列表中，直到满足条件才被点击并移出列表，（或是因已经划过高度而跳过）。",
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "locator": {
+                          "type": "string",
+                          "description": "传递给 `page.locator(locator, **kwargs)` 的参数。"
+                        },
+                        "not_clickable_top_margin": {
+                          "description": "向下滚动中点击元素时，不会点击距离窗口顶部的距离小于此值的位置。通常用于一些有 sticky 顶栏的网站，以免误触到顶栏",
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "duplicated_only_text": {
+                          "description": "在找到满足 `locator` 的全部元素后，需要根据特定的方法，\n来判别多次查询到的元素列表中，“新旧查询中是否为同一个元素”的对应关系。\n\n旧的已经被点击过的元素不会再次点击，“判断是不是旧”的通过这里指定的 key 算法。\n\n如果 `duplicated_only_text` 为 False（默认值），\n则将 `element.inner_text()[0:30] + \"_\" + md5(element.inner_html())` 作为 key 。\n\n如果 `duplicated_only_text` 为 True，\n则将 `element.inner_text()[0:30]` 作为 key 。",
+                          "anyOf": [
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "on_before_click_steps": {
+                          "description": "在点击元素之前，执行此回调。",
+                          "anyOf": [
+                            {
+                              "$ref": "#/definitions/StepsBlock"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "check_selector_exist_after_click": {
+                          "description": "传入此值后。在点击满足 `locator` 的某元素后，检查页面上是否出现满足此参数 selector 的元素。\n如果存在，则继续执行；如果不存在，则处理下一个元素。\n\n如果不传入此值，则继续执行。",
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "on_before_click_check_steps": {
+                          "description": "在点击元素之后，检查另一个元素是否存在之前，执行此回调。\n不管 `check_selector_exist_after_click` 是否为 True，此回调都会执行。",
+                          "anyOf": [
+                            {
+                              "$ref": "#/definitions/StepsBlock"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "on_before_dump_steps": {
+                          "description": "在转储页面被调用之前一刹那，执行此回调。\n\n关于自动转储页面的时机:\n- 如果 `on_new_page` 不为 `\"ignore\"`，且有新页面出现，则:\n    - 如果 `on_new_page` 为缺省值 `\"switch_it_and_run_steps_no_matter_which_page\"` ，则在 新页面被切换到之后 转储页面。\n    - 如果 `on_new_page` 为回调块，则在 新页面被切换到之后、且回调块执行完之后 转储页面。\n- 如果上述情况均不满足。\n    - 在 `check_selector_exist_after_click` 通过后 转储页面。",
+                          "anyOf": [
+                            {
+                              "$ref": "#/definitions/StepsBlock"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "detail_logd": {
+                          "description": "输出详细日志。",
+                          "anyOf": [
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "on_after_dump_steps": {
+                          "description": "在转储页面被调用之后一刹那，执行此回调。",
+                          "anyOf": [
+                            {
+                              "$ref": "#/definitions/StepsBlock"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "on_new_page": {
+                          "description": "传递给 `self.page_click` 的可选参数。\n\n\n当点击之后有新标签页时的处理方法。\n\n- 缺省及默认值为 `\"switch_it_and_run_steps_no_matter_which_page\"` ，将会自动将当前页面指针指向新页面，但假如没有新页面则无事发生。\n- `\"ignore\"` 值将会忽略新页面（且当前页面指针不会指向新页面）。\n- 如果传入 StepsBlock，则先将自动将当前页面指针指向新页面，然后 在新页面中执行此 StepsBlock ，并且会在 StepsBlock 块完毕后自动将当前页面指针指回旧页面 。",
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "switch_it_and_run_steps_no_matter_which_page",
+                                "ignore"
+                              ]
+                            },
+                            {
+                              "$ref": "#/definitions/StepsBlock"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "close_new_page": {
+                          "description": "传递给 `self.page_click` 的可选参数。\n\n设为 true 时，在 on_new_page 块执行完成后关闭新页面。",
+                          "anyOf": [
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "locator"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "通用的输入文本的工具函数。默认使用 `page_or_frame.type` 进行输入（可使用 `use_fill` 或 `use_select_options` 更改）。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_type"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "additionalItems": false,
+              "prefixItems": [
+                {
+                  "type": "string",
+                  "description": "playwright 定位元素所使用的 [选择器](https://playwright.dev/docs/locators)。"
+                },
+                {
+                  "type": "string",
+                  "description": "要输入的值。"
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "label": {
+                  "description": "传递给 `page_or_frame.select_option` 的可选参数。",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "index": {
+                  "description": "传递给 `page_or_frame.select_option` 的可选参数。",
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "use_select_options": {
+                  "description": "使用 `page_or_frame.select_option` 在 select 标签中选择。",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "force": {
+                  "description": "传递给 `page_or_frame.fill` 或 `page_or_frame.select_option` 的可选参数。\n设为 true 将不进行 [actionability](https://playwright.dev/docs/actionability) 检查而强行输入。",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "use_fill": {
+                  "description": "使用 `page_or_frame.fill` 重新填充文本框。",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "strict": {
+                  "description": "传递给 `page_or_frame.type` 或 `page_or_frame.fill` 或 `page_or_frame.select_option` 的可选参数。设为 true 时将确保符合条件的元素只有一个。",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "no_wait_after": {
+                  "description": "传递给 `page_or_frame.type` 或 `page_or_frame.fill` 或 `page_or_frame.select_option` 的可选参数。\n此参数已经被 playwright 弃用。",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "delay": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "timeout": {
+                  "type": "integer",
+                  "minimum": 33,
+                  "maximum": 600000,
+                  "description": "超时时间，单位为毫秒。"
+                },
+                "only_main_frame": {
+                  "description": "只在页面根 iframe 中寻找元素，设为 false 后将会在页面的所有 iframe 中寻找元素。",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "用于在一些日期范围选择器组件中输入日期范围的工具函数。\n该函数会遍历 [StartDate, EndDate][] 并将其输出到日期范围选择器组件中。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_type_days_ranges_iter"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start",
+                "offset_day",
+                "stop_until"
+              ],
+              "properties": {
+                "start": {
+                  "description": "起始日期，可以传入 `now` 或 YMDParam(形如 `[2025,6,24]` 或 `\"2025-6-24\" 之类的日期格式)`",
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "now"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/YMDParam"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "examples": [
+                    "now",
+                    [
+                      2025,
+                      3,
+                      31
+                    ],
+                    "2025-4-25"
+                  ]
+                },
+                "offset_day": {
+                  "description": "日期步长。可以传入正整数或负整数，不能传入0。\n\n传入正整数会 yield (今天, 明天),(明天, 后天),... ;\n传入负整数会 yield (今天, 昨天),(昨天, 前天),... ;",
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "examples": [
+                    1,
+                    -1,
+                    2,
+                    -2,
+                    7,
+                    -7,
+                    15,
+                    -15
+                  ]
+                },
+                "stop_until": {
+                  "description": "停止日期 或 停止循环次数。传入 integer 为停止循环次数，传入 YMDParam(形如 `[2025,6,24]` 或 `\"2025-6-24\" 之类的日期格式) 为停止日期。",
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "$ref": "#/definitions/YMDParam"
+                    }
+                  ],
+                  "examples": [
+                    3,
+                    15,
+                    30,
+                    60,
+                    [
+                      2025,
+                      6,
+                      20
+                    ],
+                    "2025-6-20"
+                  ]
+                },
+                "yield_stop_until_value_if_end_value_not_equal": {
+                  "type": "boolean",
+                  "description": "当停止日期不在步长倍数上时，设为 true 将 yield (最后一步, 停止日期)。默认值为 true",
+                  "examples": [
+                    true
+                  ]
+                },
+                "end_offset": {
+                  "type": "integer",
+                  "description": "截止时间点的偏移量，单位为天。会令输出变为 (date1, date2+end_offset), (date2, date3+offset), ...",
+                  "examples": [
+                    0,
+                    0,
+                    3,
+                    7,
+                    -1
+                  ]
+                },
+                "time_format": {
+                  "type": "string",
+                  "description": "输出时间格式",
+                  "examples": [
+                    "%Y-%m-%d"
+                  ]
+                },
+                "delay": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "timeout": {
+                  "type": "integer",
+                  "minimum": 33,
+                  "maximum": 600000,
+                  "description": "传递给 `self.page_type` 的可选参数"
+                },
+                "strict": {
+                  "description": "传递给 `self.page_type` 的可选参数",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "examples": [
+                    true
+                  ]
+                },
+                "only_main_frame": {
+                  "description": "传递给 `self.page_type` 的可选参数",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "use_fill": {
+                  "description": "传递给 `self.page_type` 的可选参数",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "force": {
+                  "description": "传递给 `self.page_type` 的可选参数",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "begin_selector": {
+                  "description": "playwright 定位元素所使用的 [选择器](https://playwright.dev/docs/locators)。\n。起始日期将会被输入到此元素",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "end_selector": {
+                  "description": "playwright 定位元素所使用的 [选择器](https://playwright.dev/docs/locators)。\n。截止日期将会被输入到此元素",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "x": {
+                          "type": "number"
+                        },
+                        "y": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps_before_begin": {
+                  "description": "输入起始日期之前的回调（起始日期不一定在截止日期之前输入，因为有的日期选择器组件会限制输入）",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps_after_begin": {
+                  "description": "输入起始日期之后的回调（起始日期不一定在截止日期之前输入，因为有的日期选择器组件会限制输入）",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps_before_end": {
+                  "description": "输入截止日期之前的回调（起始日期不一定在截止日期之前输入，因为有的日期选择器组件会限制输入）",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps_after_end": {
+                  "description": "输入截止日期之后的回调（起始日期不一定在截止日期之前输入，因为有的日期选择器组件会限制输入）",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "steps_after_type_all": {
+                  "description": "两个日期均输入完毕后的回调。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "等待执行 js 函数。请参考 Camoufox 文档以区分世界隔离机制: https://camoufox.com/python/main-world-eval",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_wait_for_function"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "additionalItems": true
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "等待指定的 `selector` 在任意 Frame 中出现。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_wait_for_selector_in_any_frame"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "additionalItems": false,
+              "prefixItems": [
+                {
+                  "type": "string",
+                  "description": "playwright 定位元素所使用的 [选择器](https://playwright.dev/docs/locators)。"
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "timeout"
+              ],
+              "properties": {
+                "timeout": {
+                  "type": "integer",
+                  "minimum": 33,
+                  "maximum": 600000,
+                  "description": "超时时间，单位为毫秒。"
+                },
+                "state": {
+                  "description": "传递给 `frame.wait_for_selector` 的可选参数",
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "attached",
+                        "detached",
+                        "hidden",
+                        "visible"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "strict": {
+                  "description": "传递给 `frame.wait_for_selector` 的可选参数",
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "这是一个封装好的等待页面加载完成的工具函数。它会调用 `page.wait_for_load_state('domcontentloaded')`、\n`page.wait_for_load_state('networkidle')`、`page.bring_to_front()` 等多种方式来等待页面加载完成。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "page_wait_loaded"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "生成 `[0,1)` 之间的随机数，如果此数小于等于 `probability` 则执行 `if_steps` 块，否则执行 `else_steps` 块。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "random"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "probability"
+              ],
+              "properties": {
+                "probability": {
+                  "description": "执行 `if_steps` 块的概率，介于 [0,1] 之间。",
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "if_steps": {
+                  "description": "`probability` 概率生效时，执行此块",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "else_steps": {
+                  "description": "`probability` 概率未生效时，执行此块",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "使程序暂停指定毫秒。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "sleep"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "additionalItems": false,
+              "prefixItems": [
+                {
+                  "type": "integer",
+                  "minimum": 33,
+                  "maximum": 600000,
+                  "description": "睡眠时间，单位为毫秒"
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "切换当前页面指针。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn",
+            "args"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "switch_page"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "additionalItems": false,
+              "prefixItems": [
+                {
+                  "description": "要切换到的页面序号。可以传入 `\"default\"` 或 整数。\n\n- 传入 `\"default\"` 切换至 启动浏览器时 `--url` 中的标签页。\n- 传入 0或正整数 时，切换至对应下标的标签页。超出则切换到最后一个。\n- 传入 负整数 时，切换至对应下标的标签页。超出则切换到最后一个。",
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "enum": [
+                        "default"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "StepsBlock": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/Step"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Step"
+          }
+        }
+      ]
+    },
+    "YMDParam": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 31
+        }
+      ]
+    },
+    "JSON": {
+      "type": [
+        "number",
+        "string",
+        "boolean",
+        "object",
+        "array",
+        "null"
+      ]
+    },
+    "OnLocatorBlockItem": {
+      "type": "object",
+      "required": [
+        "fn"
+      ],
+      "minProperties": 1,
+      "maxProperties": 3,
+      "properties": {
+        "fn": {
+          "type": "string",
+          "enum": [
+            "get_by_text",
+            "get_by_alt_text",
+            "get_by_role"
+          ]
+        },
+        "args": {
+          "type": "array"
+        },
+        "kwargs": {
+          "type": "object"
+        }
+      }
+    },
+    "OnLocatorBlock": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/OnLocatorBlockItem"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OnLocatorBlockItem"
+          }
+        }
+      ]
+    },
+    "PageScrollDownPageClickIfFound": {
+      "type": "object"
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "$schema": "./schemas/main.json",
+  "$schema": "./schemas/v2.json",
   "steps": [
     "enable_devtool",
     {
@@ -173,7 +173,7 @@
               "on_timeout_steps": "continue"
             }
           ],
-          "on_found_after_click_steps": [
+          "on_before_dump_steps": [
             {
               "fn": "logd",
               "args": [
@@ -181,7 +181,7 @@
               ]
             }
           ],
-          "on_found_after_click_and_dump_steps": [
+          "on_after_dump_steps": [
             {
               "fn": "sleep",
               "args": [

@@ -1,5 +1,5 @@
 {
-  "$schema": "./schemas/main.json",
+  "$schema": "./schemas/v2.json",
   "steps": [
     "enable_devtool",
     {
