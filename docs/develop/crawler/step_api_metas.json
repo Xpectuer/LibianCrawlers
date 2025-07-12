@@ -365,6 +365,23 @@
         "desc": "如果此值为 true 且下载的文件是 csv 文件，则转储 csv 内容对象。",
         "require": false,
         "default": false
+      },
+      {
+        "name": "dump_excel",
+        "type": {
+          "py_hint": "<class 'bool'>",
+          "conf_type": null,
+          "json_schema": {
+            "type": "boolean",
+            "description": "如果此值为 true 且下载的文件是 excel 文件，则转储 excel 内容对象。",
+            "examples": [
+              false
+            ]
+          }
+        },
+        "desc": "如果此值为 true 且下载的文件是 excel 文件，则转储 excel 内容对象。",
+        "require": false,
+        "default": false
       }
     ],
     "kwargs_min": null,
@@ -433,6 +450,23 @@
         "desc": "弹出窗口正文",
         "require": true,
         "default": null
+      },
+      {
+        "name": "play_sound",
+        "type": {
+          "py_hint": "<class 'bool'>",
+          "conf_type": null,
+          "json_schema": {
+            "type": "boolean",
+            "description": "持续播放声音来催促尽快操作完成",
+            "examples": [
+              false
+            ]
+          }
+        },
+        "desc": "持续播放声音来催促尽快操作完成",
+        "require": false,
+        "default": false
       }
     ],
     "kwargs_min": null,
@@ -780,6 +814,23 @@
         "default": false
       },
       {
+        "name": "debug_on_timeout",
+        "type": {
+          "py_hint": "<class 'bool'>",
+          "conf_type": null,
+          "json_schema": {
+            "type": "boolean",
+            "description": "在超时后，启动调试模式，如果 --debug 未启用则忽略。该选项常用于开发模式下定位元素。",
+            "examples": [
+              false
+            ]
+          }
+        },
+        "desc": "在超时后，启动调试模式，如果 --debug 未启用则忽略。该选项常用于开发模式下定位元素。",
+        "require": false,
+        "default": false
+      },
+      {
         "name": "trial",
         "type": {
           "py_hint": "typing.Optional[bool]",
@@ -1111,6 +1162,23 @@
     "args_max": 0,
     "args": [],
     "kwargs": [
+      {
+        "name": "check_url_change",
+        "type": {
+          "py_hint": "<class 'bool'>",
+          "conf_type": null,
+          "json_schema": {
+            "type": "boolean",
+            "description": "传入 True 时，假如 url 没有改变则会重试",
+            "examples": [
+              false
+            ]
+          }
+        },
+        "desc": "传入 True 时，假如 url 没有改变则会重试",
+        "require": false,
+        "default": false
+      },
       {
         "name": "wait_until",
         "type": {
@@ -1665,7 +1733,7 @@
   },
   {
     "name": "page_type_days_ranges_iter",
-    "desc": "用于在一些日期范围选择器组件中输入日期范围的工具函数。\n该函数会遍历 [StartDate, EndDate][] 并将其输出到日期范围选择器组件中。",
+    "desc": "用于在一些日期范围选择器组件中输入日期范围的工具函数。\n该函数会遍历 `[StartDate, EndDate][]` 并将其输出到日期范围选择器组件中。",
     "varargs": false,
     "varargs_types": null,
     "args_min": 0,
@@ -2382,6 +2450,60 @@
       }
     ],
     "kwargs": [],
+    "kwargs_min": null,
+    "kwargs_max": null
+  },
+  {
+    "name": "url_key_goto",
+    "desc": "恢复到此key对应的url。",
+    "varargs": false,
+    "varargs_types": null,
+    "args_min": 0,
+    "args_max": 0,
+    "args": [],
+    "kwargs": [
+      {
+        "name": "key",
+        "type": {
+          "py_hint": "<class 'str'>",
+          "conf_type": null,
+          "json_schema": {
+            "type": "string",
+            "description": "存储url的键名。"
+          }
+        },
+        "desc": "存储url的键名。",
+        "require": true,
+        "default": null
+      }
+    ],
+    "kwargs_min": null,
+    "kwargs_max": null
+  },
+  {
+    "name": "url_key_set_current",
+    "desc": "设置当前的url到key，以便后续恢复到此url。",
+    "varargs": false,
+    "varargs_types": null,
+    "args_min": 0,
+    "args_max": 0,
+    "args": [],
+    "kwargs": [
+      {
+        "name": "key",
+        "type": {
+          "py_hint": "<class 'str'>",
+          "conf_type": null,
+          "json_schema": {
+            "type": "string",
+            "description": "存储url的键名。"
+          }
+        },
+        "desc": "存储url的键名。",
+        "require": true,
+        "default": null
+      }
+    ],
     "kwargs_min": null,
     "kwargs_max": null
   }

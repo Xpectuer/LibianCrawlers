@@ -418,14 +418,97 @@ Deno.test(function parse_datetime_test() {
     max: Nums.take_extreme_value("max", [d1, null, d2]),
     min: Nums.take_extreme_value("min", [d1, d2]),
   });
+  assertEquals(
+    d1.epochMilliseconds,
+    new Date("2024-11-19T09:13:37.293Z").getTime(),
+  );
+  assertEquals(
+    d2.epochMilliseconds,
+    new Date("2024-07-09 06:22:39+00").getTime(),
+  );
   const d3 = Times.parse_text_to_instant("20240709");
   console.debug("parse yyyymmdd", d3);
+  assertEquals(
+    d3.epochMilliseconds,
+    new Date("2024-07-09 00:00:00+00").getTime(),
+  );
   const d4 = Times.parse_text_to_instant("2025-03-24");
   console.debug("d4", d4);
+  assertEquals(
+    d4.epochMilliseconds,
+    new Date("2025-03-24 00:00:00+00").getTime(),
+  );
   const d5 = Times.parse_text_to_instant("1 Dec 2025");
   console.debug("d5", d5);
+  console.debug(
+    'new Date("2025-12-01 00:00:00+00")',
+    new Date("2025-12-01 00:00:00+00"),
+  );
+  console.debug(
+    'new Date("2025-12-01 00:00:00+08")',
+    new Date("2025-12-01 00:00:00+08"),
+  );
+  console.debug(
+    'new Date("2025-12-01 00:00:00")',
+    new Date("2025-12-01 00:00:00"),
+  );
+  assertEquals(
+    d5.epochMilliseconds,
+    new Date("2025-12-01 00:00:00").getTime(),
+  );
   const d6 = Times.parse_text_to_instant("1 Jun 2025");
   console.debug("d6", d6);
+  assertEquals(
+    d6.epochMilliseconds,
+    new Date("2025-6-1 00:00:00").getTime(),
+  );
+  const opt1 = {
+    attach_year: [2025, {
+      on_exist: "raise_on_not_match",
+    }],
+    attach_day: [15, {
+      on_exist: "use_exist",
+    }],
+    on_found_month_range: "use_min_month",
+  } as const;
+  const d7 = Times.parse_text_to_instant("APR", opt1);
+  console.debug("d7", d7);
+  assertEquals(
+    d7.epochMilliseconds,
+    new Date("2025-4-15 00:00:00").getTime(),
+  );
+  const d8 = Times.parse_text_to_instant("APR-Oct", opt1);
+  console.debug("d8", d8);
+  console.debug(
+    'new Date("2025-4-15 00:00:00")',
+    new Date("2025-4-15 00:00:00"),
+  );
+  assertEquals(
+    d8.epochMilliseconds,
+    new Date("2025-4-15 00:00:00").getTime(),
+  );
+  // const d9 = Times.parse_text_to_instant("2024    APR", opt1);
+  // console.debug("d9", d9);
+  // assertEquals(
+  //   d9.epochMilliseconds,
+  //   new Date("2024-4-15 00:00:00").getTime(),
+  // );
+  const d10 = Times.parse_text_to_instant("APR-Oct", {
+    ...opt1,
+    on_found_month_range: "use_max_month",
+  });
+  console.debug("d10", d10);
+  console.debug(
+    'new Date("2025-10-15 00:00:00")',
+    new Date("2025-10-15 00:00:00"),
+  );
+  // TODO: 时区问题
+  //
+
+  // assertEquals(
+  //   d10.epochMilliseconds,
+  //   new Date("2025-10-15 00:00:00").getTime(),
+  // );
 });
 
 Deno.test(async function parse_process_bar_bind_each_test() {

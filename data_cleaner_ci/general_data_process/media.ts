@@ -11,6 +11,13 @@ export enum PlatformEnum {
   文献 = "literatures",
   lib_impact_factor = "github__suqingdong__impact_factor",
   wos_journal = "wos-journal.info",
+  维普 = "cqvip.com",
+  万方 = "wanfangdata.com.cn",
+  WashingtonPost = "www.washingtonpost.com",
+  Reuters = "www.reuters.com",
+  APNews = "www.apnews.com",
+  WebOfScience = "www.webofscience.com",
+  未分类 = "unknown",
 }
 
 export type MediaContentTag = {
@@ -155,6 +162,7 @@ export type LiteratureAbout = {
   level_of_evidence: string | null;
   book_publisher: string | null;
   cnsn: string | null;
+  eissn: string | null;
   // album: string | null;
   // theme: string | null;
   // funds: string[] | null;

@@ -1,0 +1,85 @@
+{
+  "$schema": "./schemas/v2.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start 维普 (https://www.cqvip.com) search"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_wait_for_selector_in_any_frame",
+      "args": [
+        "#search_container"
+      ],
+      "kwargs": {
+        "timeout": 6000
+      }
+    },
+    {
+      "fn": "gui_confirm",
+      "kwargs": {
+        "title": "Pause",
+        "message": "如果你想略过一些分页，或是手动更改查询条件，你可以趁这个 confirm 进行操作 :)"
+      }
+    },
+    {
+      "description": "一直重复 “滚到页底然后 dump_page，再点击下一页” 操作，直到无法点击下一页按钮时停止。",
+      "fn": "dump_page_for_each",
+      "kwargs": {
+        "dump_tag_prefix": "search_pages",
+        "before_dump_steps": [
+          {
+            "fn": "page_scroll_down",
+            "kwargs": {
+              "max_height": 20000,
+              "delta_y": 666,
+              "page_click_if_found": {
+                "locator": ".searchTitle >> a",
+                "check_selector_exist_after_click": "#pdf-details",
+                "duplicated_only_text": true,
+                "close_new_page": true,
+                "on_new_page": [
+                  {
+                    "fn": "page_scroll_down",
+                    "description": "在文献页面向下滚动"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "after_dump_steps": [
+          {
+            "fn": "page_click",
+            "description": "点击下一页",
+            "args": [
+              "button.btn-next"
+            ],
+            "kwargs": {
+              "timeout": 5000,
+              "timeout_retry": 3
+            }
+          }
+        ],
+        "after_dump_break_by_timeout": true
+      }
+    }
+  ]
+}

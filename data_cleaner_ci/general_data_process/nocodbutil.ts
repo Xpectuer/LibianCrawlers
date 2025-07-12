@@ -6,6 +6,7 @@ import {
   is_nullish,
   Jsons,
   Mappings,
+  Nums,
   Streams,
   Strs,
   Times,
@@ -34,6 +35,10 @@ export namespace NocoDBUtil {
     ReturnType<typeof NocoDBUtil.get_column_metadata>
   >;
 
+  export type NcColumnWithMetaData = NocoDBUtil.NcColumn & {
+    __metadata__: NocoDBUtil.NcColumnMetaData;
+  };
+
   export type FetchOption = {
     baseurl: DataClean.HttpUrl;
     nocodb_token: string;
@@ -41,7 +46,7 @@ export namespace NocoDBUtil {
   };
 
   export const ui_types = [
-    ["ID", "string"],
+    ["ID", "nocodb_id"],
     ["LinkToAnotherRecord", "unknown"],
     ["ForeignKey", "unknown"],
     ["Lookup", "unknown"],
@@ -49,7 +54,7 @@ export namespace NocoDBUtil {
     ["LongText", "string"],
     ["Attachment", "unknown"],
     ["Checkbox", "unknown"],
-    ["MultiSelect", "unknown"],
+    ["MultiSelect", "MultiSelect"],
     ["SingleSelect", "unknown"],
     ["Collaborator", "unknown"],
     ["Date", "unknown"],
@@ -69,21 +74,21 @@ export namespace NocoDBUtil {
     ["Rollup", "unknown"],
     ["Count", "unknown"],
     ["DateTime", "string"],
-    ["CreatedTime", "unknown"],
-    ["LastModifiedTime", "unknown"],
     ["AutoNumber", "unknown"],
     ["Geometry", "unknown"],
-    ["JSON", "unknown"],
+    ["JSON", "JSON"],
     ["SpecificDBType", "unknown"],
     ["Barcode", "unknown"],
     ["QrCode", "unknown"],
     ["Button", "unknown"],
     ["Links", "unknown"],
     ["User", "unknown"],
-    ["CreatedBy", "unknown"],
-    ["LastModifiedBy", "unknown"],
+    ["CreatedTime", "CreatedTime"],
+    ["LastModifiedTime", "LastModifiedTime"],
+    ["CreatedBy", "CreatedBy"],
+    ["LastModifiedBy", "LastModifiedBy"],
     ["Order", "unknown"],
-  ] as const; // satisfies Array<keyof UITypes>;
+  ] as const;
 
   export function is_ui_types_key(
     s: string,
@@ -91,17 +96,25 @@ export namespace NocoDBUtil {
     return ui_types.find((it) => it[0] === s) !== undefined;
   }
 
-  type UITypesValueType<T> = T extends "unknown" ? unknown
+  export type UITypesValueType<
+    T extends string & typeof ui_types[number][1],
+  > = T extends "unknown" ? unknown
     : T extends "string" ? string | null
     : T extends "number" ? number | null
+    : T extends "nocodb_id" ? number | `${number}`
+    : T extends "CreatedTime" ? string | undefined
+    : T extends "LastModifiedTime" ? string | undefined
+    : T extends "CreatedBy" ? string | undefined
+    : T extends "LastModifiedBy" ? string | undefined
+    : T extends "MultiSelect" ? string | null
+    : T extends "JSON" ? Jsons.JSONValue
     : never;
 
   export type UITypes = {
     [K in typeof ui_types[number][0]]: UITypesValueType<
       Extract<
         typeof ui_types[number],
-        // deno-lint-ignore no-explicit-any
-        Typings.DeepReadonly<[K, any]>
+        Typings.DeepReadonly<[K, string]>
       >[1]
     >;
   };
@@ -140,6 +153,20 @@ export namespace NocoDBUtil {
   > =
     | `${S}`
     | `${S}&${K}=${V}`;
+  export type CreateColumnsBody =
+    & {
+      title: string;
+      column_name: string;
+      description?: string;
+    }
+    & ({
+      uidt: keyof UITypes;
+    } | {
+      uidt: "MultiSelect";
+      colOptions: {
+        options: MultiSelectColOptionsCreatingItem[];
+      };
+    });
   export type Route =
     | {
       method: "GET";
@@ -206,6 +233,16 @@ export namespace NocoDBUtil {
       body: {
         Id: number;
       }[];
+    }
+    | {
+      method: "POST";
+      pth: `/api/v2/meta/tables/${string}/columns`;
+      body: CreateColumnsBody;
+    }
+    | {
+      method: "PATCH";
+      pth: `/api/v2/meta/columns/${string}`;
+      body: CreateColumnsBody;
     };
 
   const _fetch_noco = async <R>(
@@ -578,26 +615,98 @@ export namespace NocoDBUtil {
           };
         },
       },
-      (it): it is { fk_column_id: string; id: string } => {
+      (it): it is { fk_column_id: string; id: string; show: boolean } => {
         return (
           typeof it === "object" &&
           it !== null &&
           "fk_column_id" in it &&
           typeof it.fk_column_id === "string" &&
           "id" in it &&
-          typeof it.id === "string"
+          typeof it.id === "string" &&
+          "show" in it &&
+          typeof it.show === "boolean"
         );
       },
     );
   }
 
+  export type MultiSelectColOptionsCreatingItem = {
+    title: string;
+    // fk_column_id: FkColumnId;
+    color?: string;
+    order?: number;
+    // id: string;
+    // base_id: BaseId;
+  };
+
+  export type MultiSelectColOptions<
+    FkColumnId extends string = string,
+    BaseId extends string = string,
+  > = {
+    options: {
+      title: string;
+      fk_column_id: FkColumnId;
+      color: string;
+      order: number;
+      id: string;
+      base_id: BaseId;
+    }[];
+  };
+
+  export function is_valid_multi_select_col_options(
+    o: unknown,
+  ): o is MultiSelectColOptions {
+    if (
+      !(typeof o === "object" && o !== null && "options" in o &&
+        Array.isArray(o.options))
+    ) {
+      return false;
+    }
+    let fk_column_id: string | undefined = undefined;
+    let base_id: string | undefined = undefined;
+    for (const _item of o.options) {
+      const item: unknown = _item;
+      if (
+        !(typeof item === "object" &&
+          item !== null &&
+          "title" in item &&
+          typeof item.title === "string" &&
+          "fk_column_id" in item &&
+          typeof item.fk_column_id === "string" &&
+          "color" in item &&
+          typeof item.color === "string" &&
+          "order" in item &&
+          typeof item.order === "number" &&
+          "id" in item &&
+          typeof item.id === "string" &&
+          "base_id" in item &&
+          typeof item.base_id === "string")
+      ) {
+        return false;
+      }
+      if (typeof fk_column_id === "undefined") {
+        fk_column_id = item.fk_column_id;
+      }
+      if (fk_column_id !== item.fk_column_id) {
+        return false;
+      }
+      if (typeof base_id === "undefined") {
+        base_id = item.base_id;
+      }
+      if (base_id !== item.base_id) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   export async function get_column_metadata(
     param: FetchOption,
-    columnId: string,
+    fkColumnId: string,
   ) {
     const { res_json, resp } = await _fetch_noco({
       ...param,
-      route: { method: "GET", pth: `/api/v2/meta/columns/${columnId}` },
+      route: { method: "GET", pth: `/api/v2/meta/columns/${fkColumnId}` },
       // deno-lint-ignore require-await
       on_status_not_200: async (resp) => {
         if (resp.status === 404) {
@@ -607,8 +716,39 @@ export namespace NocoDBUtil {
         }
       },
     });
-    // console.debug("success", { columnId });
-    return res_json;
+    if (res_json === null) {
+      return null;
+    }
+    if (
+      typeof res_json === "object" &&
+      "title" in res_json && typeof res_json.title === "string" &&
+      "uidt" in res_json && typeof res_json.uidt === "string" &&
+      NocoDBUtil.is_ui_types_key(res_json.uidt)
+    ) {
+      if (res_json.uidt === "MultiSelect") {
+        if (
+          "colOptions" in res_json &&
+          is_valid_multi_select_col_options(res_json.colOptions)
+        ) {
+          return {
+            ...res_json,
+            title: res_json.title,
+            uidt: res_json.uidt,
+            colOptions: res_json.colOptions,
+          };
+        } else {
+          Errors.throw_and_format("type assert failed", { res_json });
+        }
+      } else {
+        return {
+          ...res_json,
+          title: res_json.title,
+          uidt: res_json.uidt,
+        };
+      }
+    } else {
+      Errors.throw_and_format("type assert failed", { res_json });
+    }
   }
 
   export async function fetch_ncbases_all_info(
@@ -622,9 +762,7 @@ export namespace NocoDBUtil {
             "__views__": Array<
               NocoDBUtil.NcView & {
                 "__columns__": Array<
-                  NocoDBUtil.NcColumn & {
-                    "__metadata__": NocoDBUtil.NcColumnMetaData;
-                  }
+                  NocoDBUtil.NcColumnWithMetaData
                 >;
               }
             >;
@@ -686,12 +824,20 @@ export namespace NocoDBUtil {
               ...param,
             }, ncview.id)
           ) {
-            __columns__.push({
-              ...Jsons.copy(nccol),
-              "__metadata__": await NocoDBUtil.get_column_metadata({
-                ...param,
-              }, nccol.fk_column_id),
-            });
+            try {
+              __columns__.push({
+                ...Jsons.copy(nccol),
+                "__metadata__": await NocoDBUtil.get_column_metadata({
+                  ...param,
+                }, nccol.fk_column_id),
+              });
+            } catch (err) {
+              Errors.throw_and_format(
+                "list_columns failed",
+                { nccol, ncview, nctable, ncbase },
+                err,
+              );
+            }
           }
         }
       }
@@ -858,6 +1004,154 @@ export namespace NocoDBUtil {
       }
     }
   }
+
+  export function check_multi_select_values(
+    head: NocoDBUtil.NcColumnWithMetaData,
+    value: unknown,
+  ) {
+    if (head.__metadata__?.uidt !== "MultiSelect") {
+      return {
+        success: false,
+        reason: "uidt_not_match",
+      } as const;
+    } else {
+      if (value === null) {
+        return {
+          success: true,
+          reason: "value_is_null",
+        } as const;
+      }
+      if (typeof value !== "string") {
+        return {
+          success: false,
+          reason: "value_not_string_or_null",
+          value,
+        };
+      }
+      for (const multi_select_item of value.split(",")) {
+        if (
+          "undefined" ===
+            typeof (head.__metadata__.colOptions.options.find((
+              { title },
+            ) => title === multi_select_item))
+        ) {
+          return {
+            success: false,
+            reason: "multi_select_item_not_found",
+            value,
+            multi_select_item,
+          } as const;
+        }
+      }
+      return {
+        success: true,
+        reason: "value_is_valid",
+      } as const;
+    }
+  }
+
+  export async function create_column(
+    param: FetchOption & {
+      tableId: string;
+      body: CreateColumnsBody;
+    },
+  ) {
+    const { tableId, body } = param;
+    const { res_json, resp } = await _fetch_noco({
+      ...param,
+      route: {
+        method: "POST",
+        pth: `/api/v2/meta/tables/${tableId}/columns`,
+        body,
+      },
+    });
+    if (resp.status !== 200) {
+      Errors.throw_and_format("Failed create column", { res_json, param });
+    }
+  }
+
+  export async function update_column(
+    param: FetchOption & {
+      columnId: string;
+      body: CreateColumnsBody;
+    },
+  ) {
+    const { columnId, body } = param;
+    const { res_json, resp } = await _fetch_noco({
+      ...param,
+      route: {
+        method: "PATCH",
+        pth: `/api/v2/meta/columns/${columnId}`,
+        body,
+      },
+    });
+    if (resp.status !== 200) {
+      Errors.throw_and_format("Failed create column", { res_json, param });
+    }
+  }
+
+  // export async function get_primary_view(param: {
+  //   nocodb_fetch_option: FetchOption;
+  //   nctableId: string;
+  // }) {
+  //   const { nocodb_fetch_option, nctableId } = param;
+  //   for await (
+  //     const ncview of NocoDBUtil.list_views(nocodb_fetch_option, nctableId)
+  //   ) {
+  //   }
+  // }
+
+  export async function create_or_update_column_ctx(param: {
+    nocodb_fetch_option: FetchOption;
+    nctableId: string;
+    ncviewId: string;
+  }) {
+    const { nocodb_fetch_option, nctableId, ncviewId } = param;
+
+    // const { nocodb_fetch_option, ncviewId, nctableId } = _param;
+    const cols: {
+      col: NocoDBUtil.NcColumn;
+      col_meta: NocoDBUtil.NcColumnMetaData;
+    }[] = [];
+    for await (
+      const col of NocoDBUtil.list_columns(nocodb_fetch_option, ncviewId)
+    ) {
+      const col_meta = await NocoDBUtil.get_column_metadata(
+        nocodb_fetch_option,
+        col.fk_column_id,
+      );
+      cols.push({ col, col_meta });
+    }
+    return {
+      create_or_update_column: async (_param: { body: CreateColumnsBody }) => {
+        const { body } = _param;
+        const title = body.title;
+        if (title !== body.column_name) {
+          Errors.throw_and_format("title should equal body.column_name", {
+            param,
+          });
+        }
+
+        const _llmreq_correct_found_col = cols.find(({ col_meta }) =>
+          col_meta?.title === title
+        );
+        if ("undefined" === typeof _llmreq_correct_found_col) {
+          console.debug("Create column", body.title);
+          await create_column({
+            ...nocodb_fetch_option,
+            tableId: nctableId,
+            body: body,
+          });
+        } else {
+          await update_column({
+            ...nocodb_fetch_option,
+            columnId: _llmreq_correct_found_col.col.fk_column_id,
+            body: body,
+          });
+        }
+      },
+    };
+  }
 }
 
 // deno-lint-ignore no-namespace
@@ -878,29 +1172,48 @@ export namespace NocoDBDataset {
     : ColumnsMetaApiFromColumns<Arr>
     : unknown;
 
-  type _ShowIsTrueOrTitleIsId<Show, Title, T, F> = Title extends "id"
-    ? T extends Record<Title, infer V> ? T & Record<Title, NonNullable<V>> & F
-    : T & F
-    : Show extends true ? T & F
-    : F;
+  type _ShowIsTrueOrTitleIsId<
+    Show,
+    Title extends string,
+    Next,
+    Uidt,
+    Upsert extends boolean,
+    T,
+  > = Title extends "id" //
+    ? T extends Record<Title, infer V> //
+      ? T & Record<Title, NonNullable<V>> & Next
+    : T & Next
+    : _MaybeNotExist<Upsert, Uidt, Show extends boolean ? Show : false> extends
+      true //
+      ? Next
+    : T & Next;
 
-  export type RowsData<A> = A extends readonly [infer ColHead, ...infer Arr]
-    ? ColHead extends {
-      show: infer Show;
-      __metadata__: { title: infer Title extends string; uidt: infer Uidt };
-    } ? _ShowIsTrueOrTitleIsId<
-        Show,
-        Title,
-        Record<
+  type _MaybeNotExist<Upsert extends boolean, Uidt, Show extends boolean> =
+    Show extends false ? true
+      : Upsert extends true ? Uidt extends "Formula" ? true : false
+      : false;
+
+  export type RowsData<A, Upsert extends true | false = false> = //
+    A extends readonly [infer ColHead, ...infer Arr] //
+      ? ColHead extends {
+        show: infer Show;
+        __metadata__: { title: infer Title extends string; uidt: infer Uidt };
+      } //
+        ? _ShowIsTrueOrTitleIsId<
+          Show,
           Title,
-          Uidt extends string & keyof NocoDBUtil.UITypes
-            ? NocoDBUtil.UITypes[Uidt]
-            : unknown
-        >,
-        RowsData<Arr>
-      >
-    : RowsData<Arr>
-    : unknown;
+          RowsData<Arr, Upsert>,
+          Uidt,
+          Upsert,
+          Record<
+            Title,
+            Uidt extends string & keyof NocoDBUtil.UITypes
+              ? NocoDBUtil.UITypes[Uidt]
+              : unknown
+          >
+        >
+      : RowsData<Arr, Upsert>
+      : unknown;
 
   export class NcApi<
     NcBases extends Typings.DeepReadonly<
@@ -951,11 +1264,7 @@ export namespace NocoDBDataset {
                 }, nctable.id)
               ) {
                 if (ncview.title === view_title) {
-                  const nccolumns: {
-                    fk_column_id: string;
-                    id: string;
-                    __metadata__: unknown;
-                  }[] = [];
+                  const nccolumns: NocoDBUtil.NcColumnWithMetaData[] = [];
                   for await (
                     const nccolumn of NocoDBUtil.list_columns({
                       baseurl: this.baseurl,
@@ -1047,12 +1356,7 @@ export namespace NocoDBDataset {
   }
 
   type NcApiColEntry = [string, {
-    head: {
-      fk_column_id: string;
-      id: string;
-      show: boolean;
-      __metadata__: unknown;
-    };
+    head: NocoDBUtil.NcColumnWithMetaData;
     uidt: keyof NocoDBUtil.UITypes;
   }];
 
@@ -1089,7 +1393,8 @@ export namespace NocoDBDataset {
             { record, key, columns_meta_entries },
           );
         }
-        const [_, { uidt }] = column_meta;
+        const [_, column_meta_info] = column_meta;
+        const { uidt, head } = column_meta_info;
         const ui_type_entry = NocoDBUtil.ui_types.find((it) => it[0] === uidt);
         if (!ui_type_entry) {
           Errors.throw_and_format(
@@ -1097,9 +1402,28 @@ export namespace NocoDBDataset {
             { record, key, uidt, column_meta },
           );
         }
+
         // deno-lint-ignore no-explicit-any
         const value: unknown = (record as any)[key];
         switch (ui_type_entry[1]) {
+          case "nocodb_id":
+            if (
+              !(typeof value === "string" && Nums.is_int(value) ||
+                typeof value === "number")
+            ) {
+              Errors.throw_and_format(
+                "TypeError on value",
+                {
+                  record,
+                  key,
+                  value,
+                  uidt,
+                  column_meta,
+                  ui_type_entry,
+                },
+              );
+            }
+            continue;
           case "string":
             if (
               !(typeof value === "string" ||
@@ -1135,8 +1459,65 @@ export namespace NocoDBDataset {
               );
             }
             continue;
+          case "CreatedTime":
+          case "LastModifiedTime":
+          case "CreatedBy":
+          case "LastModifiedBy":
+            if (
+              !(typeof value === "undefined" || typeof value === "string")
+            ) {
+              Errors.throw_and_format(
+                "TypeError on value",
+                {
+                  record,
+                  key,
+                  value,
+                  uidt,
+                  column_meta,
+                  ui_type_entry,
+                },
+              );
+            }
+            continue;
+          // deno-lint-ignore no-case-declarations, no-fallthrough
+          case "MultiSelect":
+            const _multi_select_check_result = NocoDBUtil
+              .check_multi_select_values(head, value);
+            if (_multi_select_check_result.success) {
+              continue;
+            } else {
+              Errors.throw_and_format(
+                "TypeError on value",
+                {
+                  record,
+                  key,
+                  value,
+                  uidt,
+                  column_meta,
+                  ui_type_entry,
+                  _multi_select_check_result,
+                },
+              );
+            }
+            // Errors.throw_and_format("TODO", { column_meta });
+          case "JSON":
+            if (!is_deep_equal(value, Jsons.load(Jsons.dump(value)))) {
+              Errors.throw_and_format(
+                "TypeError on value",
+                {
+                  record,
+                  key,
+                  value,
+                  uidt,
+                  column_meta,
+                  ui_type_entry,
+                },
+              );
+            }
+            continue;
           case "unknown":
             continue;
+
           default:
             Errors.throw_and_format(
               "Invalid ui_type_entry[1]",
@@ -1157,8 +1538,10 @@ export namespace NocoDBDataset {
         const value: unknown = (record as any)[meta_key];
         if (meta_key === "id" || col_def.head.show) {
           if (
-            record_keys.indexOf(meta_key) < 0 ||
-            typeof value === "undefined"
+            (record_keys.indexOf(meta_key) < 0 ||
+              typeof value === "undefined") &&
+            ["CreatedTime", "LastModifiedTime", "CreatedBy", "LastModifiedBy"]
+                .indexOf(col_def.uidt) < 0
           ) {
             Errors.throw_and_format(
               "There has some column should existed in record but not exist",
@@ -1182,7 +1565,7 @@ export namespace NocoDBDataset {
 
     public async map<
       R,
-      Row extends RowsData<A> = RowsData<A>,
+      Row extends RowsData<A, false> = RowsData<A, false>,
       QueueSize extends undefined | number = undefined,
     >(_param: {
       cb: (row: Row, iter_count: number) =>
@@ -1301,7 +1684,7 @@ export namespace NocoDBDataset {
     }
 
     public async upsert<
-      Row extends RowsData<A> = RowsData<A>,
+      Row extends RowsData<A, true> = RowsData<A, true>,
       RowCreate extends Omit<
         Row,
         "Id" | "CreatedAt" | "UpdatedAt" | "nc_created_by" | "nc_updated_by"

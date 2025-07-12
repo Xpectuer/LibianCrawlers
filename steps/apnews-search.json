@@ -1,0 +1,200 @@
+{
+  "$schema": "./schemas/v2.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start APNews (https://www.apnews.com) search"
+      ]
+    },
+    {
+      "description": "在 启动 时，检查CloudFlare是否存在，如果存在需要手动过一下。",
+      "fn": "page_wait_for_selector_in_any_frame",
+      "args": [
+        "h1.zone-name-title"
+      ],
+      "kwargs": {
+        "timeout": 4000
+      },
+      "on_timeout_steps": "continue",
+      "on_success_steps": [
+        {
+          "fn": "gui_confirm",
+          "kwargs": {
+            "title": "Please bypass Cloudflare manually",
+            "message": "需要手动通过 cloudflare 检查，请在完成后再关闭对话框。"
+          }
+        }
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "description": "一直滚到页底",
+      "fn": "dump_page_for_each",
+      "kwargs": {
+        "dump_tag_prefix": "search_pages",
+        "before_dump_steps": [
+          {
+            "fn": "url_key_set_current",
+            "kwargs": {
+              "key": "search_result_page"
+            }
+          },
+          {
+            "fn": "page_scroll_down",
+            "kwargs": {
+              "max_height": 20000,
+              "delta_y": 555,
+              "page_click_if_found": {
+                "locator": ".PagePromo-content > .PagePromo-description",
+                "duplicated_only_text": true,
+                "check_selector_exist_after_click": ".Page-content",
+                "on_before_dump_steps": [
+                  {
+                    "fn": "page_scroll_down",
+                    "description": "在新闻详情页面向下滚动",
+                    "kwargs": {
+                      "max_height": 20000,
+                      "delta_y": 432
+                    }
+                  }
+                ],
+                "on_before_click_check_steps": [
+                  {
+                    "description": "在 on_before_click_check_steps 时，检查CloudFlare是否存在，如果存在需要手动过一下。",
+                    "fn": "page_wait_for_selector_in_any_frame",
+                    "args": [
+                      "h1.zone-name-title"
+                    ],
+                    "kwargs": {
+                      "timeout": 4000
+                    },
+                    "on_timeout_steps": "continue",
+                    "on_success_steps": [
+                      {
+                        "fn": "gui_confirm",
+                        "kwargs": {
+                          "title": "Please bypass Cloudflare manually",
+                          "message": "需要手动通过 cloudflare 检查，请在完成后再关闭对话框。"
+                        }
+                      },
+                      {
+                        "fn": "sleep",
+                        "args": [
+                          5000
+                        ]
+                      },
+                      {
+                        "fn": "url_key_set_current",
+                        "kwargs": {
+                          "key": "cloudflare_on_enter_page"
+                        }
+                      },
+                      {
+                        "fn": "url_key_goto",
+                        "description": "先goto到搜索结果页，一会儿再goto到本页，这样就能用goback返回了。",
+                        "kwargs": {
+                          "key": "search_result_page"
+                        }
+                      },
+                      {
+                        "fn": "sleep",
+                        "args": [
+                          5000
+                        ]
+                      },
+                      {
+                        "fn": "url_key_goto",
+                        "kwargs": {
+                          "key": "cloudflare_on_enter_page"
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "on_after_dump_steps": [
+                  {
+                    "fn": "page_go_back",
+                    "kwargs": {
+                      "check_url_change": true
+                    }
+                  },
+                  {
+                    "description": "在 on_after_dump_steps 时，检查CloudFlare是否存在，如果存在需要手动过一下。",
+                    "fn": "page_wait_for_selector_in_any_frame",
+                    "args": [
+                      "h1.zone-name-title"
+                    ],
+                    "kwargs": {
+                      "timeout": 4000
+                    },
+                    "on_timeout_steps": "continue",
+                    "on_success_steps": [
+                      {
+                        "fn": "gui_confirm",
+                        "kwargs": {
+                          "title": "Please bypass Cloudflare manually",
+                          "message": "需要手动通过 cloudflare 检查，请在完成后再关闭对话框。"
+                        }
+                      },
+                      {
+                        "fn": "url_key_goto",
+                        "kwargs": {
+                          "key": "search_result_page"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "after_dump_steps": [
+          {
+            "fn": "page_click",
+            "description": "检查并关闭悬浮弹窗。",
+            "on_timeout_steps": "continue",
+            "args": [
+              "button#onesignal-slidedown-cancel-button"
+            ],
+            "kwargs": {
+              "timeout": 500,
+              "timeout_retry": 0,
+              "only_main_frame": false
+            }
+          },
+          {
+            "fn": "page_click",
+            "description": "点击下一页",
+            "args": [
+              ".Pagination-nextPage > a"
+            ],
+            "kwargs": {
+              "timeout": 5000,
+              "timeout_retry": 3,
+              "force": true
+            }
+          }
+        ],
+        "after_dump_break_by_timeout": true
+      }
+    },
+    "debug"
+  ]
+}

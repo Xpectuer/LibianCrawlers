@@ -6,13 +6,14 @@ from loguru import logger
 
 
 @aioify
-def gui_confirm(*, title: str, message: str):
+def gui_confirm(*, title: str, message: str, play_sound: bool = False):
     p = multiprocessing.Process(target=_gui_confirm,
                                 kwargs=dict(title=title, message=message),
                                 name=f'gui_confirm of {title}',
                                 daemon=True)
     p.start()
     p.join()
+    logger.debug('gui_confirm joined')
 
 
 def _gui_confirm(*, title: str, message: str):

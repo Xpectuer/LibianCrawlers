@@ -52,6 +52,7 @@
     "npm:jsonata@^2.0.6": "2.0.6",
     "npm:kysely-postgres-js@2": "2.0.0_kysely@0.27.6_postgres@3.4.5",
     "npm:kysely@~0.27.5": "0.27.6",
+    "npm:openai@^5.8.2": "5.8.2",
     "npm:parse-chinese-number@^1.0.5": "1.0.5",
     "npm:postgres@^3.4.5": "3.4.5",
     "npm:quicktype-core@^23.0.170": "23.1.3_encoding@0.1.13",
@@ -758,6 +759,10 @@
         "wrappy"
       ]
     },
+    "openai@5.8.2": {
+      "integrity": "sha512-8C+nzoHYgyYOXhHGN6r0fcb4SznuEn1R7YZMvlqDbnCuE0FM2mm3T1HiYW6WIcMS/F1Of2up/cSPjLPaWt0X9Q==",
+      "bin": true
+    },
     "p-finally@1.0.0": {
       "integrity": "sha512-LICb2p9CB7FS+0eR1oqWnHhp0FljGLZCWBE9aix0Uye9W8LTQPwMTYVGWQWIw9RdQiDg4+epXQODwIYJtSJaow=="
     },
@@ -1207,6 +1212,7 @@
       "npm:jsonata@^2.0.6",
       "npm:kysely-postgres-js@2",
       "npm:kysely@~0.27.5",
+      "npm:openai@^5.8.2",
       "npm:parse-chinese-number@^1.0.5",
       "npm:postgres@^3.4.5",
       "npm:quicktype-core@^23.0.170",

@@ -339,6 +339,13 @@
                   "examples": [
                     false
                   ]
+                },
+                "dump_excel": {
+                  "type": "boolean",
+                  "description": "如果此值为 true 且下载的文件是 excel 文件，则转储 excel 内容对象。",
+                  "examples": [
+                    false
+                  ]
                 }
               }
             },
@@ -432,6 +439,13 @@
                 "message": {
                   "type": "string",
                   "description": "弹出窗口正文"
+                },
+                "play_sound": {
+                  "type": "boolean",
+                  "description": "持续播放声音来催促尽快操作完成",
+                  "examples": [
+                    false
+                  ]
                 }
               }
             },
@@ -798,6 +812,13 @@
                     false
                   ]
                 },
+                "debug_on_timeout": {
+                  "type": "boolean",
+                  "description": "在超时后，启动调试模式，如果 --debug 未启用则忽略。该选项常用于开发模式下定位元素。",
+                  "examples": [
+                    false
+                  ]
+                },
                 "trial": {
                   "description": "传递给 `Locator.click` 或 `Locator.tap` 的可选参数。\n\n设置为 true 后，此方法仅执行 [actionability](https://playwright.dev/docs/actionability) 检查并跳过操作。\n默认为 false。\n\n这在等待元素准备好执行操作而不执行操作很有用。\n请注意，无论 trial 如何，键盘 修饰键 都会被按下，以允许测试仅在按下这些键时才可见的元素。",
                   "anyOf": [
@@ -1066,6 +1087,13 @@
               "additionalProperties": false,
               "required": [],
               "properties": {
+                "check_url_change": {
+                  "type": "boolean",
+                  "description": "传入 True 时，假如 url 没有改变则会重试",
+                  "examples": [
+                    false
+                  ]
+                },
                 "wait_until": {
                   "description": "传递给 `page.go_back` 的可选参数。`",
                   "anyOf": [
@@ -1503,7 +1531,7 @@
           }
         },
         {
-          "description": "用于在一些日期范围选择器组件中输入日期范围的工具函数。\n该函数会遍历 [StartDate, EndDate][] 并将其输出到日期范围选择器组件中。",
+          "description": "用于在一些日期范围选择器组件中输入日期范围的工具函数。\n该函数会遍历 `[StartDate, EndDate][]` 并将其输出到日期范围选择器组件中。",
           "type": "object",
           "additionalProperties": false,
           "required": [
@@ -2117,6 +2145,94 @@
               "additionalProperties": false,
               "required": [],
               "properties": {}
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "恢复到此key对应的url。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "url_key_goto"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "key"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "存储url的键名。"
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "description": "设置当前的url到key，以便后续恢复到此url。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "url_key_set_current"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "key"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "存储url的键名。"
+                }
+              }
             },
             "on_success_steps": {
               "$ref": "#/definitions/StepsBlock"

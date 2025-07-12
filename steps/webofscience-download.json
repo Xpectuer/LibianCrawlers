@@ -1,0 +1,108 @@
+{
+  "$schema": "./schemas/v2.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start WebOfScience (or proxy) download"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "gui_confirm",
+      "kwargs": {
+        "title": "need user operate",
+        "message": "LibianCrawler 需要你自行完成登陆和搜索操作，请在完成登录、且跳转到搜索结果列表页面后，方可关闭此对话框。"
+      }
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "switch_page",
+      "args": [
+        -1
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_click",
+      "description": "点击 Export",
+      "args": [
+        "app-export-menu"
+      ]
+    },
+    {
+      "fn": "page_click",
+      "description": "点击导出为 excel",
+      "args": [
+        "#exportToExcelButton"
+      ]
+    },
+    {
+      "fn": "page_click",
+      "description": "点击 Records from 1 to ... 按钮",
+      "args": [
+        "#radio3-input"
+      ],
+      "kwargs": {
+        "method": "dispatch_event_click",
+        "debug_on_timeout": true
+      }
+    },
+    {
+      "fn": "page_click",
+      "description": "点击 Record Content 按钮",
+      "args": [
+        ".ng-star-inserted > wos-select > button"
+      ],
+      "kwargs": {
+        "debug_on_timeout": true
+      }
+    },
+    {
+      "fn": "page_click",
+      "args": [
+        "[title=\"Full Record\"]"
+      ],
+      "kwargs": {
+        "debug_on_timeout": true
+      }
+    },
+    {
+      "fn": "expect_download",
+      "kwargs": {
+        "timeout": 60000,
+        "run_steps": [
+          {
+            "fn": "page_click",
+            "args": [
+              "#exportButton"
+            ],
+            "kwargs": {
+              "debug_on_timeout": true
+            }
+          }
+        ],
+        "dump_excel": true
+      }
+    }
+  ]
+}

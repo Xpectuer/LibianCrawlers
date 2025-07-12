@@ -11,6 +11,7 @@ from typing import Optional, Literal, Union, Dict, Callable, Awaitable, Any, Typ
 import aiofiles.os
 import aiofiles.ospath
 
+from libiancrawlers.app_util.magic_util import MagicInfo
 from libiancrawlers.app_util.networks.proxies import monkey_patch_hook_urllib
 from libiancrawlers.app_util.obj2dict_util import url_parse_to_dict, ResultOfUrlParseToDict
 from libiancrawlers.util.exceptions import is_timeout_error
@@ -224,15 +225,31 @@ async def request_info_to_dict(req: Optional[playwright.async_api.Request]):
     )
 
 
+FrameTreeToDictResult = TypedDict('FrameTreeToDictResult', {
+    'is_detached': bool,
+    'python_id_of_this': int,
+    'python_id_of_page': int,
+    'python_id_of_parent_frame': int,
+    'name': str,
+    'url': Optional[ResultOfUrlParseToDict],
+    'title': Optional[str],
+    'content': Optional[MagicInfo],
+    'child_frames': List['FrameTreeToDictResult'],
+})
+
+
 async def frame_tree_to_dict(frame: Frame,
                              *,
-                             dump_page_ignore_names: Optional[str]):
+                             dump_page_ignore_names: Optional[str],
+                             html2markdown_soup_find: Optional[str]) -> FrameTreeToDictResult:
     if frame.child_frames is None:
-        child_frames = []
+        child_frames: List[FrameTreeToDictResult] = []
     else:
-        child_frames = []
+        child_frames: List[FrameTreeToDictResult] = []
         for cf in frame.child_frames:
-            child_frames.append(await frame_tree_to_dict(cf, dump_page_ignore_names=dump_page_ignore_names))
+            child_frames.append(await frame_tree_to_dict(cf,
+                                                         dump_page_ignore_names=dump_page_ignore_names,
+                                                         html2markdown_soup_find=html2markdown_soup_find))
     from libiancrawlers.app_util.magic_util import get_magic_info
     is_detached = frame.is_detached()
     return {
@@ -244,7 +261,8 @@ async def frame_tree_to_dict(frame: Frame,
         'url': url_parse_to_dict(frame.url),
         'title': None if is_detached else await frame.title(),
         'content': None if is_detached else get_magic_info(await frame.content(),
-                                                           dump_page_ignore_names=dump_page_ignore_names),
+                                                           dump_page_ignore_names=dump_page_ignore_names,
+                                                           html2markdown_soup_find=html2markdown_soup_find),
         'child_frames': child_frames,
     }
 
@@ -328,74 +346,83 @@ async def _get_blob(*,
                 pdf_filename='screenshot.pdf',
             )
             png_file_path = res_screenshot['png_pth']
-            png_file_sha1 = await get_file_hash_sha1(png_file_path)
+            try:
+                png_file_sha1 = await get_file_hash_sha1(png_file_path)
+            except FileNotFoundError as err:
+                logger.warning('screenshot file not found , maybe cause by screenshot failed . png_file_path is {}',
+                               png_file_path)
+                png_file_sha1 = None
 
-            client = Minio(endpoint=endpoint,
-                           access_key=access_key,
-                           secret_key=secret_key,
-                           session_token=session_token,
-                           region=region,
-                           secure=secure,
-                           cert_check=cert_check, )
-            bucket_name = await read_config('crawler', 'minio', 'bucket_name', allow_null=True)
-            if bucket_name is None:
-                bucket_name = 'libiancrawler'
-            if not await client.bucket_exists(bucket_name):
-                await client.make_bucket(bucket_name)
-                logger.info('Create MinIO bucket {}', bucket_name)
-            object_name = f'smart-crawl-screenshot/{datetime.today().strftime("%Y%m%d")}/{datetime.today().strftime("%H%M%S")}-sha1-{png_file_sha1}.png'
-            logger.debug('put object to minio start  : bucket_name is {} , object_name is {} , file_path is {}',
-                         bucket_name, object_name, png_file_path)
-            res_obj_write = await client.fput_object(
-                bucket_name=bucket_name,
-                object_name=object_name,
-                file_path=png_file_path,
-                content_type='image/png',
-                metadata={
-                    "Content-Type": "image/png"
-                },
-            )
-            from multidict import MultiDictProxy
-            if isinstance(res_obj_write.http_headers, MultiDictProxy):
-                def _first_or_all(__items):
-                    if isinstance(__items, list) or isinstance(__items, set) or isinstance(__items, tuple):
-                        if len(__items) == 1:
-                            return __items[0]
+            if png_file_sha1 is not None:
+                client = Minio(endpoint=endpoint,
+                               access_key=access_key,
+                               secret_key=secret_key,
+                               session_token=session_token,
+                               region=region,
+                               secure=secure,
+                               cert_check=cert_check, )
+                bucket_name = await read_config('crawler', 'minio', 'bucket_name', allow_null=True)
+                if bucket_name is None:
+                    bucket_name = 'libiancrawler'
+                if not await client.bucket_exists(bucket_name):
+                    await client.make_bucket(bucket_name)
+                    logger.info('Create MinIO bucket {}', bucket_name)
+                object_name = f'smart-crawl-screenshot/{datetime.today().strftime("%Y%m%d")}/{datetime.today().strftime("%H%M%S")}-sha1-{png_file_sha1}.png'
+                logger.debug('put object to minio start  : bucket_name is {} , object_name is {} , file_path is {}',
+                             bucket_name, object_name, png_file_path)
+                res_obj_write = await client.fput_object(
+                    bucket_name=bucket_name,
+                    object_name=object_name,
+                    file_path=png_file_path,
+                    content_type='image/png',
+                    metadata={
+                        "Content-Type": "image/png"
+                    },
+                )
+                from multidict import MultiDictProxy
+                if isinstance(res_obj_write.http_headers, MultiDictProxy):
+                    def _first_or_all(__items):
+                        if isinstance(__items, list) or isinstance(__items, set) or isinstance(__items, tuple):
+                            if len(__items) == 1:
+                                return __items[0]
+                            else:
+                                return __items
                         else:
                             return __items
-                    else:
-                        return __items
 
-                res_obj_write_http_headers = {k: _first_or_all(res_obj_write.http_headers.getall(k)) for k in
-                                              res_obj_write.http_headers.__iter__()}
-            else:
-                res_obj_write_http_headers = res_obj_write.http_headers
+                    res_obj_write_http_headers = {k: _first_or_all(res_obj_write.http_headers.getall(k)) for k in
+                                                  res_obj_write.http_headers.__iter__()}
+                else:
+                    res_obj_write_http_headers = res_obj_write.http_headers
 
-            _res_obj_write: MinIOObjectWriteResult = {
-                'bucket_name': res_obj_write.bucket_name,
-                'object_name': res_obj_write.object_name,
-                'version_id': res_obj_write.version_id,
-                'etag': res_obj_write.etag,
-                'http_headers': res_obj_write_http_headers,
-                'last_modified': res_obj_write.last_modified,
-                'location': res_obj_write.location,
+                _res_obj_write: MinIOObjectWriteResult = {
+                    'bucket_name': res_obj_write.bucket_name,
+                    'object_name': res_obj_write.object_name,
+                    'version_id': res_obj_write.version_id,
+                    'etag': res_obj_write.etag,
+                    'http_headers': res_obj_write_http_headers,
+                    'last_modified': res_obj_write.last_modified,
+                    'location': res_obj_write.location,
+                }
+                # assert it can be json dump
+                assert json.dumps(_res_obj_write) is not None
+                public_url = str.join('/', [
+                    public_endpoint_url.rstrip('/'),
+                    res_obj_write.bucket_name,
+                    res_obj_write.object_name,
+                ])
+                logger.debug('put object to minio finish : result is {}', _res_obj_write)
+                logger.debug('put object to minio public_url : \n{}', public_url)
+
+        if png_file_sha1 is not None:
+            _res_value: MinIOScreenShotResult = {
+                'res_obj_write': _res_obj_write,
+                'res_screenshot': res_screenshot,
+                'public_url': public_url,
             }
-            # assert it can be json dump
-            assert json.dumps(_res_obj_write) is not None
-            public_url = str.join('/', [
-                public_endpoint_url.rstrip('/'),
-                res_obj_write.bucket_name,
-                res_obj_write.object_name,
-            ])
-            logger.debug('put object to minio finish : result is {}', _res_obj_write)
-            logger.debug('put object to minio public_url : \n{}', public_url)
-
-        _res_value: MinIOScreenShotResult = {
-            'res_obj_write': _res_obj_write,
-            'res_screenshot': res_screenshot,
-            'public_url': public_url,
-        }
-        return _res_value
+            return _res_value
+        else:
+            return None
     return None
 
 

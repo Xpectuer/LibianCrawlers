@@ -153,6 +153,7 @@ ITag = TypedDict('ITag', {
 
 Bs4ToDictConfig = TypedDict('Bs4ToDictConfig', {
     'dump_page_ignore_names': List[str],
+    'html2markdown_soup_find': List[str],
 })
 
 
@@ -248,18 +249,36 @@ def _bs4_page_element_to_dict(p: PageElement, *, children: bool, conf: Bs4ToDict
 ParseHtmlInfoResult = TypedDict('ParseHtmlInfoResult', {
     "title": Optional[ITag],
     "root": Optional[ITag],
+    "html2markdown": Optional[str],
 })
 
 
 def parse_html_info(html_doc: Optional[str], *, conf: Optional[Bs4ToDictConfig] = None) \
         -> Optional[ParseHtmlInfoResult]:
+    from html_to_markdown import convert_to_markdown
     if html_doc is None:
         return None
     if conf is None:
         conf: Bs4ToDictConfig = {
-            'dump_page_ignore_names': []
+            'dump_page_ignore_names': [],
+            'html2markdown_soup_find': [],
         }
     soup = BeautifulSoup(html_doc, 'html.parser')
+    html2markdown_soup_find = conf.get('html2markdown_soup_find')
+    if html2markdown_soup_find is None or html2markdown_soup_find.__len__() <= 0 or all(
+            map(lambda it: f'{it}'.__len__() <= 0, html2markdown_soup_find)):
+        html2markdown = None
+    else:
+        to_find = soup
+        for soup_find_item in html2markdown_soup_find:
+            _found = soup.select_one(soup_find_item)
+            if _found is not None:
+                to_find = _found
+                break
+        if to_find is not None and str(to_find).strip().__len__() > 0:
+            html2markdown = convert_to_markdown(str(to_find))
+        else:
+            html2markdown = None
     _title = soup.__getattr__('title')
     r: ParseHtmlInfoResult = {
         'title': None if _title is None else _bs4_tag_to_dict(_title,
@@ -268,6 +287,7 @@ def parse_html_info(html_doc: Optional[str], *, conf: Optional[Bs4ToDictConfig] 
         'root': _bs4_tag_to_dict(soup,
                                  children=True,
                                  conf=conf),
+        'html2markdown': html2markdown
     }
 
     return r
@@ -310,6 +330,7 @@ def find_tag(t: Optional[ITag], names: List[str], prop: Optional[str]):
 def get_magic_info(buf: Union[str, bytes],
                    *,
                    dump_page_ignore_names: Optional[Union[str, Tuple[str]]],
+                   html2markdown_soup_find: Optional[Union[str, Tuple[str]]],
                    ) -> MagicInfo:
     mime = magic.from_buffer(buffer=buf, mime=True)
     desc = magic.from_buffer(buffer=buf, mime=False)
@@ -334,15 +355,20 @@ def get_magic_info(buf: Union[str, bytes],
 
     try:
         if text.strip().startswith('<'):
-            if dump_page_ignore_names is None:
-                _dump_page_ignore_names = []
-            elif isinstance(dump_page_ignore_names, str):
-                _dump_page_ignore_names = [item.strip() for item in dump_page_ignore_names.split(',')]
-            else:
-                _dump_page_ignore_names = [item.strip() for item in dump_page_ignore_names]
-            html_info = parse_html_info(text, conf={
-                'dump_page_ignore_names': _dump_page_ignore_names
-            })
+            def parse_str_list(texts):
+                if texts is None:
+                    _res: List[str] = []
+                elif isinstance(texts, str):
+                    _res = [item.strip() for item in texts.split(',')]
+                else:
+                    _res = [item.strip() for item in texts]
+                return _res
+
+            _conf: Bs4ToDictConfig = {
+                'dump_page_ignore_names': parse_str_list(dump_page_ignore_names),
+                'html2markdown_soup_find': parse_str_list(html2markdown_soup_find),
+            }
+            html_info = parse_html_info(text, conf=_conf)
         else:
             html_info = None
     except BaseException as err:

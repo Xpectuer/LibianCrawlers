@@ -1,0 +1,73 @@
+{
+  "$schema": "./schemas/v2.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start Washington Post (https://www.washingtonpost.com) search"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "description": "一直滚到页底",
+      "fn": "dump_page_for_each",
+      "kwargs": {
+        "dump_tag_prefix": "search_pages",
+        "before_dump_steps": [
+          {
+            "fn": "page_scroll_down",
+            "on_timeout_steps": "continue",
+            "kwargs": {
+              "max_height": 20000,
+              "delta_y": 666,
+              "page_click_if_found": {
+                "locator": "main > section > div > a",
+                "duplicated_only_text": true,
+                "close_new_page": true,
+                "on_new_page": [
+                  {
+                    "fn": "page_scroll_down",
+                    "description": "在新闻详情页面向下滚动",
+                    "kwargs": {
+                      "max_height": 20000,
+                      "delta_y": 666
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "after_dump_steps": [
+          {
+            "fn": "page_click",
+            "description": "点击 Load more results",
+            "args": [
+              "button:has-text('Load more results')"
+            ],
+            "kwargs": {
+              "timeout": 5000,
+              "timeout_retry": 3
+            }
+          }
+        ],
+        "after_dump_break_by_timeout": true
+      }
+    }
+  ]
+}

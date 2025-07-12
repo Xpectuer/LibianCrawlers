@@ -13,7 +13,11 @@ async function run_tests() {
     // "test_qianniu_message_export",
     // "test_cnki_journal_detail",
     // "test_cnki_journal_detail_2",
-    "test_wos_journal",
+    // "test_wos_journal",
+    // "test_cqvip_search",
+    // "test_wanfangdata_search",
+    // "test_wanfangdata_journal",
+    "test_washington_post"
   ]) {
     let target_file: string;
     const func_config_file = path.join(

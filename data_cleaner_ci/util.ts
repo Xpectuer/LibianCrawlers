@@ -22,6 +22,7 @@ import { JsonStreamStringify } from "json-stream-stringify";
 import { Writable } from "node:stream";
 import { JSONParser } from "@streamparser/json";
 import { finished } from "node:stream/promises";
+import { LLMReq } from "./general_data_process/jobs/llmreq.ts";
 export function is_nullish(obj: any): obj is null | undefined {
   return obj === null || obj === undefined;
 }
@@ -393,6 +394,10 @@ export namespace Typings {
 
   type _ParamNullishResultNullish<P, R, N extends Nullish> = N extends P ? R | N
     : R;
+
+  export type OptionalKeys<T> = {
+    [key in keyof T]?: T[key];
+  };
 }
 
 // deno-lint-ignore no-namespace
@@ -681,8 +686,220 @@ export namespace Times {
     return sum;
   }
 
-  export function parse_text_to_instant(text: string) {
+  export type ParseTextToYearAttachOption = {
+    on_exist: "use_exist" | "overwrite" | "raise_on_not_match";
+  };
+
+  export type ParseTextToMonthAttachOption = Mappings.Empty;
+
+  export type ParseTextToDayAttachOption = {
+    on_exist: "use_exist" | "overwrite" | "raise_on_not_match";
+  };
+
+  export function parse_text_to_instant<AllowNull extends boolean = false>(
+    text: string,
+    options?: {
+      allow_null?: AllowNull;
+      attach_year?: readonly [number, ParseTextToYearAttachOption];
+      attach_month?: readonly [Times.MonthNum, ParseTextToMonthAttachOption];
+      attach_day?: readonly [Times.DayNum, ParseTextToDayAttachOption];
+      on_found_month_range?: "use_min_month" | "use_max_month";
+    },
+  ): AllowNull extends true ? Temporal.Instant | null : Temporal.Instant {
+    // TODO: 时区问题
+    if (
+      !Strs.is_not_blank(text) || text === "无" || text === "nil" ||
+      text === "null" || text === "unknown"
+    ) {
+      if (options?.allow_null === true) {
+        return null as any;
+      } else {
+        throw new Error(
+          `Failed parse ${JSON.stringify(text)} to instant , disallow null`,
+        );
+      }
+    }
+    // 自己的规则
+    const _parse_y_m_d_v1 = (): Temporal.Instant => {
+      const min_year = 1800;
+      const max_year = 2100;
+      const parse_year_v2 = (t: string) => {
+        const r1 = parse_year(t, { min_year, max_year });
+        if (options?.attach_year) {
+          const [y, { on_exist }] = options.attach_year;
+          if (r1 === null) {
+            return y;
+          }
+          if (on_exist === "use_exist") {
+            return r1;
+          } else if (on_exist === "overwrite") {
+            return y;
+          } else if (on_exist === "raise_on_not_match" && y !== r1) {
+            Errors.throw_and_format("attach year and exist year not match", {
+              r1,
+              y,
+              options,
+            });
+          } else {
+            return r1;
+          }
+        } else {
+          return r1;
+        }
+      };
+      const parse_month_v2 = (t: string) => {
+        const r1 = parse_month(t);
+        if (r1 !== null) {
+          return r1;
+        }
+        const split1 = t.split("-");
+        if (split1.length === 2) {
+          const m1 = parse_month(split1[0]);
+          const m2 = parse_month(split1[1]);
+          if (m1 !== null && m2 !== null && options?.on_found_month_range) {
+            switch (options.on_found_month_range) {
+              case "use_min_month":
+                return m1;
+              case "use_max_month":
+                return m2;
+            }
+          }
+        }
+        return options?.attach_month?.[0] ?? null;
+      };
+      const parse_day_v2 = (t: string) => {
+        // return parse_day(t) ?? options?.attach_day?.[0] ?? null;
+        const r1 = parse_day(t);
+        if (options?.attach_day) {
+          const [d, { on_exist }] = options.attach_day;
+          if (r1 === null) {
+            return d;
+          }
+          if (on_exist === "use_exist") {
+            return r1;
+          } else if (on_exist === "overwrite") {
+            return d;
+          } else if (on_exist === "raise_on_not_match" && d !== r1) {
+            Errors.throw_and_format("attach day and exist day not match", {
+              r1,
+              d,
+              options,
+            });
+          } else {
+            return r1;
+          }
+        } else {
+          return r1;
+        }
+      };
+      const split_space = text.split(" ").filter((it) => Strs.is_not_blank(it));
+      let y: number | null;
+      let m: MonthNum | null;
+      let d: DayNum | null;
+      const _create_err_unrecognize = (
+        ymd:
+          | readonly (readonly [
+            number | null,
+            MonthNum | null,
+            DayNum | null,
+          ])[]
+          | null,
+      ) => {
+        return new Error(
+          `Failed parse ymd , split_space unrecognize , value is ${
+            Jsons.dump(split_space)
+          } , ymd is ${Jsons.dump(ymd)} , options is ${Deno.inspect(options)}`,
+        );
+      };
+      if (split_space.length === 3) {
+        y = parse_year_v2(split_space[0]);
+        m = parse_month_v2(split_space[1]);
+        d = parse_day_v2(split_space[2]);
+        if (y === null || m === null || d === null) {
+          throw _create_err_unrecognize([
+            [y, m, d],
+          ]);
+        }
+      } else if (split_space.length === 2) {
+        const y_1 = parse_year_v2(split_space[0]);
+        const m_2 = parse_month_v2(split_space[1]);
+        const d_none = parse_day_v2("");
+        if (y_1 !== null && m_2 !== null && d_none !== null) {
+          y = y_1;
+          m = m_2;
+          d = d_none;
+        } else {
+          const m_1 = parse_month_v2(split_space[0]);
+          const d_2 = parse_day_v2(split_space[1]);
+          const y_none = parse_year_v2("");
+          if (y_none !== null && m_1 !== null && d_2 !== null) {
+            y = y_none;
+            m = m_1;
+            d = d_2;
+          } else {
+            throw _create_err_unrecognize([
+              [y_1, m_2, d_none],
+              [y_none, m_1, d_2],
+            ]);
+          }
+        }
+      } else if (split_space.length === 1) {
+        const y_parse = parse_year_v2(split_space[0]);
+        const m_parse = parse_month_v2(split_space[0]);
+        const d_parse = parse_day_v2(split_space[0]);
+        const y_none = parse_year_v2("");
+        const m_none = parse_month_v2("");
+        const d_none = parse_day_v2("");
+        const arr2d = [
+          [y_parse, m_none, d_none],
+          [y_none, m_parse, d_none],
+          [y_none, m_none, d_parse],
+        ] as const;
+
+        const valid = arr2d.find((arr) => {
+          return arr[0] !== null && arr[1] !== null && arr[2] !== null;
+        });
+        if (valid) {
+          y = valid[0];
+          m = valid[1];
+          d = valid[2];
+        } else {
+          throw _create_err_unrecognize(arr2d);
+        }
+      } else {
+        throw _create_err_unrecognize(null);
+      }
+      if (y !== null && m !== null && d !== null) {
+        try {
+          return Times.parse_instant(new Date(`${y}-${m}-${d}`))!;
+        } catch (err) {
+          throw new Error(
+            `Failed parse ymd , parse ymd to instant failed , [y,m,d] is ${[
+              y,
+              m,
+              d,
+            ]} , split_space value is ${split_space}`,
+            {
+              cause: err,
+            },
+          );
+        }
+      } else {
+        throw new Error(
+          `Failed parse ymd , ymd is invalid ,  [y,m,d] is ${[
+            y,
+            m,
+            d,
+          ]} , split_space value is ${split_space}`,
+        );
+      }
+    };
     const errors = [];
+    try {
+      return _parse_y_m_d_v1();
+    } catch (err) {
+      errors.push(err);
+    }
     try {
       return Temporal.Instant.from(text);
     } catch (err) {
@@ -709,6 +926,7 @@ export namespace Times {
     } catch (err) {
       errors.push(err);
     }
+
     throw new Error(`Failed parse ${JSON.stringify(text)} to instant`, {
       cause: errors,
     });
@@ -750,6 +968,173 @@ export namespace Times {
       return Temporal.Instant.fromEpochMilliseconds(date_ms);
     }
     throw new Error(`Unknown type of value ${value}`);
+  }
+
+  export const month_nums = [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+  ] as const;
+
+  export type MonthNum = typeof month_nums[number];
+
+  export function is_month_num(m: number): m is MonthNum {
+    return Nums.is_int_num(m) && m >= 1 && m <= 12;
+  }
+
+  export const day_nums = [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+  ] as const;
+
+  export type DayNum = typeof day_nums[number];
+
+  export function is_day_num(d: number): d is DayNum {
+    return Nums.is_int_num(d) && d >= 1 && d <= 31;
+  }
+
+  export const month_alias = [
+    {
+      num: 1,
+      alias: ["January", "Jan"],
+    },
+    {
+      num: 2,
+      alias: ["February", "Feb"],
+    },
+    {
+      num: 3,
+      alias: ["March", "Mar"],
+    },
+    {
+      num: 4,
+      alias: ["April", "Apr"],
+    },
+    {
+      num: 5,
+      alias: ["May"],
+    },
+    {
+      num: 6,
+      alias: ["June", "Jun"],
+    },
+    {
+      num: 7,
+      alias: ["July", "Jul"],
+    },
+    {
+      num: 8,
+      alias: ["August", "Aug"],
+    },
+    {
+      num: 9,
+      alias: ["September", "Sep"],
+    },
+    {
+      num: 10,
+      alias: ["October", "Oct"],
+    },
+    {
+      num: 11,
+      alias: ["November", "Nov"],
+    },
+    {
+      num: 12,
+      alias: ["December", "Dec"],
+    },
+  ] as const;
+
+  export function parse_month(t: string): null | MonthNum {
+    t = t.trim();
+    if (!Strs.is_not_blank(t)) {
+      return null;
+    }
+    if (Nums.is_int(t)) {
+      const m = parseInt(t);
+      if (is_month_num(m)) {
+        return m;
+      }
+    }
+    for (const { num, alias } of month_alias) {
+      for (const alia of alias) {
+        if (t.toLowerCase() === alia.toLowerCase()) {
+          return num;
+        }
+      }
+    }
+    for (const remove_suffix of ["月", "."]) {
+      if (Strs.endswith(t, remove_suffix)) {
+        const res = parse_month(Strs.remove_suffix(t, remove_suffix));
+        if (res !== null) {
+          return res;
+        }
+      }
+    }
+    return null;
+  }
+
+  export function parse_year(t: string, opt: {
+    min_year: number;
+    max_year: number;
+  }) {
+    const { min_year, max_year } = opt;
+    if (!Nums.is_int(min_year)) {
+      Errors.throw_and_format("min_year should be integer", { t, opt });
+    }
+    if (!Nums.is_int(max_year)) {
+      Errors.throw_and_format("max_year should be integer", { t, opt });
+    }
+    if (!Nums.is_int(t)) {
+      return null;
+    }
+    const y = parseInt(t);
+    return y < min_year || y > max_year ? null : y;
+  }
+
+  export function parse_day(t: string): null | DayNum {
+    if (!Nums.is_int(t)) {
+      return null;
+    }
+    const d = parseInt(t);
+    return is_day_num(d) ? d : null;
   }
 
   // export function format_yyyymmddhhmmss(date: Date) {
@@ -1099,9 +1484,13 @@ export namespace Nums {
   export type Is0to9 = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   export function is_int(s: string | number): s is NumberLike {
     if (typeof s === "number") {
-      return !is_invalid(s) && s.toFixed(0) === s.toString();
+      return is_int_num(s);
     }
     return is_int(parseInt(s));
+  }
+
+  export function is_int_num(s: number) {
+    return !is_invalid(s) && s.toFixed(0) === s.toString();
   }
 
   // export type IsZero<N extends NumberLike> = Typings.CheckLeftIsExtendsRight<
@@ -3132,6 +3521,12 @@ export namespace TestUtil {
       tableId: string;
       viewId: null | string;
     } | null = null;
+    const llmreq_params: (
+      & Omit<Parameters<typeof LLMReq.llmreq>[0], "http_client">
+      & {
+        proxy: Deno.CreateHttpClientOptions["proxy"];
+      }
+    )[] = [];
 
     try {
       const obj = Jsons.load(
@@ -3166,6 +3561,55 @@ export namespace TestUtil {
             };
           }
         }
+        if ("llmreq_params" in obj) {
+          if (!Array.isArray(obj.llmreq_params)) {
+            Errors.throw_and_format("obj.llmreq_params should be array", {
+              obj,
+            });
+          }
+          for (const p of obj.llmreq_params) {
+            // question: string;
+            if (p === null || typeof p !== "object") {
+              Errors.throw_and_format("Invalid p", p);
+            }
+            if (
+              !(
+                "proxy" in p && typeof p.proxy === "object" &&
+                p.proxy &&
+                "url" in p.proxy &&
+                typeof p.proxy.url === "string"
+              )
+            ) {
+              Errors.throw_and_format("Invalid p.proxy", p);
+            }
+            if (!("remote" in p && LLMReq.is_valid_remote_config(p.remote))) {
+              Errors.throw_and_format("Invalid p.remote", p);
+            }
+            if (
+              !("model" in p && typeof p.model === "string" &&
+                Strs.is_not_blank(p.model))
+            ) {
+              Errors.throw_and_format("Invalid p.model", p);
+            }
+            if (
+              !("question" in p && typeof p.question === "string" &&
+                Strs.is_not_blank(p.question))
+            ) {
+              Errors.throw_and_format("Invalid p.question", p);
+            }
+
+            const item: (typeof llmreq_params)[number] = {
+              proxy: {
+                ...p.proxy,
+                url: p.proxy.url,
+              },
+              remote: p.remote,
+              model: p.model,
+              question: p.question,
+            };
+            llmreq_params.push(item);
+          }
+        }
       }
 
       const nocodb_baseurl = DataClean.url_use_https_noempty(nocodb_baseurl2);
@@ -3174,6 +3618,7 @@ export namespace TestUtil {
         nocodb_baseurl,
         nocodb_token,
         list_table_records_test_conf,
+        llmreq_params,
       } as const;
     } catch (err) {
       if (err instanceof Deno.errors.NotFound) {
@@ -3181,6 +3626,7 @@ export namespace TestUtil {
           nocodb_baseurl: null,
           nocodb_token: null,
           list_table_records_test_conf: null,
+          llmreq_params: null,
         } as const;
       } else {
         console.error("Error on read user_code/testdevconfig.json", err);

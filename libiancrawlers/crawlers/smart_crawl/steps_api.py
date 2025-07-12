@@ -14,6 +14,7 @@ from uuid import uuid4
 from loguru import logger
 from playwright.async_api import Page, BrowserContext, Locator, Position
 
+from libiancrawlers.app_util.gui_util import gui_confirm
 from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.exceptions import is_timeout_error
 from libiancrawlers.util.timefmt import days_ranges_iter
@@ -248,7 +249,7 @@ def func_conf(*,
     return deco
 
 
-# noinspection PyMethodMayBeStatic
+# noinspection PyMethodMayBeStatic,PyInconsistentReturns
 class StepsApi:
     def __init__(self, *,
                  b_page: Page,
@@ -262,7 +263,10 @@ class StepsApi:
                  _page_ref: PageRef,
                  _download_storage_path: str,
                  _dump_obj: Callable[[str, JSON], Awaitable],
-                 _global_counter: Counter
+                 _global_counter: Counter,
+                 _global_str_dict: Dict[str, str],
+                 _global_play_sound_when_gui_confirm: bool,
+                 _debug: bool,
                  ):
         self._b_page = b_page
         self._browser_context = browser_context
@@ -273,12 +277,15 @@ class StepsApi:
         self._download_storage_path = _download_storage_path
         self._dump_obj = _dump_obj
         self._global_counter = _global_counter
-        self._page_mouse_move_default_timeout = 2.0
+        self._global_str_dict = _global_str_dict
+        self._page_mouse_move_default_timeout = 2000
         self._page_mouse_move_default_steps = 2
         self._page_click_default_timeout = 5000
         self._page_type_default_timeout = 5000
         self._page_type_default_delay = 300
         self._page_go_back_default_timeout = 5000
+        self._global_play_sound_when_gui_confirm = _global_play_sound_when_gui_confirm
+        self._debug = _debug
 
     def __getitem__(self, item):
         if isinstance(item, str) and not item.startswith('_'):
@@ -344,7 +351,7 @@ class StepsApi:
             steps = kwargs.pop('steps')
 
         _page = await self._get_page()
-        await asyncio.wait_for(_page.mouse.move(x, y, steps=steps), timeout=timeout)
+        await asyncio.wait_for(_page.mouse.move(x, y, steps=steps), timeout=timeout / 1000.0)
 
     async def _get_bounding_box(self, loc: Locator, *, timeout=750):
         count = 0
@@ -357,6 +364,7 @@ class StepsApi:
                 if count > (timeout / 250):
                     return None
                 count += 1
+                # noinspection PyInconsistentReturns
                 continue
 
     async def _on_locator(self, loc: Locator, opts: OnLocatorBlock) -> Locator:
@@ -453,6 +461,21 @@ class StepsApi:
         self._global_counter['_download_count'] += 1
         res = str(c).rjust(6, '0')
         return res
+
+    async def _mouse_wheel(self, *, page: Page, delta_x: float, delta_y: float):
+        _mouse_wheel_retry_count = 10
+        while _mouse_wheel_retry_count > 0:
+            try:
+                logger.debug('page mouse wheel ({}, {})', delta_x, delta_y)
+                return await asyncio.wait_for(page.mouse.wheel(delta_x=delta_x, delta_y=delta_y), timeout=10)
+            except BaseException as err:
+                if is_timeout_error(err):
+                    logger.warning('page mouse wheel ({}, {}) timeout : _mouse_wheel_retry_count is {} , err is {}',
+                                   delta_x, delta_y, _mouse_wheel_retry_count, err)
+                    _mouse_wheel_retry_count -= 1
+                    continue
+                else:
+                    raise
 
     # ------------------------------------------------------------------
     # Public API
@@ -661,6 +684,8 @@ class StepsApi:
 请注意，无论 trial 如何，键盘 修饰键 都会被按下，以允许测试仅在按下这些键时才可见的元素。
 """,
               type_hint=typing.Optional[bool])
+    @arg_conf('debug_on_timeout',
+              desc="在超时后，启动调试模式，如果 --debug 未启用则忽略。该选项常用于开发模式下定位元素。")
     async def page_click(self,
                          selector: Union[str, Locator, XY],
                          *,
@@ -674,6 +699,7 @@ class StepsApi:
                          timeout_retry: int = 0,
                          _on_new_page_dump_callback_func: Optional[Callable[[], Awaitable[None]]] = None,
                          close_new_page: bool = False,
+                         debug_on_timeout: bool = False,
                          **kwargs):
         """
         通用的页面点击工具函数。
@@ -717,32 +743,31 @@ class StepsApi:
         if isinstance(selector, dict) and 'x' in selector and 'y' in selector:
             await _page.mouse.click(selector.get('x'), selector.get('y'), **kwargs)
         else:
-            async def _get_loc():
-                if isinstance(selector, str):
+            async def _get_loc(_selector: Union[str, Locator]):
+                if isinstance(_selector, str):
                     if only_main_frame:
                         _loc = _page.locator(
-                            selector=selector,
+                            selector=_selector,
                             has_text=has_text,
                             has_not_text=has_not_text
                         )
                     else:
-                        frame, _ = await self.page_wait_for_selector_in_any_frame(selector=selector, timeout=timeout)
+                        frame, _ = await self.page_wait_for_selector_in_any_frame(selector=_selector, timeout=timeout)
                         _loc = frame.locator(
-                            selector=selector,
+                            selector=_selector,
                             has_text=has_text,
                             has_not_text=has_not_text,
                         )
                 else:
-                    _loc = selector
+                    _loc = _selector
 
                 if kwargs.get('on_locator') is not None:
                     _loc = await self._on_locator(_loc, kwargs.pop('on_locator'))
                 return _loc
 
-            loc = await _get_loc()
-
-            async def _click(_locator: Locator, *,
-                             retry_get_locator: Optional[Callable[[], Awaitable[Locator]]] = None):
+            async def _click(_selector: Union[str, Locator],
+                             _locator: Locator, *,
+                             retry_get_locator: Optional[Callable[[Union[str, Locator]], Awaitable[Locator]]] = None):
                 retry_count = timeout_retry
                 while True:
                     try:
@@ -767,22 +792,74 @@ class StepsApi:
                                            retry_count, _locator)
                             retry_count -= 1
                             if retry_get_locator is not None:
-                                _locator = await retry_get_locator()
+                                _locator = await retry_get_locator(_selector)
                         else:
                             raise
 
-            if each_steps_before is not None or each_steps_after is not None:
-                _loc_all = await loc.all()
-                if _loc_all.__len__() <= 0:
-                    raise TimeoutError(f'Not found matched , selector is {selector}')
-                for _loc_item in _loc_all:
-                    if each_steps_before is not None:
-                        await self._process_steps(each_steps_before)
-                    await _click(_loc_item)
-                    if each_steps_after is not None:
-                        await self._process_steps(each_steps_after)
-            else:
-                await _click(loc, retry_get_locator=_get_loc)
+            async def _click2(_selector: Union[str, Locator]):
+                loc = await _get_loc(_selector)
+
+                if each_steps_before is not None or each_steps_after is not None:
+                    _loc_all = await loc.all()
+                    if _loc_all.__len__() <= 0:
+                        raise TimeoutError(f'Not found matched , selector is {_selector}')
+                    for _loc_item in _loc_all:
+                        if each_steps_before is not None:
+                            await self._process_steps(each_steps_before)
+                        await _click(_selector, _loc_item)
+                        if each_steps_after is not None:
+                            await self._process_steps(each_steps_after)
+                else:
+                    await _click(_selector, loc, retry_get_locator=_get_loc)
+
+            async def _click3(_selector: Union[str, Locator]):
+                _cur = _selector
+                _failed = False
+                while True:
+                    def _wait_input(*, _cur_next=_cur):
+                        while True:
+                            logger.info(
+                                '\n'.join([line.strip() for line in \
+                                           """
+                                           --------------------------------
+                                           Error on click element {},
+                                           but enable debug_on_timeout .
+                                           Now , you can input a new element to selector :
+                                           """.splitlines()]), _cur)
+                            _cur_next = input('\n')
+                            if _cur_next is not None and _cur_next.strip().__len__() > 0:
+                                break
+                        return _cur_next
+
+                    try:
+                        await _click2(_cur)
+                        if _failed:
+                            _click_right = input(
+                                f'找到了 selector {_cur} , 但它有点击你想要的元素吗?\n 输入 yes/no:\n')
+                            logger.debug('_click_right is {}', _click_right)
+                            if _click_right == 'yes':
+                                logger.info('Yes, right click')
+                                break
+                            else:
+                                _cur = _wait_input(_cur_next=_cur)
+                                logger.info('Start to try new selector : {}', _cur)
+                                continue
+                        else:
+                            break
+                    except BaseException as err:
+                        _failed = True
+                        if is_timeout_error(err) and self._debug and debug_on_timeout:
+                            pass
+                        elif 'Locator.click: Unexpected token' in repr(err):
+                            pass
+                        else:
+                            raise
+                        logger.exception('Error on click element. The error report:')
+                        _cur = _wait_input(_cur_next=_cur)
+                        logger.info('Start to try new selector : {}', _cur)
+                        continue
+
+            await _click3(selector)
 
         await _debug_window_state(f'after page {method}')
 
@@ -824,7 +901,7 @@ class StepsApi:
             else:
                 logger.debug('not continue loop for found new page created after click')
                 if not isinstance(on_new_page, str):
-                    raise ValueError('Assert new page create')
+                    raise TimeoutError('Assert new page create')
 
     @arg_conf('selector', desc=_selector_desc)
     @arg_conf('on_exist_steps', desc='当 selector 元素未消失且 `retry_count < retry_limit` 时，执行此块。')
@@ -1137,10 +1214,19 @@ class StepsApi:
             'value': datetime.now().timestamp()
         }
 
-        def random_interval():
+        detail_logd = page_click_if_found.get('detail_logd', False) if page_click_if_found is not None else False
+
+        # logger.debug('detail_logd is {}', detail_logd)
+        # if not detail_logd:
+        #     raise ValueError('detail_logd is False')
+
+        def random_interval_s():
             _until = _last_scroll_down_time['value'] + interval * (random.randint(7, 13) / 10.0)
             _last_scroll_down_time['value'] = _until
-            return max(0.1, _until - datetime.now().timestamp())
+            _res = max(0.1, _until - datetime.now().timestamp())
+            if detail_logd:
+                logger.debug('random interval {}', _res)
+            return _res
 
         def random_delta_y():
             return delta_y * (random.randint(3, 16) / 10.0)
@@ -1169,6 +1255,9 @@ class StepsApi:
         def _sort_and_check_elements_wait_to_click(arr: List[Tuple[str, PageScrollDownElementToClickContext]], *,
                                                    _detail_logd: bool):
             while len(arr) > 0:
+                if _detail_logd:
+                    logger.debug('len(arr) is {} , arr is {}', len(arr), arr)
+
                 def _get_element_sort_key(el: Tuple[str, PageScrollDownElementToClickContext]):
                     k = 100000 * int(el[1]['y'] + el[1]['height'] / 2) + int(el[1]['x'])
                     # logger.debug('element sort key is {} , element info is {}', k, el)
@@ -1186,6 +1275,8 @@ class StepsApi:
                     arr.pop(0)
                     continue
                 break
+            if _detail_logd:
+                logger.debug('arr returned , len is {} , arr is {}', len(arr), arr)
             return arr
 
         _already_tip_VirtualListView = {
@@ -1217,14 +1308,23 @@ class StepsApi:
 
         _first_page_click_if_found_need_run = page_click_if_found is not None
 
+        # detail_logd = page_click_if_found.get('detail_logd', False) if page_click_if_found is not None else False
+
         while True:
+            if detail_logd:
+                logger.debug('start scroll down loop')
             curr_height = await _page.evaluate('(window.innerHeight + window.scrollY)')
+            if detail_logd:
+                logger.debug('current_height is {}', curr_height)
             curr_height_min = min(curr_height_min, curr_height)
+            if detail_logd:
+                logger.debug('curr_height_min is {}', curr_height_min)
             if _first_page_click_if_found_need_run:
                 _first_page_click_if_found_need_run = False
                 logger.debug('curr_height is {}', curr_height)
             else:
-                await _page.mouse.wheel(delta_x=0, delta_y=random_delta_y())
+                _res_delta_y = random_delta_y()
+                await self._mouse_wheel(page=_page, delta_x=0, delta_y=_res_delta_y)
                 logger.debug('scrolling... curr_height is {}', curr_height)
 
             if page_click_if_found is not None:
@@ -1234,7 +1334,6 @@ class StepsApi:
                 duplicated_only_text = page_click_if_found.get('duplicated_only_text', False)
                 on_before_click_check_steps = page_click_if_found.get('on_before_click_check_steps')
                 on_before_dump_steps = page_click_if_found.get('on_before_dump_steps')
-                detail_logd = page_click_if_found.get('detail_logd', False)
                 on_after_dump_steps = page_click_if_found.get('on_after_dump_steps')
                 on_before_click_steps = page_click_if_found.get('on_before_click_steps')
                 on_new_page = page_click_if_found.get('on_new_page')
@@ -1243,7 +1342,21 @@ class StepsApi:
                 async def _get_key_txt_ctx_from_element_locator(*,
                                                                 _element_idx: Union[int, Literal['on update']],
                                                                 _element_locator: Locator):
-                    if not await _element_locator.is_visible():
+                    # logger.debug('start _get_key_txt_ctx_from_element_locator , _element_idx={} , _element_locator={}',
+                    #              _element_idx, _element_locator)
+
+                    is_visible = False
+                    is_visible_retry_count = 10
+                    while is_visible_retry_count > 0:
+                        try:
+                            is_visible = await _element_locator.is_visible(timeout=3 * 1000)
+                            break
+                        except BaseException as _err:
+                            if is_timeout_error(_err):
+                                is_visible_retry_count -= 1
+                            else:
+                                raise
+                    if not is_visible:
                         if detail_logd:
                             logger.debug('skip nth {} because it not visible', _element_idx)
                         return 'continue'
@@ -1252,7 +1365,8 @@ class StepsApi:
                         if detail_logd:
                             logger.debug('skip nth {} because it box invalid', _element_idx)
                         return 'continue'
-                    ___element_inner_text: str = await _element_locator.inner_text()
+                    ___element_inner_text: str = await _element_locator.inner_text(timeout=5 * 1000)
+
                     while True:
                         _old = ___element_inner_text
                         ___element_inner_text = ___element_inner_text.replace(' ', '')
@@ -1260,13 +1374,14 @@ class StepsApi:
                         ___element_inner_text = ___element_inner_text.replace('\t', '')
                         if _old == ___element_inner_text:
                             break
+
                     if len(___element_inner_text) > 30:
                         ___element_inner_text = ___element_inner_text[0:30]
                     if duplicated_only_text:
                         ___element_key = ___element_inner_text
                     else:
                         _element_hash = hashlib.md5(
-                            f'{await _element_locator.inner_html()}'.encode('utf-8')).hexdigest()
+                            f'{await _element_locator.inner_html(timeout=5 * 1000)}'.encode('utf-8')).hexdigest()
                         ___element_key = f'{___element_inner_text}_{_element_hash}'
                     if _box['width'] < 10 or _box['height'] < 10:
                         if detail_logd:
@@ -1330,7 +1445,13 @@ class StepsApi:
                     _elements_items = await _collect_elements()
                     _elements_wait_to_click_wait_to_add: List[Tuple[str, PageScrollDownElementToClickContext]] = []
 
+                    __death_loop_check = 0
                     while True:
+                        __death_loop_check += 1
+                        logger.debug('__death_loop_check = {}', __death_loop_check)
+                        if __death_loop_check > 1000:
+                            logger.error('death loop')
+                            raise ValueError('death loop')
                         if _elements_wait_to_click.__len__() > 0:
                             if detail_logd:
                                 logger.debug('Pop element from _elements_wait_to_click , len is {}',
@@ -1352,6 +1473,9 @@ class StepsApi:
                                 _element_locator=_ctx['locator'],
                                 _element_idx='on update'
                             )
+                            if detail_logd:
+                                logger.debug('__ctx_result_on_update is {} , _element_info is {}',
+                                             __ctx_result_on_update, _element_info)
                             if __ctx_result_on_update != 'continue' and __ctx_result_on_update[0] != _element_key:
                                 logger.debug(
                                     '这看起来像是个长虚拟列表 —— 会重复使用之前脱离视口的 DOM 节点去渲染，因此当使用 inner text 来做 element_key 时会发生问题。')
@@ -1382,8 +1506,18 @@ class StepsApi:
                                     or _ctx['y'] + _ctx['height'] / 2 > window_box['height'] \
                                     or _ctx['y'] + _ctx['height'] / 2 < not_clickable_top_margin:
                                 if detail_logd:
-                                    logger.debug('element out of box')
-                                _elements_wait_to_click_wait_to_add.insert(0, _element_info)
+                                    logger.debug(
+                                        'element out of box\n    _ctx={}\n    window_box={}\n    not_clickable_top_margin={}',
+                                        _ctx, window_box, not_clickable_top_margin)
+                                _is_existed = False
+                                for _existed in _elements_wait_to_click_wait_to_add:
+                                    if _existed[0] == _element_info[0]:
+                                        if detail_logd:
+                                            logger.debug('element out of box , but it already exist')
+                                        _is_existed = True
+                                        break
+                                if not _is_existed:
+                                    _elements_wait_to_click_wait_to_add.insert(0, _element_info)
                                 continue
 
                             if on_before_dump_steps is not None or on_new_page is not None:
@@ -1429,8 +1563,8 @@ class StepsApi:
                                     try:
                                         await sleep(0.5)
                                         _dump_count_ref['value'] += 1
-                                        await self._dump_page(
-                                            f'scroll_click_dump_pre_{_dump_count_ref["value"]}_{_element_key}_')
+                                        # await self._dump_page(
+                                        #     f'scroll_click_dump_pre_{_dump_count_ref["value"]}_{_element_key}_')
                                         if on_before_dump_steps is not None:
                                             await self._process_steps(on_before_dump_steps)
                                         await sleep(0.5)
@@ -1454,7 +1588,7 @@ class StepsApi:
                                 except BaseException as err:
                                     if not is_timeout_error(err):
                                         raise err
-                                    if on_before_dump_steps is not None:
+                                    if check_selector_exist_after_click is not None:
                                         logger.debug('Timeout on page_click , but we will checking ...')
                                     else:
                                         logger.warning(
@@ -1474,10 +1608,12 @@ class StepsApi:
                     _elements_wait_to_click.extend(_elements_wait_to_click_wait_to_add)
                     _elements_wait_to_click = _sort_and_check_elements_wait_to_click(_elements_wait_to_click,
                                                                                      _detail_logd=detail_logd)
-
+                else:
+                    logger.warning('window_box is None ?')
             if not prev_height:
                 prev_height = curr_height
-                await sleep(random_interval())
+                await sleep(random_interval_s())
+
                 continue
             if max_height is not None and prev_height > max_height:
                 logger.debug(
@@ -1493,23 +1629,27 @@ class StepsApi:
                 if retry_scroll_down < retry_scroll_down_limit:
                     retry_scroll_down += 1
                     logger.debug('retry_scroll_down {}', retry_scroll_down)
-                    await sleep(random_interval())
+                    await sleep(random_interval_s())
                     continue
 
                 retry_scroll_down = 0
 
                 async def scroll_up():
+                    if detail_logd:
+                        logger.debug('start scroll up')
                     await self.page_random_mouse_move()
+                    # 我怀疑 mouse move 和 mouse wheel 之间有不兼容
                     prev_height_bottom['value'] = prev_height
                     for i in range(0, 4):
-                        await _page.mouse.wheel(delta_x=0, delta_y=-random_delta_y())
-                        await sleep(random_interval())
+                        _res_delta_y_2 = -random_delta_y()
+                        await self._mouse_wheel(page=_page, delta_x=0, delta_y=_res_delta_y_2)
+                        await sleep(random_interval_s())
                     logger.debug('after test scroll up if on bottom')
                     await sleep(0.1)
                     try:
-                        await _page.wait_for_load_state('networkidle', timeout=3)
+                        await _page.wait_for_load_state('networkidle', timeout=500)
                     except BaseException as _err:
-                        pass
+                        logger.debug('err on scroll up : {}', _err)
 
                 logger.debug('on prev_height == curr_height , prev_height_bottom is {} , prev_height is {}',
                              prev_height_bottom['value'], prev_height)
@@ -1529,7 +1669,7 @@ class StepsApi:
                 continue
 
             prev_height = curr_height
-            await sleep(random_interval())
+            await sleep(random_interval_s())
 
     @arg_conf('timeout',
               desc=_timeout_desc,
@@ -1539,7 +1679,9 @@ class StepsApi:
               type_hint=typing.Optional[
                   Literal["commit", "domcontentloaded", "load", "networkidle"]
               ])
-    async def page_go_back(self, **kwargs):
+    @arg_conf('check_url_change',
+              desc='传入 True 时，假如 url 没有改变则会重试')
+    async def page_go_back(self, *, check_url_change: bool = False, **kwargs):
         """
         调用浏览器导航栏返回功能。
         https://camoufox.com/python/usage/#enable_cache
@@ -1552,8 +1694,35 @@ class StepsApi:
             timeout = kwargs.pop('timeout')
         else:
             timeout = self._page_go_back_default_timeout
-        res = await page.go_back(timeout=timeout, **kwargs)
-        return res
+        if not check_url_change:
+            res = await page.go_back(timeout=timeout, **kwargs)
+            return res
+        else:
+            _retry_count = 5
+            err = None
+            while _retry_count > 0:
+                logger.debug('page go back current retry count is {}', _retry_count)
+                try:
+                    res = await page.go_back(timeout=timeout, **kwargs)
+                    await self.sleep(3000)
+                    _new_page = await self._get_page()
+                    _new_url = await self._get_page_url_ignore_err(page)
+                    if _new_url == old_url:
+                        logger.warning("url not change after page go back : {}", old_url)
+                        _retry_count -= 1
+                        continue
+                    return res
+                except BaseException as err2:
+                    err = err2
+                    if is_timeout_error(err2):
+                        _retry_count -= 1
+                        continue
+                    else:
+                        raise
+            if err is not None:
+                raise err
+            else:
+                raise TimeoutError('page go back url not change')
 
     @arg_conf('tag', desc='标签名')
     async def dump_page_with_uuid(self, tag: str):
@@ -1661,7 +1830,7 @@ class StepsApi:
         切换当前页面指针。
         """
         logger.debug('switch page wait start')
-        await self.sleep(3000)
+        await self.sleep(1000)
         logger.debug('switch page wait end , we check out to page {}', to)
         retry_count = 0
         while True:
@@ -1719,23 +1888,28 @@ class StepsApi:
 
     @arg_conf('title', desc="""弹出窗口标题""")
     @arg_conf('message', desc="""弹出窗口正文""")
-    async def gui_confirm(self, *, title: str, message: str):
+    @arg_conf('play_sound', desc="""持续播放声音来催促尽快操作完成""")
+    async def gui_confirm(self, *, title: str, message: str, play_sound: bool = False):
         """
         弹出gui弹窗，请求程序员确认。常用于在网站登录情景下，请求程序员手动操作浏览器并在完成后点击确认。
         等待的过程中程序会暂停执行。
         """
         from libiancrawlers.app_util.gui_util import gui_confirm
-        return await gui_confirm(title=title, message=message)
+        return await gui_confirm(title=title,
+                                 message=message,
+                                 play_sound=self._global_play_sound_when_gui_confirm or play_sound)
 
     @arg_conf('timeout', desc=_timeout_desc, typ="Timeout")
     @arg_conf('run_steps', desc="""只有在执行此块时，若发生下载事件才会被捕获。""")
     @arg_conf('dump_csv', desc="""如果此值为 true 且下载的文件是 csv 文件，则转储 csv 内容对象。""")
+    @arg_conf('dump_excel', desc="""如果此值为 true 且下载的文件是 excel 文件，则转储 excel 内容对象。""")
     @arg_conf('dump_obj_meta', desc="""如果发生转储对象，此值将会携带在转储的对象中。""")
     async def expect_download(self, *,
                               timeout: float,
                               run_steps: StepsBlock,
                               dump_obj_meta: JSON = None,
-                              dump_csv: bool = False, ):
+                              dump_csv: bool = False,
+                              dump_excel: bool = False, ):
         """
         处理浏览器下载事件。
         """
@@ -1770,6 +1944,12 @@ class StepsApi:
             await self._dump_obj(f'downloaded_csv_{current_download_count}', {
                 'meta': dump_obj_meta,
                 'data': await parse_csv(save_file_path),
+            })
+        if save_file_name_ext in ('.xls', '.xlsx') and dump_excel:
+            from libiancrawlers.crawlers.smart_crawl.dump_obj_util import parse_excel
+            await self._dump_obj(f'downloaded_excel_{current_download_count}', {
+                'meta': dump_obj_meta,
+                'data': await parse_excel(save_file_path),
             })
 
     @arg_conf('run_steps', desc="""循环执行此块。""")
@@ -1854,6 +2034,34 @@ class StepsApi:
             else:
                 logger.warning('Error on every times, err is {}', err)
             raise
+
+    @arg_conf('key', desc="存储url的键名。")
+    async def url_key_set_current(self, *, key: str):
+        """
+        设置当前的url到key，以便后续恢复到此url。
+        """
+        page = await self._get_page()
+        url = page.url
+        if f'url_key_{key}' in self._global_str_dict:
+            old = self._global_str_dict[f'url_key_{key}']
+        else:
+            old = None
+        logger.debug('url key set current \n    key is {}\n    old is {}\n    url is {}',
+                     key, old, url)
+        self._global_str_dict[f'url_key_{key}'] = url
+
+    @arg_conf('key', desc="存储url的键名。")
+    async def url_key_goto(self, *, key: str):
+        """
+        恢复到此key对应的url。
+        """
+        page = await self._get_page()
+        if f'url_key_{key}' in self._global_str_dict:
+            url = self._global_str_dict[f'url_key_{key}']
+            logger.debug("page goto key {} : url is {}", key, url)
+            await page.goto(url)
+        else:
+            logger.warning("page goto key {} not found", key)
 
 
 StepMemberMetaType = TypedDict('StepMemberMetaType', {

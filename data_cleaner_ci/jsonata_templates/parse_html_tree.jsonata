@@ -1,5 +1,17 @@
 (
     $tags := **[bs4_type="<class 'bs4.element.Tag'>"];
+    $html2markdown := $.g_content.dump_page_info.frame_tree.content.html_info.html2markdown;
+    $metas := $merge($tags[name="meta" and attrs.property and attrs.content].(
+        {
+            $.attrs.property: $.attrs.content 
+        }
+    ));
+    $metas2 := $merge($tags[name="meta" and attrs.name and attrs.content].(
+        $parsed := $json_parse($.attrs.content);
+        {
+            $.attrs.name: $parsed.success ? parsed.result : $parsed.source
+        }
+    ));
     {
         "xhs": (
             $author_username := $tags["author-container" in attrs.class].**["username" in attrs.class].str;
@@ -152,6 +164,83 @@
                     "href": $trim($join($.**[attrs.href].attrs.href))
                 }
             )[title or content]
+        ),
+        "cqvip": (
+            $table := $tags["mainContainerDataList-item" in attrs.class].(
+                $k := $substringBefore($join($.*["Container-item-title" in attrs.class].**[str].$trim(str)), "：");
+                $text := $join($.*[$not("Container-item-title" in attrs.class)].**[str].$trim(str));
+                {
+                    $k: $k = "作者" ? $.**["el-popover__reference-wrapper" in attrs.class].({
+                        "author_infos":$.**[str and $trim(str) or attrs.href].({"href": $.attrs.href, "str":$.str})
+                    }) : $text
+                }
+            );
+
+            $title := $tags["detail-left-title" in attrs.class].**[name="span" and "font-size24" in attrs.class].str;
+            $info_dict := $merge($table);
+            $journal := {
+                "title": $tags["journal-content" in attrs.class].**["font-size16" in attrs.class and "hoverDom" in attrs.class][str].str,
+                "detail": $merge($tags["journal-content" in attrs.class].**["lineCss" in attrs.class].(
+                    $k := $trim($.**[$not(name="span")][str].str);
+                    $k := $substringBefore($k, "：");
+                    $k := $split($k, " ");
+                    $span_text := $.**[name="span"].str;
+                    $k := $append($k, $span_text);
+                    {
+                        $k[0] : $k[1]
+                    }
+                ))
+            };
+
+            $m := {
+                "title":$title ,
+                "info_dict": $info_dict,
+                "journal": $journal
+            };
+            $m
+        ),
+        "wanfangdata": (
+            {
+                "periodical": (
+                    $table := $tags["detailList" in attrs.class].*["list" in attrs.class].(
+                        $k := $substringBefore($.*[name="span" and "item" in attrs.class].**[str].$trim(str), "：");
+                        $words :=  $.*[$not(name="span" and "item" in attrs.class) and bs4_type="<class 'bs4.element.Tag'>"].**[str and bs4_type="<class 'bs4.element.Tag'>"].str;
+                        {
+                            $k: $k="摘要" or $k="页数" ? $join($words) : $distinct($words)
+                        }
+                    );
+
+                    {
+                        "title": $tags["detailTitleCN" in attrs.class].*.*[str and name="span" and bs4_type="<class 'bs4.element.Tag'>"].str,
+                        "author": $tags[name="a" and 'test-detail-author' in attrs.class].({"name":$join($.**[str and $trim($.str)].($trim($.str))) }),
+                        "details": $merge($table),
+                        "journal": $distinct($tags["periodicalName" in attrs.class].**[str].str),
+                        "issn_text": $tags["periodicalDataItem" in attrs.class].str
+                    }
+                ),
+                "perio":(
+                    $table := $tags["wf-offset-1" in attrs.class].**[name="wf-field"].*.(
+                        $k := $substringBefore($.**[name="wf-field-lable"].**[str].$trim(str), "：");
+                        $words := $.**[name="wf-field-value" and bs4_type="<class 'bs4.element.Tag'>"].**[str and bs4_type="<class 'bs4.element.Tag'>"].str;
+                        
+                        {
+                            $k: $join($words)
+                        }
+                    );
+
+                    {
+                        "title": $tags[name="h1" and "perio_title" in attrs.class].**[ str and $not(name and $contains(name, "wf-")) and $not($contains(str, "订阅"))].str,
+                        "details": $merge($table)
+                    }
+                )
+            }
+        ),
+        "metainfo": (
+            {
+                "html2markdown": $html2markdown,
+                "metas": $metas,
+                "metas2": $metas2
+            }
         )
     }
 )

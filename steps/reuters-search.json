@@ -1,0 +1,78 @@
+{
+  "$schema": "./schemas/v2.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start Reuters (https://www.reuters.com) search"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "description": "一直滚到页底",
+      "fn": "dump_page_for_each",
+      "kwargs": {
+        "dump_tag_prefix": "search_pages",
+        "before_dump_steps": [
+          {
+            "fn": "page_scroll_down",
+            "kwargs": {
+              "max_height": 20000,
+              "delta_y": 555,
+              "page_click_if_found": {
+                "locator": "[data-testid~=\"TitleHeading\"]",
+                "duplicated_only_text": true,
+                "check_selector_exist_after_click": "[data-testid~=\"RegularArticleLayout\"]",
+                "on_before_dump_steps": [
+                  {
+                    "fn": "page_scroll_down",
+                    "description": "在新闻详情页面向下滚动",
+                    "kwargs": {
+                      "max_height": 20000,
+                      "delta_y": 432
+                    }
+                  }
+                ],
+                "on_after_dump_steps": [
+                  {
+                    "fn": "page_go_back"
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "after_dump_steps": [
+          {
+            "fn": "page_click",
+            "description": "点击下一页",
+            "args": [
+              "button[aria-label~=\"Next\"]"
+            ],
+            "kwargs": {
+              "timeout": 5000,
+              "timeout_retry": 3,
+              "force": true
+            }
+          }
+        ],
+        "after_dump_break_by_timeout": true
+      }
+    }
+  ]
+}

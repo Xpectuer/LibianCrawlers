@@ -6,7 +6,7 @@ import os.path
 import traceback
 from collections import Counter
 from threading import Thread
-from typing import Literal, Optional, Any, TypedDict, Tuple, Union
+from typing import Literal, Optional, Any, TypedDict, Tuple, Union, Dict
 import tempfile
 
 import aiofiles.os
@@ -76,6 +76,9 @@ async def smart_crawl_v1(*,
                          steps: JSON = None,
                          debug: bool = False,
                          dump_page_ignore_names: Optional[Union[str, Tuple[str]]] = None,
+                         html2markdown_soup_find: Optional[Union[str, Tuple[str]]] = None,
+                         addons_root_dir: Optional[str] = None,
+                         play_sound_when_gui_confirm: bool = False,
                          **__kwargs,
                          ):
     if __kwargs.keys().__len__() > 0:
@@ -121,7 +124,10 @@ async def smart_crawl_v1(*,
     async def launch_debug(*, message: str):
         logger.debug('Pause for debug')
         from libiancrawlers.app_util.gui_util import gui_confirm
-        await gui_confirm(title='Pause for debug , close to continue', message=message)
+        await gui_confirm(
+            title='Pause for debug , close to continue',
+            message=message,
+            play_sound=False)
 
     b_page = None
     browser_context = None
@@ -164,6 +170,7 @@ async def smart_crawl_v1(*,
                     my_public_ip_info=my_public_ip_info,
                     proxy_server=proxy_server,
                     locale=locale,
+                    addons_root_dir=addons_root_dir,
                 )
             )
 
@@ -210,7 +217,8 @@ async def smart_crawl_v1(*,
                 else:
                     logger.debug('start parse body_resp_goto')
                     body_resp_goto = get_magic_info(await _resp_goto_obj.body(),
-                                                    dump_page_ignore_names=dump_page_ignore_names)
+                                                    dump_page_ignore_names=dump_page_ignore_names,
+                                                    html2markdown_soup_find=html2markdown_soup_find)
                 return dict(
                     resp_goto_dict=_resp_goto_dict,
                     body_resp_goto=body_resp_goto,
@@ -307,7 +315,8 @@ async def smart_crawl_v1(*,
 
             logger.debug('start build frame tree')
             frame_tree = await frame_tree_to_dict(page.main_frame,
-                                                  dump_page_ignore_names=dump_page_ignore_names)
+                                                  dump_page_ignore_names=dump_page_ignore_names,
+                                                  html2markdown_soup_find=html2markdown_soup_find)
             if is_save_file:
                 logger.debug('start build page_info_smart_wait_save_file')
                 page_info_smart_wait_save_file = await page_info_to_dict(
@@ -361,6 +370,22 @@ async def smart_crawl_v1(*,
                             mode='wt',
                             encoding='utf-8') as _f:
                         await _f.write(_result_json)
+                    html2markdown: Optional[str] = None
+                    if frame_tree.get('content') is not None:
+                        content = frame_tree['content']
+                        if content.get('html_info') is not None:
+                            html_info = content['html_info']
+                            if html_info.get('html2markdown') is not None:
+                                html2markdown = html_info['html2markdown']
+                    if html2markdown is not None and html2markdown.strip().__len__() > 0:
+                        async with aiofiles.open(
+                                os.path.join(
+                                    base_dir,
+                                    f"{filename_slugify(f'html2md_{dump_tag}', allow_unicode=True)}.md"
+                                ),
+                                mode='wt',
+                                encoding='utf-8') as _f:
+                            await _f.write(html2markdown)
                     logger.debug('finish save file')
 
             if is_insert_to_db:
@@ -382,6 +407,7 @@ async def smart_crawl_v1(*,
             pass
 
         _global_counter = Counter()
+        _global_str_dict: Dict[str, str] = dict()
 
         async def _get_devtool_status():
             async with _devtool_status_lock:
@@ -461,11 +487,19 @@ async def smart_crawl_v1(*,
                             _waited_kwargs = dict()
                         from libiancrawlers.crawlers.smart_crawl.steps_api import StepsApi
                         steps_api = StepsApi(
-                            b_page=b_page, browser_context=browser_context, _dump_page=_dump_page,
-                            _process_steps=_process_steps, _page_ref_lock=_page_ref_lock,
+                            b_page=b_page,
+                            browser_context=browser_context,
+                            _dump_page=_dump_page,
+                            _process_steps=_process_steps,
+                            _page_ref_lock=_page_ref_lock,
                             _page_ref=_page_ref,
-                            _download_storage_path=_download_storage_path, _dump_obj=_dump_obj,
-                            _global_counter=_global_counter)
+                            _download_storage_path=_download_storage_path,
+                            _dump_obj=_dump_obj,
+                            _global_counter=_global_counter,
+                            _global_str_dict=_global_str_dict,
+                            _global_play_sound_when_gui_confirm=play_sound_when_gui_confirm,
+                            _debug=debug,
+                        )
                         await steps_api[_step['fn']](*_waited_args, **_waited_kwargs)
                         on_success_steps = _step.get('on_success_steps')
                         if on_success_steps is not None:

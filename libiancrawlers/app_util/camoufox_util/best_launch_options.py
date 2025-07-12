@@ -1,5 +1,7 @@
 # -*- coding: UTF-8 -*-
+import os.path
 
+import aiofiles.os
 from loguru import logger
 
 logger.debug('camoufox import')
@@ -29,7 +31,7 @@ async def read_proxy_server():
 async def get_best_launch_options(
         *,
         my_public_ip_info: MyPublicIpInfo,
-        os: Optional[Union[str, Tuple[str]]] = None,
+        _os: Optional[Union[str, Tuple[str]]] = None,
         headless=False,
         locale: Optional[str] = None,
         debug: Optional[bool] = None,
@@ -39,6 +41,7 @@ async def get_best_launch_options(
         is_mobile: Optional[bool] = None,
         has_touch: Optional[bool] = None,
         need_page_go_back_go_forward: Optional[bool] = None,
+        addons_root_dir: Optional[str] = None,
 ):
     logger.debug('get best launch options params : {}', locals())
     if proxy_server is None:
@@ -57,11 +60,11 @@ async def get_best_launch_options(
             **({} if proxy_password is None else dict(password=proxy_password)),
         )
     logger.debug('proxy is {}', proxy)
-    if os is None:
-        os = ['windows']
-    if isinstance(os, str):
-        os = os.split(',')
-    logger.debug('os is {}', os)
+    if _os is None:
+        _os = ['windows']
+    if isinstance(_os, str):
+        _os = _os.split(',')
+    logger.debug('os is {}', _os)
     if is_mobile is None:
         is_mobile = None
     if has_touch is None:
@@ -76,8 +79,26 @@ async def get_best_launch_options(
     if public_ip_v6 is not None:
         geo_v6 = await get_geo(public_ip_v6)
 
+    addons = []
+    if addons_root_dir is not None and addons_root_dir.strip().__len__() > 0:
+        addons_root_dir = addons_root_dir.replace('/', os.path.sep)
+
+        async def _find_addon(cur: str):
+            filename_list = await aiofiles.os.listdir(cur)
+            if 'manifest.json' in filename_list:
+                addons.append(os.path.abspath(cur))
+            else:
+                for filename in filename_list:
+                    nxt = os.path.join(cur, filename)
+                    if await aiofiles.os.path.isdir(nxt):
+                        await _find_addon(nxt)
+
+        await _find_addon(addons_root_dir)
+
+    logger.debug('addons is {}', addons)
+
     res = dict(
-        os=os,
+        os=_os,
         headless=headless,
         humanize=True,
         is_mobile=is_mobile,
@@ -89,6 +110,7 @@ async def get_best_launch_options(
         enable_cache=need_page_go_back_go_forward,
         firefox_user_prefs={
         },
+        addons=addons if addons.__len__() > 0 else None,
     )
     logger.debug('return best launch options : {}', res)
     return res

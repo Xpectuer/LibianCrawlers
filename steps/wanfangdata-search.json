@@ -14,37 +14,8 @@
     {
       "fn": "logi",
       "args": [
-        "Start CNKI (https://www.cnki.net/) 中文页面 search"
+        "Start 万方 (https://www.cqvip.com) search"
       ]
-    },
-    {
-      "fn": "sleep",
-      "args": [
-        1000
-      ]
-    },
-    {
-      "fn": "page_type",
-      "args": [
-        "input#txt_SearchText",
-        "<<<<!q!>>>>"
-      ]
-    },
-    {
-      "fn": "sleep",
-      "args": [
-        1000
-      ]
-    },
-    {
-      "fn": "page_click",
-      "args": [
-        ".search-btn"
-      ],
-      "kwargs": {
-        "timeout": 6000,
-        "timeout_retry": 3
-      }
     },
     {
       "fn": "sleep",
@@ -55,7 +26,7 @@
     {
       "fn": "page_wait_for_selector_in_any_frame",
       "args": [
-        "table.result-table-list"
+        ".top-control-bar"
       ],
       "kwargs": {
         "timeout": 6000
@@ -78,8 +49,10 @@
             "fn": "page_scroll_down",
             "kwargs": {
               "max_height": 20000,
+              "delta_y": 666,
               "page_click_if_found": {
-                "locator": "td.name > a",
+                "locator": ".title-area >> span.title",
+                "check_selector_exist_after_click": "#essential",
                 "duplicated_only_text": true,
                 "close_new_page": true,
                 "on_new_page": [
@@ -87,7 +60,7 @@
                     "fn": "page_click",
                     "description": "跳转到期刊页面",
                     "args": [
-                      ".top-tip a>>nth=0"
+                      ".periodicalName a"
                     ],
                     "kwargs": {
                       "timeout": 6000,
@@ -100,11 +73,10 @@
                           "args": [
                             1000
                           ]
-                        },
-                        {
+                        },{
                           "fn": "page_click",
                           "args": [
-                            "#J_sumBtn-stretch"
+                            "wf-ellipsis-btn:has-text('查看全部')"
                           ],
                           "kwargs": {
                             "timeout": 6000,
@@ -112,7 +84,7 @@
                             "force": true,
                             "only_main_frame": false
                           },
-                          "description": "点击期刊页面的 “更多介绍” 按钮，没有的话也没事。",
+                          "description": "点击期刊页面的 “查看全部” 按钮，没有的话也没事。",
                           "on_timeout_steps": "continue"
                         },
                         {
@@ -127,12 +99,7 @@
                   },
                   {
                     "fn": "page_scroll_down",
-                    "description": "在文献页面向下滚动",
-                    "kwargs": {
-                      "page_click_if_found": {
-                        "locator": "#ChDivSummaryMore"
-                      }
-                    }
+                    "description": "在文献页面向下滚动"
                   }
                 ]
               }
@@ -144,7 +111,7 @@
             "fn": "page_click",
             "description": "点击下一页",
             "args": [
-              "#PageNext"
+              "span.next"
             ],
             "kwargs": {
               "timeout": 5000,

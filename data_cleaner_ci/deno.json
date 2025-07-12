@@ -61,7 +61,7 @@
     },
     "step:check": {
       "description": "⭐ 检查类型并运行测试",
-      "command": "deno test --allow-env=NODE_NDEBUG,READABLE_STREAM --allow-read=user_code/testdevconfig.json,user_code/.tmp/.util_test --allow-write=user_code/.tmp/.util_test --allow-net --ignore=./jsonata_templates/jsonata_test.ts --quiet",
+      "command": "deno test --allow-env=NODE_NDEBUG,READABLE_STREAM,OPENAI_ORG_ID,OPENAI_PROJECT_ID,OPENAI_WEBHOOK_SECRET,OPENAI_LOG --allow-read=user_code/testdevconfig.json,user_code/.tmp/.util_test --allow-write=user_code/.tmp/.util_test --allow-net --ignore=./jsonata_templates/jsonata_test.ts --quiet",
       "dependencies": [
         "step:check:type"
       ]
@@ -138,6 +138,7 @@
     "jsonata": "npm:jsonata@^2.0.6",
     "kysely": "npm:kysely@^0.27.5",
     "kysely-postgres-js": "npm:kysely-postgres-js@^2.0.0",
+    "openai": "npm:openai@^5.8.2",
     "parse-chinese-number": "npm:parse-chinese-number@^1.0.5",
     "postgres": "npm:postgres@^3.4.5",
     "quicktype-core": "npm:quicktype-core@^23.0.170",
