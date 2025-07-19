@@ -4,13 +4,13 @@ from typing import Union, Tuple, Optional
 
 from loguru import logger
 
-from libiancrawlers.app_util.apicrawler_util.search import ApiCrawlMode
 from libiancrawlers.app_util.app_init import exit_app, init_app
 from libiancrawlers.app_util.types import Initiator
+from libiancrawlers.crawlers import CrawlMode, parse_mode, the_default_crawl_mode__save_file
 
 
 async def search(*,
-                 mode: ApiCrawlMode = "save_file",
+                 mode: CrawlMode = the_default_crawl_mode__save_file,
                  keywords: Union[str, Tuple[str]],
                  output_dir: Optional[str] = None,
                  dbfile: Optional[str] = None,
@@ -26,6 +26,9 @@ async def search(*,
     from libiancrawlers.app_util.apicrawler_util import on_before_retry_default
     from libiancrawlers.app_util.apicrawler_util.search import SearchByKeywordContext, SearchByKeywordResult, \
         abstract_search
+
+    is_save_file, is_insert_to_db = parse_mode(mode)
+    init_app(Initiator(postgres=is_insert_to_db, playwright=False))
 
     loop = asyncio.get_event_loop()
 
@@ -89,7 +92,6 @@ _SHUTDOWN_AFTER_SEARCH = False
 
 
 def cli():
-    init_app(Initiator(postgres=True, playwright=False))
     global _SHUTDOWN_AFTER_SEARCH
     _SHUTDOWN_AFTER_SEARCH = True
     from fire import Fire

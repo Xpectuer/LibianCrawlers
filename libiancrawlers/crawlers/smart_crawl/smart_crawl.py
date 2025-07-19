@@ -20,6 +20,7 @@ from libiancrawlers.app_util.playwright_util import get_browser, response_to_dic
     page_info_to_dict, BlobOutput, frame_tree_to_dict, ResultOfPageInfoToDict
 from libiancrawlers.app_util.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException, JSON
+from libiancrawlers.crawlers import CrawlMode, parse_mode, the_default_crawl_mode__save_file
 from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.fs import mkdirs, aios_listdir, filename_slugify
 from libiancrawlers.util.plat import PreventTheScreenSaver
@@ -39,32 +40,9 @@ DevtoolStatus = TypedDict('DevtoolStatus', {
 })
 
 
-# async def smart_crawl_v1_api(*,
-#                              url: str,
-#                              tag_group: str,
-#                              tag_version: str,
-#                              locale: Locale,
-#                              browser_data_dir_id_suffix: str):
-#     return smart_crawl_v1(
-#         url=url,
-#         mode='insert_to_db',
-#         tag_group=tag_group,
-#         tag_version=tag_version,
-#         locale=locale,
-#         browser_data_dir_id=f'smart-crawl-v1-api__${browser_data_dir_id_suffix}',
-#         wait_until_close_browser=False,
-#         _should_init_app=False,
-#     )
-
-
 async def smart_crawl_v1(*,
                          url: str,
-                         mode: Literal[
-                             'insert_to_db',
-                             'save_file',
-                             'save_file_and_insert_to_db',
-                             'all',
-                         ] = 'save_file',
+                         mode: CrawlMode = the_default_crawl_mode__save_file,
                          output_dir: Optional[str] = None,
                          tag_group: str = 'cli-group',
                          tag_version: Optional[str] = None,
@@ -108,12 +86,7 @@ async def smart_crawl_v1(*,
     from libiancrawlers.crawlers.smart_crawl.steps_api import SmartCrawlStopSignal
     from asyncio import locks
 
-    if mode == 'all':
-        mode = 'save_file_and_insert_to_db'
-    if mode not in _valid_smart_crawl_mode:
-        raise ValueError(f'Invalid mode {mode} , valid value should in {_valid_smart_crawl_mode}')
-    is_save_file = mode == 'save_file' or mode == 'save_file_and_insert_to_db'
-    is_insert_to_db = mode == 'insert_to_db' or mode == 'save_file_and_insert_to_db'
+    is_save_file, is_insert_to_db = parse_mode(mode)
 
     if _should_init_app:
         init_app(Initiator(postgres=is_insert_to_db, playwright=True))

@@ -178,6 +178,75 @@
           }
         },
         {
+          "description": "依次打开传入的 url 列表。url 列表可以用分号分隔。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "each_url_list"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "urls",
+                "auto_close",
+                "auto_switch_to",
+                "on_after_open_steps"
+              ],
+              "properties": {
+                "urls": {
+                  "description": "url 列表。可以使用分号分隔。",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "auto_close": {
+                  "type": "boolean",
+                  "description": "在完成所有操作后关闭此页面。"
+                },
+                "auto_switch_to": {
+                  "type": "boolean",
+                  "description": "自动切换至此页面。"
+                },
+                "on_after_open_steps": {
+                  "$ref": "#/definitions/StepsBlock",
+                  "description": "在打开之后的操作。"
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
           "description": "一个根据该函数运行次数来执行不同代码块的工具函数。\n每调用一次此函数，`key`所对应的全局计数器 +=1。\n当全局计数器的值除以 `div` 的余数等于 `expect_mod` 时，\n运行 `if_steps` 块，否则执行 `else_steps` 块。",
           "type": "object",
           "additionalProperties": false,

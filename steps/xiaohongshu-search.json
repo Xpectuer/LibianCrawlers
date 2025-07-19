@@ -80,7 +80,7 @@
         ".search-icon"
       ],
       "kwargs": {
-        "timeout": 6000
+        "timeout": 15000
       }
     },
     {

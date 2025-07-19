@@ -259,8 +259,12 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               content.platform_duplicate_id.indexOf("null") >= 0 ||
               content.platform_duplicate_id.indexOf("undefined") >= 0)
           ) {
-            throw new Error(
-              `content.platform_duplicate_id maybe invalid : ${content.platform_duplicate_id}`,
+            Errors.throw_and_format(
+              `content.platform_duplicate_id maybe invalid`,
+              {
+                content_platform_duplicate_id: content.platform_duplicate_id,
+                content,
+              },
             );
           }
           const k = get_key(content);
@@ -275,8 +279,9 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           const res = reduce(exists, content);
           const cache_set_result = await Promise.resolve(cache.set(k, res));
           if (cache_set_result !== "ok") {
-            throw new Error(
-              `Cache set should return "ok" , but not : ${cache_set_result}`,
+            Errors.throw_and_format(
+              `Cache set should return "ok" , but not .`,
+              { res, exists, cache_set_result },
             );
           }
         } catch (err) {
@@ -292,9 +297,10 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             content_output =
               `{{ Can't be json, See it at console.log (jsonstringify failed by ${err}) }}`;
           }
-          throw new Error(
-            `Failed on merge : content is ${content_output}`,
-            { cause: err },
+          Errors.throw_and_format(
+            `Failed on merge .`,
+            { content_output },
+            err,
           );
         }
       }
@@ -348,14 +354,15 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             );
             return "DisableCache" as const;
           } else {
-            throw new Error("Failed stat reducer_cache_file", {
-              cause: err,
-            });
+            Errors.throw_and_format("Failed stat reducer_cache_file", {
+              reducer_cache_file_path,
+            }, err);
           }
         }
         if (!reducer_cache_file.isFile) {
-          throw new Error(
-            `reducer_cache_file is not a file : ${reducer_cache_file_path}`,
+          Errors.throw_and_format(
+            `reducer_cache_file is not a file .`,
+            { reducer_cache_file_path, reducer_cache_file },
           );
         }
         const deser_obj = await SerAny.deser_from_file(
@@ -372,7 +379,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           );
           for (const key of deser_obj.all_key) {
             if (typeof key !== "string") {
-              throw new Error("key not string");
+              Errors.throw_and_format("key not string", { key });
             }
             all_key.add(key);
           }
@@ -394,8 +401,9 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           }
           return "OK" as const;
         } else {
-          throw new Error(
-            `Invalid format of deser_obj from reducer_cache_file : ${reducer_cache_file_path}`,
+          Errors.throw_and_format(
+            `Invalid format of deser_obj from reducer_cache_file`,
+            { reducer_cache_file_path },
           );
         }
       },
@@ -758,6 +766,10 @@ export namespace LibianCrawlerCleanAndMergeUtil {
     });
   }
 
+  let _global_update_count: bigint = BigInt(0);
+  let _global_update_change_count: bigint = BigInt(0);
+  let _global_insert_count: bigint = BigInt(0);
+
   /**
    * 本来想把 kysely 的增删改查也封装的，奈何类型体操令人头晕目眩，所以先不管。
    */
@@ -807,18 +819,15 @@ export namespace LibianCrawlerCleanAndMergeUtil {
       };
       const update_bar = async () =>
         await on_bar_text(
-          `(updated ${update_results.length} + samed ${samed_count.value} / existed ${existed_list.length} / total ${values.length})`,
+          `>>> batch(DTO相同=${samed_count.value}, gid在表中=${existed_list.length}, all=${values.length}), 全局已更新=(change ${_global_update_change_count}/query ${_global_update_count}), 全局已新增=${_global_insert_count}`,
         );
       for (const existed of existed_list) {
         await update_bar();
         const value = values.find((value) => get_id(value) === existed.id);
         if (value === undefined) {
-          throw new Error(
-            `BUG, value_new not found in values , but values id should in existed list , context is : ${
-              Deno.inspect(
-                { existed, existed_list, values },
-              )
-            }`,
+          Errors.throw_and_format(
+            `BUG, value_new not found in values , but values id should in existed list .`,
+            { existed, existed_list, values },
           );
         }
         let value_equal_then_value_dto: ReturnType<
@@ -860,11 +869,12 @@ ${Deno.inspect(existed, { depth: 4 })}
             value,
             existed,
           });
+          _global_update_count += update_result.numUpdatedRows;
+          _global_update_change_count += update_result.numChangedRows ??
+            BigInt(0);
           update_results.push(update_result);
         } catch (err2) {
-          throw new Error(`update failed : ${Jsons.dump({ value, existed })}`, {
-            cause: err2,
-          });
+          Errors.throw_and_format("update failed", { value, existed }, err2);
         }
         continue;
       }
@@ -881,14 +891,21 @@ ${Deno.inspect(existed, { depth: 4 })}
           ? await exec_insert_result({ not_existed })
           : null;
 
+        _global_insert_count += (insert_result ?? []).reduce(
+          (prev, cur) => prev + (cur.numInsertedOrUpdatedRows ?? BigInt(0)),
+          BigInt(0),
+        );
+        await update_bar();
+
         return {
           update_results,
           insert_result,
         };
       } catch (err) {
-        throw new Error(`insert failed`, {
-          cause: err,
-        });
+        Errors.throw_and_format("insert failed", {
+          update_results,
+          not_existed_length: not_existed.length,
+        }, err);
       }
     } catch (err) {
       // if (`${err}`.includes("duplicate key value violates")) {

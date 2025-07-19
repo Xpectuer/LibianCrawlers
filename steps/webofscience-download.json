@@ -63,8 +63,7 @@
         "#radio3-input"
       ],
       "kwargs": {
-        "method": "dispatch_event_click",
-        "debug_on_timeout": true
+        "method": "dispatch_event_click"
       }
     },
     {
@@ -74,7 +73,6 @@
         ".ng-star-inserted > wos-select > button"
       ],
       "kwargs": {
-        "debug_on_timeout": true
       }
     },
     {
@@ -83,7 +81,6 @@
         "[title=\"Full Record\"]"
       ],
       "kwargs": {
-        "debug_on_timeout": true
       }
     },
     {
@@ -97,7 +94,6 @@
               "#exportButton"
             ],
             "kwargs": {
-              "debug_on_timeout": true
             }
           }
         ],

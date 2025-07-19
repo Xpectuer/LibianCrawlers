@@ -38,6 +38,36 @@ export const match_xhs_html: LibianCrawlerGarbageCleaner<
       "author_username" in template_parse_html_tree.xhs &&
       typeof template_parse_html_tree.xhs.author_username === "string"
     ) {
+      const from_search_context: MediaSearchContext[] = [];
+      if (
+        "dump_page_info" in smart_crawl.g_content &&
+        smart_crawl.g_content.dump_page_info
+      ) {
+        // deno-lint-ignore no-explicit-any
+        type ExcludeAnyArray<T> = T extends (infer X)[] ? any extends X ? never
+          : X[]
+          : never;
+
+        const _all_steps_run =
+          smart_crawl.g_content.dump_page_info.all_steps_run;
+
+        const all_steps_run: ExcludeAnyArray<typeof _all_steps_run> =
+          // deno-lint-ignore no-explicit-any
+          _all_steps_run as any;
+        const search_word = all_steps_run
+          .find((it): it is { fn: "page_type"; args: string[] } =>
+            typeof it === "object" && "fn" in it && "args" in it &&
+            Array.isArray(it.args) &&
+            it.fn === "page_type" && it.args.length === 2
+          )?.args
+          ?.at(1);
+        if (typeof search_word === "string" && Strs.is_not_blank(search_word)) {
+          from_search_context.push({
+            question: search_word,
+          });
+        }
+      }
+
       const { xhs } = template_parse_html_tree;
       const content_link_url_props = "dump_page_info" in smart_crawl.g_content
         ? smart_crawl.g_content.dump_page_info?.page_info_smart_wait
@@ -159,7 +189,7 @@ export const match_xhs_html: LibianCrawlerGarbageCleaner<
               DataClean.parse_number(xhs.like, "raise"),
             )
           : null,
-        from_search_context: [],
+        from_search_context,
         create_time: null,
         update_time: null,
         tags: null,

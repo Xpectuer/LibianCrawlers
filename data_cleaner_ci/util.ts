@@ -1440,7 +1440,8 @@ export namespace Nums {
     if (typeof s === "bigint") {
       throw new Error(`Type out of guard! s is ${s}`);
     }
-    return isNaN(s) || !isFinite(s) || typeof s !== "number";
+    return isNaN(s) || !isFinite(s) || typeof s !== "number" ||
+      s === Number.MIN_VALUE || s === Number.MAX_VALUE;
   }
 
   export function take_extreme_value<

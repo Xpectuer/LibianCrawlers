@@ -145,7 +145,9 @@ poetry run smart-crawl --debug --url "https://www.cqvip.com/search?k=肺动脉�
 poetry run smart-crawl --debug --url "https://s.wanfangdata.com.cn/paper?q=肺动脉高压" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/wanfangdata-search.json" --mode save_file
 ```
 
-#### WebOfScience 下载
+#### WebOfScience
+
+##### 从搜索结果中下载
 
 | 内容          | 下载 | 清洗 |
 |-------------|----|----|
@@ -153,6 +155,12 @@ poetry run smart-crawl --debug --url "https://s.wanfangdata.com.cn/paper?q=肺�
 
 ```shell
 poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/webofscience-download.json" --mode save_file
+```
+
+##### 根据 url 列表下载
+
+```shell
+poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/webofscience-download-paths.json?urls=read_from/lines_file/.data/wosurls.txt" --mode save_file
 ```
 
 ### 新闻媒体

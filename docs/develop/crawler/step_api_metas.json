@@ -131,6 +131,85 @@
     "kwargs_max": null
   },
   {
+    "name": "each_url_list",
+    "desc": "依次打开传入的 url 列表。url 列表可以用分号分隔。",
+    "varargs": false,
+    "varargs_types": null,
+    "args_min": 0,
+    "args_max": 0,
+    "args": [],
+    "kwargs": [
+      {
+        "name": "urls",
+        "type": {
+          "py_hint": "typing.Union[str, typing.List[str]]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "url 列表。可以使用分号分隔。",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        "desc": "url 列表。可以使用分号分隔。",
+        "require": true,
+        "default": null
+      },
+      {
+        "name": "auto_close",
+        "type": {
+          "py_hint": "<class 'bool'>",
+          "conf_type": null,
+          "json_schema": {
+            "type": "boolean",
+            "description": "在完成所有操作后关闭此页面。"
+          }
+        },
+        "desc": "在完成所有操作后关闭此页面。",
+        "require": true,
+        "default": null
+      },
+      {
+        "name": "auto_switch_to",
+        "type": {
+          "py_hint": "<class 'bool'>",
+          "conf_type": null,
+          "json_schema": {
+            "type": "boolean",
+            "description": "自动切换至此页面。"
+          }
+        },
+        "desc": "自动切换至此页面。",
+        "require": true,
+        "default": null
+      },
+      {
+        "name": "on_after_open_steps",
+        "type": {
+          "py_hint": "ForwardRef('StepsBlock')",
+          "conf_type": null,
+          "json_schema": {
+            "$ref": "#/definitions/StepsBlock",
+            "description": "在打开之后的操作。"
+          }
+        },
+        "desc": "在打开之后的操作。",
+        "require": true,
+        "default": null
+      }
+    ],
+    "kwargs_min": null,
+    "kwargs_max": null
+  },
+  {
     "name": "every_times",
     "desc": "一个根据该函数运行次数来执行不同代码块的工具函数。\n每调用一次此函数，`key`所对应的全局计数器 +=1。\n当全局计数器的值除以 `div` 的余数等于 `expect_mod` 时，\n运行 `if_steps` 块，否则执行 `else_steps` 块。",
     "varargs": false,

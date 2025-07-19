@@ -8,10 +8,24 @@ from libiancrawlers.app_util.types import JSON
 
 
 async def parse_json_or_read_file_json_like(t: JSON) -> JSON:
+    _old_t = t
     if not isinstance(t, str):
         return t
+    if t.startswith('lines_file/'):
+        fn = t[len('lines_file/'):]
+        async with aiofiles.open(fn, mode='rt', encoding='utf-8') as f:
+            res = [line.strip() for line in await f.readlines() if len(line.strip()) > 0]
+            if len(res) <= 0:
+                raise ValueError(f'Empty lines : {t}')
+            return res
     if t.startswith('jsonfile:'):
+        # old api
+        t = t[len('jsonfile:'):]
+        t = 'jsonfile/' + t
+        logger.warning('please modify "jsonfile:" to "jsonfile/" , t is {} , _old_t is {}', t, _old_t)
+    if t.startswith('jsonfile/'):
         try:
+            t = t[len('jsonfile/'):]
             from libiancrawlers.app_util.obj2dict_util import url_parse_to_dict
             url_info = url_parse_to_dict(t)
             logger.debug('json file url info is {}', url_info)

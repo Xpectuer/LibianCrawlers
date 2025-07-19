@@ -66,10 +66,10 @@ export const match_entrez_search_result: LibianCrawlerGarbageCleaner<
               //
               // Just like:
               //  ISSN (online): 1399-3003 ; ISSN (print): 0903-1936
-              console.warn("Not same issn list", {
-                issn_list,
-                ncbi_fmt,
-              });
+              // console.warn("Not same issn list", {
+              //   issn_list,
+              //   ncbi_fmt,
+              // });
               return issn_list[0];
             }
           }

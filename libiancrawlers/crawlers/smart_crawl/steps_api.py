@@ -283,7 +283,7 @@ class StepsApi:
         self._page_click_default_timeout = 5000
         self._page_type_default_timeout = 5000
         self._page_type_default_delay = 300
-        self._page_go_back_default_timeout = 5000
+        self._page_go_back_default_timeout = 15000
         self._global_play_sound_when_gui_confirm = _global_play_sound_when_gui_confirm
         self._debug = _debug
 
@@ -983,7 +983,10 @@ class StepsApi:
         通用的输入文本的工具函数。默认使用 `page_or_frame.type` 进行输入（可使用 `use_fill` 或 `use_select_options` 更改）。
         """
         delay = kwargs.pop('delay', self._page_type_default_delay)
-        timeout = kwargs.pop('timeout', self._page_type_default_timeout)
+        timeout = kwargs.pop('timeout', None)
+        if timeout is None:
+            timeout = max(self._page_type_default_timeout, int(text.__len__() * delay * 1.5))
+
         use_fill = kwargs.pop('use_fill', False)
         use_select_options = kwargs.pop('use_select_options', False)
         force = kwargs.pop('force', False)
@@ -1715,8 +1718,15 @@ class StepsApi:
                 except BaseException as err2:
                     err = err2
                     if is_timeout_error(err2):
-                        _retry_count -= 1
-                        continue
+                        _new_page = await self._get_page()
+                        _new_url = await self._get_page_url_ignore_err(page)
+                        if _new_url == old_url:
+                            logger.warning("url not change after page go back : {}", old_url)
+                            _retry_count -= 1
+                            continue
+                        else:
+                            logger.warning('break page_go_back loop , because found page url change')
+                            return
                     else:
                         raise
             if err is not None:
@@ -1913,6 +1923,8 @@ class StepsApi:
         """
         处理浏览器下载事件。
         """
+        from libiancrawlers.app_util.obj2dict_util import url_parse_to_dict
+
         logger.debug('expect download')
         _page = await self._get_page()
         async with _page.expect_download(timeout=timeout) as _download_info:
@@ -1939,18 +1951,23 @@ class StepsApi:
         logger.debug('finish download')
         save_file_name = os.path.basename(save_file_path)
         save_file_name_prefix, save_file_name_ext = os.path.splitext(save_file_name)
+        current_page_info = {
+            'url': url_parse_to_dict(_page.url)
+        }
+
+        async def _dump(filetype: str, data):
+            return await self._dump_obj(f'downloaded_{filetype}_{current_download_count}', {
+                'meta': dump_obj_meta,
+                'data': data,
+                'current_page_info': current_page_info,
+            })
+
         if save_file_name_ext == '.csv' and dump_csv:
             from libiancrawlers.crawlers.smart_crawl.dump_obj_util import parse_csv
-            await self._dump_obj(f'downloaded_csv_{current_download_count}', {
-                'meta': dump_obj_meta,
-                'data': await parse_csv(save_file_path),
-            })
+            await _dump('csv', await parse_csv(save_file_path))
         if save_file_name_ext in ('.xls', '.xlsx') and dump_excel:
             from libiancrawlers.crawlers.smart_crawl.dump_obj_util import parse_excel
-            await self._dump_obj(f'downloaded_excel_{current_download_count}', {
-                'meta': dump_obj_meta,
-                'data': await parse_excel(save_file_path),
-            })
+            await _dump('excel', await parse_excel(save_file_path))
 
     @arg_conf('run_steps', desc="""循环执行此块。""")
     async def for_each(self, *,
@@ -2062,6 +2079,71 @@ class StepsApi:
             await page.goto(url)
         else:
             logger.warning("page goto key {} not found", key)
+
+    @arg_conf('urls', desc="url 列表。可以使用分号分隔。")
+    @arg_conf('auto_close', desc="在完成所有操作后关闭此页面。")
+    @arg_conf('auto_switch_to', desc="自动切换至此页面。")
+    @arg_conf('on_after_open_steps', desc="在打开之后的操作。")
+    async def each_url_list(self, *,
+                            urls: Union[str, List[str]],
+                            auto_close: bool,
+                            auto_switch_to: bool,
+                            on_after_open_steps: StepsBlock,
+                            retry_goto: int = 3,
+                            ):
+        """
+        依次打开传入的 url 列表。
+        """
+        if isinstance(urls, str):
+            if urls.startswith('read_from/'):
+                from libiancrawlers.app_util.cmdarg_util import parse_json_or_read_file_json_like
+                urls2 = await parse_json_or_read_file_json_like(urls[len('read_from/'):])
+            else:
+                urls2 = urls.split(';')
+        else:
+            urls2 = urls
+        if not isinstance(urls2, list):
+            raise ValueError('urls2 should be list , but type is {} , value is {}', type(urls2), urls2)
+        logger.debug('each url list , len is {} , urls2 is {} , urls is {}', len(urls2), urls2, urls)
+        _page_root = await self._get_page()
+        for url in urls2:
+            logger.debug('start process url : {}', url)
+            _page = await _page_root.context.new_page()
+            logger.debug('success call context.new_page')
+            retry_goto_count = 0
+            while retry_goto_count < retry_goto:
+                try:
+                    logger.debug('start call page.goto , retry_goto_count is {}', retry_goto_count)
+                    await _page.goto(url, timeout=15000, referer=_page_root.url)
+                    break
+                except BaseException as err:
+                    if is_timeout_error(err):
+                        retry_goto_count += 1
+                        continue
+                    else:
+                        raise
+            await self.page_wait_loaded(page=_page)
+
+            async def _get_page_info():
+                return dict(
+                    title=await self._get_page_title_ignore_err(_page),
+                    url=await self._get_page_url_ignore_err(_page),
+                )
+
+            if auto_switch_to:
+                logger.debug('start auto switch to page : {}', await _get_page_info())
+                await self._set_page(_page)
+                logger.debug('success auto switch to page : {}', await _get_page_info())
+            if on_after_open_steps is not None:
+                logger.debug('start process on_after_open_steps to page : {}', await _get_page_info())
+                await self._process_steps(on_after_open_steps)
+                logger.debug('success process on_after_open_steps to page : {}', await _get_page_info())
+            if auto_close:
+                logger.debug('start auto close page : {}', await _get_page_info())
+                await self.page_close()
+                logger.debug('success auto close page')
+                await self._set_page(_page_root)
+        logger.debug('finish each url list')
 
 
 StepMemberMetaType = TypedDict('StepMemberMetaType', {
@@ -2185,6 +2267,7 @@ def _to_json_schema(*,
                     raise ValueError('why _args_hint length not 1')
                 else:
                     _res = _to_json_schema(_hint=_args_hint_parent[0])
+                    # print('_res is', _res)
                     if _res is None:
                         return {
                             "type": "array",
@@ -2195,9 +2278,7 @@ def _to_json_schema(*,
                         return {
                             "type": "array",
                             **(dict() if _desc is None else dict(description=_desc)),
-                            "items": {
-                                "type": _res
-                            },
+                            "items": _res,
                             **_examples_dict,
                         }
             if issubclass(_hint, tuple):

@@ -413,6 +413,12 @@ async def _get_blob(*,
                 ])
                 logger.debug('put object to minio finish : result is {}', _res_obj_write)
                 logger.debug('put object to minio public_url : \n{}', public_url)
+                async with aiohttp.request('GET', public_url) as resp:
+                    if not resp.ok or 'html' in resp.content_type:
+                        raise ValueError(
+                            f'Failed to get {public_url} , resp.status is {resp.status} , resp.content_type is {resp.content_type}')
+                    logger.debug('success to put object to public url , the check response is {} , content_type is {}',
+                                 resp.status, resp.content_type)
 
         if png_file_sha1 is not None:
             _res_value: MinIOScreenShotResult = {

@@ -10,6 +10,7 @@ from loguru import logger
 from libiancrawlers.app_util.config import read_config
 from libiancrawlers.app_util.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.app_util.types import JSON
+from libiancrawlers.crawlers import CrawlMode, parse_mode
 from libiancrawlers.util.fs import filename_slugify, mkdirs
 
 
@@ -27,12 +28,9 @@ SearchByKeywordResult = TypedDict('SearchByKeywordResult', {
     'has_more': bool,
 })
 
-_valid_api_crawl_mode = ['insert_to_db', 'save_file', 'save_file_and_insert_to_db']
-ApiCrawlMode = Literal['all', 'insert_to_db', 'save_file', 'save_file_and_insert_to_db']
-
 
 async def abstract_search(*,
-                          mode: ApiCrawlMode,
+                          mode: CrawlMode,
                           output_dir: Optional[str],
                           keywords: Union[str, Tuple[str]],
                           page_max: Optional[int],
@@ -50,12 +48,7 @@ async def abstract_search(*,
                           ):
     from libiancrawlers.app_util.apicrawler_util import log_debug_which_object_maybe_very_length
 
-    if mode == 'all':
-        mode = 'save_file_and_insert_to_db'
-    if mode not in _valid_api_crawl_mode:
-        raise ValueError(f'Invalid mode {mode} , valid value should in {_valid_api_crawl_mode}')
-    is_save_file = mode == 'save_file' or mode == 'save_file_and_insert_to_db'
-    is_insert_to_db = mode == 'insert_to_db' or mode == 'save_file_and_insert_to_db'
+    is_save_file, is_insert_to_db = parse_mode(mode)
 
     if output_dir is None:
         output_dir = os.path.join('.data', 'apilib', filename_slugify(platform_id, allow_unicode=True), 'search')
@@ -82,9 +75,10 @@ async def abstract_search(*,
     else:
         page_size = None
 
-    await on_init()
+    if is_insert_to_db:
+        await require_init_table()
 
-    await require_init_table()
+    await on_init()
 
     def _check_no_content_crawling(*, kwd: str):
         pass
