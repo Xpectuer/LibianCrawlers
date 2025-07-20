@@ -102,9 +102,6 @@
             };
             $m
         ),
-        "ref_works": ( 
-            $is_string(g_content.result.obj.obj) ? $parse_ref_works(g_content.result.obj.obj) : null
-        ),
         "qianniu_message_export": (
             $map_item := function($x) {(
                 $r := {
@@ -240,6 +237,13 @@
                 "html2markdown": $html2markdown,
                 "metas": $metas,
                 "metas2": $metas2
+            }
+        ),
+        "pubmed_str": (
+            $pubmed_str := g_content.result.body.**[attrs.id="article-details"].str;
+            {
+                "v1": $is_string(g_content.result.obj.obj) ? $parse_pubmed_str(g_content.result.obj.obj) : null,
+                "v2": $is_string($pubmed_str) ? $parse_pubmed_str($pubmed_str) : null
             }
         )
     }

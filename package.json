@@ -9,8 +9,10 @@
     "@openapitools/openapi-generator-cli": "^2.19.1",
     "@types/node": "^22.13.13",
     "markdown-it-checkbox": "^1.1.0",
+    "mermaid": "^11.9.0",
     "shx": "^0.4.0",
     "vitepress": "^1.6.3",
+    "vitepress-plugin-mermaid": "^2.0.17",
     "vitepress-sidebar": "^1.31.0"
   }
 }

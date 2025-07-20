@@ -193,6 +193,11 @@ async function _main() {
                   current_maxgid,
                 });
               }
+              console.debug("Start write cache", {
+                use_cache_on_ser,
+                cache_ser_count,
+                cache_ser_batch_size,
+              });
               await cache_ctx.callbacks.write_cache(
                 cache_ctx.refs,
                 reducers,
@@ -203,6 +208,11 @@ async function _main() {
                   cache_ser_count.value = 0;
                 },
               );
+              console.debug("Finish write cache", {
+                use_cache_on_ser,
+                cache_ser_count,
+                cache_ser_batch_size,
+              });
             };
 
             for await (

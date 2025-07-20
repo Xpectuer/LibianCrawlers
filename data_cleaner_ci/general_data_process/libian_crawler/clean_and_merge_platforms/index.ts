@@ -1,7 +1,7 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
 import { match_metainfo } from "./match_metainfo.ts";
 import { match_dump_obj } from "./match_dump_obj.ts";
-import { match_entrez_search_result } from "./match_entrez.ts";
+import { match_pubmed_str } from "./match_pubmed_str.ts";
 import { match_wanfangdata } from "./match_wanfangdata.ts";
 import { match_cqvip } from "./match_cqvip.ts";
 import { match_wos_journal } from "./match_wos_journal.ts";
@@ -26,7 +26,7 @@ export interface LibianCrawlerGarbageCleaner<R> {
 export const libian_crawler_garbage_matchers = [
   match_metainfo,
   match_dump_obj,
-  match_entrez_search_result,
+  match_pubmed_str,
   match_wanfangdata,
   match_cqvip,
   match_wos_journal,
@@ -41,3 +41,4 @@ export const libian_crawler_garbage_matchers = [
   match_pdd_h5_yangkeduo,
   match_bilibili_api_search_result,
 ] as const;
+

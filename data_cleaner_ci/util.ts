@@ -2280,11 +2280,11 @@ export namespace DataClean {
     };
   }
 
-  export function parse_ref_works(s: string) {
+  export function parse_pubmed_str(s: string) {
     if (typeof s !== "string") {
       throw new Error(`Please ensure input value is string, but ${s}`);
     }
-    const parse_ref_works_failed = "parse_ref_works_failed";
+    const parse_pubmed_str_failed = "parse_pubmed_str_failed";
     let entries: {
       label: string;
       value: string;
@@ -2297,7 +2297,7 @@ export namespace DataClean {
         .map((line) => {
           const sp_idx = line.indexOf("-");
           if (sp_idx < 0) {
-            throw parse_ref_works_failed;
+            throw parse_pubmed_str_failed;
           }
           const label = line.substring(0, sp_idx);
           const value = line.substring(sp_idx + 1);
@@ -2305,7 +2305,7 @@ export namespace DataClean {
         })
         .map(([label, value]) => ({ label, value }));
     } catch (err) {
-      if (err === parse_ref_works_failed) {
+      if (err === parse_pubmed_str_failed) {
         return null;
       } else {
         throw err;
@@ -3123,9 +3123,9 @@ export namespace Jsonatas {
         "<j:b>",
       );
       jsonata_exp.registerFunction(
-        "parse_ref_works",
+        "parse_pubmed_str",
         (str: string) => {
-          return DataClean.parse_ref_works(str);
+          return DataClean.parse_pubmed_str(str);
         },
         "<s:(ol)>",
       );

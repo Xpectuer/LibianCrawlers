@@ -101,6 +101,27 @@
       "dependencies": [
         "init:code_gen:only_nocodb"
       ]
+    },
+    "dev:libian_crawler:run_code_gen:update:no_check": {
+      "command": "deno task init:code_gen:allownet"
+    },
+    "dev:libian_crawler:run_code_gen:update": {
+      "description": "⭐ 一键启动类型生成(更新缓存和允许网络)",
+      "command": "deno task step:check",
+      "dependencies": [
+        "dev:libian_crawler:run_code_gen:update:no_check"
+      ]
+    },
+    "dev:libian_crawler:run_clean:update": {
+      "description": "⭐ 一键启动数据清洗(更新缓存和允许网络)",
+      "command": "deno task step:check && deno task step:libian_crawler:clean_and_merge:allownet --update-cache"
+    },
+    "dev:libian_crawler:run_all:update": {
+      "description": "⭐ 一键启动类型生成和数据清洗(都更新缓存和允许网络)",
+      "command": "deno task dev:libian_crawler:run_clean:update",
+      "dependencies": [
+        "dev:libian_crawler:run_code_gen:update"
+      ]
     }
   },
   "imports": {

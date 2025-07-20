@@ -7,6 +7,7 @@ from typing import Union, Tuple, Callable, TypedDict, Optional, Awaitable, Liter
 import aiofiles.os
 from loguru import logger
 
+from libiancrawlers.app_util.apicrawler_util import dump_data
 from libiancrawlers.app_util.config import read_config
 from libiancrawlers.app_util.postgres import require_init_table, insert_to_garbage_table
 from libiancrawlers.app_util.types import JSON
@@ -120,20 +121,12 @@ async def abstract_search(*,
                         ),
                         g_search_key=keyword,
                     )
-                    if is_insert_to_db:
-                        await insert_to_garbage_table(**_output)
-                    if is_save_file:
-                        await mkdirs(output_dir)
-                        result_file_path = os.path.join(
-                            output_dir,
-                            f'{filename_slugify(int(datetime.datetime.utcnow().timestamp() * 1000), allow_unicode=True)}.json'
-                        )
-                        async with aiofiles.open(
-                                result_file_path,
-                                mode='wt',
-                                encoding='utf-8') as f:
-                            await f.write(json.dumps(_output, ensure_ascii=False, indent=2))
-                            logger.debug('result file :\n    {}\n', result_file_path)
+                    await dump_data(
+                        _output=_output,
+                        is_insert_to_db=is_insert_to_db,
+                        is_save_file=is_save_file,
+                        output_dir=output_dir
+                    )
 
                     if not res.get('has_more'):
                         logger.debug('continue to fetch page because has_more = {}', res.get('has_more'))

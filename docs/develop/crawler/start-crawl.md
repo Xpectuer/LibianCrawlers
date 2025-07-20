@@ -101,7 +101,9 @@ poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --dump_pag
 poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hypertension" --mode save_file
 ```
 
-#### Embase 及镜像站搜索并下载
+#### Embase 
+
+##### 批量下载搜索结果
 
 | 内容            | 下载导出的csv | 读取csv并入库 | 清洗 |
 |---------------|----------|----------|----|
@@ -109,6 +111,12 @@ poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hype
 
 ```shell
 poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/embase-search.json" --mode save_file
+```
+
+##### 根据 url 列表下载
+
+```shell
+poetry run api-crawl-pubmed-fetch-ids --data "lines_file/.data/pubmed_ids.txt"  --mode save_file
 ```
 
 #### wos-journal 期刊信息查询
@@ -147,7 +155,7 @@ poetry run smart-crawl --debug --url "https://s.wanfangdata.com.cn/paper?q=肺�
 
 #### WebOfScience
 
-##### 从搜索结果中下载
+##### 批量下载搜索结果
 
 | 内容          | 下载 | 清洗 |
 |-------------|----|----|
@@ -162,6 +170,15 @@ poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以
 ```shell
 poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/webofscience-download-paths.json?urls=read_from/lines_file/.data/wosurls.txt" --mode save_file
 ```
+
+#### github.com/suqingdong/impactfactor 库搜索文献
+
+> https://github.com/suqingdong/impact_factor
+
+```shell
+poetry run api-crawl-impactfactor-search --keywords "nature" --mode save_file
+```
+
 
 ### 新闻媒体
 

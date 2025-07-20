@@ -128,15 +128,15 @@ async def search(*,
         for _iter in efetch_list_iter_dict.values():
             _iter.close()
 
-        if _SHUTDOWN_AFTER_SEARCH:
+        if _SHUTDOWN_AFTER_FETCH_IDS:
             await exit_app()
 
 
-_SHUTDOWN_AFTER_SEARCH = False
+_SHUTDOWN_AFTER_FETCH_IDS = False
 
 
 def cli():
-    global _SHUTDOWN_AFTER_SEARCH
+    global _SHUTDOWN_AFTER_FETCH_IDS
     _SHUTDOWN_AFTER_SEARCH = True
     from fire import Fire
     Fire(search)

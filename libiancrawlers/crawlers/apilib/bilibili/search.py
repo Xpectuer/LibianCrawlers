@@ -68,16 +68,16 @@ async def search(*,
             page_size_ignore=True,
         )
     finally:
-        if _SHUTDOWN_AFTER_SEARCH:
+        if _SHUTDOWN_AFTER_FETCH_IDS:
             await exit_app()
 
 
-_SHUTDOWN_AFTER_SEARCH = False
+_SHUTDOWN_AFTER_FETCH_IDS = False
 
 
 def cli():
     init_app(Initiator(postgres=True, playwright=False))
-    global _SHUTDOWN_AFTER_SEARCH
+    global _SHUTDOWN_AFTER_FETCH_IDS
     _SHUTDOWN_AFTER_SEARCH = True
     from fire import Fire
     Fire(search)

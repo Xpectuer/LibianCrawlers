@@ -17,7 +17,8 @@ async function run_tests() {
     // "test_cqvip_search",
     // "test_wanfangdata_search",
     // "test_wanfangdata_journal",
-    "test_washington_post"
+    // "test_washington_post",
+    "test_pubmed_fetch_ids"
   ]) {
     let target_file: string;
     const func_config_file = path.join(

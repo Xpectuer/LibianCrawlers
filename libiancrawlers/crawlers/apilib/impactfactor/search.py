@@ -84,15 +84,15 @@ async def search(*,
             on_before_retry=on_before_retry_default,
         )
     finally:
-        if _SHUTDOWN_AFTER_SEARCH:
+        if _SHUTDOWN_AFTER_FETCH_IDS:
             await exit_app()
 
 
-_SHUTDOWN_AFTER_SEARCH = False
+_SHUTDOWN_AFTER_FETCH_IDS = False
 
 
 def cli():
-    global _SHUTDOWN_AFTER_SEARCH
+    global _SHUTDOWN_AFTER_FETCH_IDS
     _SHUTDOWN_AFTER_SEARCH = True
     from fire import Fire
     Fire(search)

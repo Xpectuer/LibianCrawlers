@@ -1,0 +1,120 @@
+{
+  "$schema": "./schemas/v2.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start Embase (or proxy) download by url list"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "gui_confirm",
+      "kwargs": {
+        "title": "need user operate",
+        "message": "LibianCrawler 需要你自行完成登陆和搜索操作，请在完成登录后，方可关闭此对话框。"
+      }
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "switch_page",
+      "args": [
+        -1
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "each_url_list",
+      "kwargs": {
+        "urls": "<<<<!urls!>>>>",
+        "auto_close": true,
+        "auto_switch_to": true,
+        "on_after_open_steps": [
+          {
+            "fn": "page_wait_for_selector_in_any_frame",
+            "description": "等待 Export 按钮出现",
+            "args": [
+              ":nth-match(app-export-menu, 1)"
+            ],
+            "kwargs": {
+              "timeout": 25000
+            }
+          },
+          {
+            "fn": "sleep",
+            "args": [
+              3000
+            ]
+          },
+          {
+            "fn": "page_click",
+            "description": "点击 Export",
+            "args": [
+              ":nth-match(app-export-menu, 1)"
+            ]
+          },
+          {
+            "fn": "page_click",
+            "description": "点击导出为 excel",
+            "args": [
+              "#exportToExcelButton"
+            ]
+          },
+          {
+            "fn": "page_click",
+            "description": "点击 Record Content 按钮",
+            "args": [
+              "#FullRecordExportToEnwOptionContentover > button"
+            ],
+            "kwargs": {
+            }
+          },
+          {
+            "fn": "page_click",
+            "args": [
+              "[title=\"Full Record\"]"
+            ],
+            "kwargs": {
+            }
+          },
+          {
+            "fn": "expect_download",
+            "kwargs": {
+              "timeout": 60000,
+              "run_steps": [
+                {
+                  "fn": "page_click",
+                  "args": [
+                    "#FullRecordExportToEnwBtnover"
+                  ],
+                  "kwargs": {
+                  }
+                }
+              ],
+              "dump_excel": true
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
