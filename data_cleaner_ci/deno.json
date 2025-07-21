@@ -139,6 +139,7 @@
     "big-json": "npm:big-json@^3.2.0",
     "collection-utils": "npm:collection-utils@^1.0.1",
     "comlink": "npm:comlink@^4.4.2",
+    "compress-json": "npm:compress-json@^3.2.0",
     "cross-env": "npm:cross-env@^7.0.3",
     "destr": "npm:destr@^2.0.5",
     "dns-socket": "npm:dns-socket@^4.2.2",

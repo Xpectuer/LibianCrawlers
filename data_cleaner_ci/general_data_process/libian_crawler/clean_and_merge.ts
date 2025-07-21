@@ -36,12 +36,14 @@ async function _main() {
   ] as const;
   const _args_str = [
     "cache-ser-batch-size",
+    "update-to-db-batch-size",
   ] as const;
   const cmdarg = parseArgs(Deno.args, {
     boolean: [..._args_bool, "help"] as const,
     string: _args_str,
     default: {
       "cache-ser-batch-size": "5000",
+      "update-to-db-batch-size": "5000",
     } satisfies {
       [
         P in
@@ -91,6 +93,7 @@ async function _main() {
   const use_cache_flag = cmdarg["use-cache"];
   const update_cache_flag = cmdarg["update-cache"];
   const cache_ser_batch_size = _parseInt(false, "cache-ser-batch-size");
+  const update_to_db_batch_size = _parseInt(false, "update-to-db-batch-size");
 
   // deno-lint-ignore prefer-const
   let use_cache_on_ser = use_cache_flag || update_cache_flag;
@@ -342,20 +345,21 @@ async function _main() {
             );
             await create_and_init_libian_crawler_database_scope(async (db) => {
               let completed_offset = 0;
+              let _last_insert_or_update_promise: Promise<unknown> | null =
+                null;
               for (const { ctx, all_key, cache } of ctx_list) {
+                const _all_key_arr = [...all_key];
                 for (
                   const { start, end, sliced } of Streams
                     .split_array_use_batch_size(
-                      100,
-                      [...all_key],
+                      update_to_db_batch_size,
+                      _all_key_arr,
                     )
                 ) {
                   const values = await Promise.all(
                     Mappings.object_entries(cache.get_batch(new Set(sliced)))
                       .map(
-                        (
-                          e,
-                        ) => Promise.resolve(e[1]),
+                        (e) => Promise.resolve(e[1]),
                       ),
                   );
                   const on_bar_text = async (text: string) => {
@@ -367,13 +371,24 @@ async function _main() {
                   };
                   // 只要不乱改，这的类型就没问题。
                   // 我只想偷懒。
-                  // deno-lint-ignore no-explicit-any
-                  await ctx.insert_or_update(db, values as any, {
-                    on_bar_text,
-                    pause_on_dbupdate,
-                  });
+                  
+                  if (_last_insert_or_update_promise !== null) {
+                    await _last_insert_or_update_promise;
+                  }
+                  _last_insert_or_update_promise = ctx.insert_or_update(
+                    db,
+                    // deno-lint-ignore no-explicit-any
+                    values as any, 
+                    {
+                      on_bar_text,
+                      pause_on_dbupdate,
+                    },
+                  );
                 }
                 completed_offset += all_key.size;
+              }
+              if (_last_insert_or_update_promise !== null) {
+                await _last_insert_or_update_promise;
               }
             });
           }

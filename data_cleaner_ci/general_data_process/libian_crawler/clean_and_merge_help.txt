@@ -18,6 +18,9 @@ Help for general_data_process/libian_crawler/clean_and_merge.ts:
       如果使用 --use-cache 或 使用 --update-cache ，将会写入缓存。
       如果使用 --use-cache 且 不使用 --update-cache ，将会读取旧缓存。
 
+--update_to_db_batch_size
+      将清洗后的数据集更新到数据库时的批次大小。默认为 5000
+
 -----------------------------------------
 不建议使用的内部参数，建议只在开发调试时使用:
 

@@ -64,7 +64,6 @@ export async function create_reducers_and_init() {
     };
   }
 
-  //  create_context_of_insert_or_update_reduced_data
   const reducers = [
     (() => {
       const r = {

@@ -32,6 +32,7 @@
     "npm:big-json@^3.2.0": "3.2.0",
     "npm:collection-utils@^1.0.1": "1.0.1",
     "npm:comlink@^4.4.2": "4.4.2",
+    "npm:compress-json@^3.2.0": "3.2.0",
     "npm:cross-env@^7.0.3": "7.0.3",
     "npm:destr@^2.0.5": "2.0.5",
     "npm:dns-socket@^4.2.2": "4.2.2",
@@ -268,6 +269,9 @@
     },
     "comlink@4.4.2": {
       "integrity": "sha512-OxGdvBmJuNKSCMO4NTl1L47VRp6xn2wG4F/2hYzB6tiCb709otOxtEYCSvK80PtjODfXXZu8ds+Nw5kVCjqd2g=="
+    },
+    "compress-json@3.2.0": {
+      "integrity": "sha512-mvJaRDTPqaFLrPUzEwa3Jq6QQprg5g24YniRhIOwdjZDzUWoQtFVEL2VGWzh9VZp+vt41+ByVHPf+vx7xD3Ojw=="
     },
     "core-util-is@1.0.3": {
       "integrity": "sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ=="
@@ -1192,6 +1196,7 @@
       "npm:big-json@^3.2.0",
       "npm:collection-utils@^1.0.1",
       "npm:comlink@^4.4.2",
+      "npm:compress-json@^3.2.0",
       "npm:cross-env@^7.0.3",
       "npm:destr@^2.0.5",
       "npm:dns-socket@^4.2.2",
