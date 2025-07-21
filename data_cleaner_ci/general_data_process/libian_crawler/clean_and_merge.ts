@@ -215,6 +215,7 @@ async function _main() {
               });
             };
 
+            let is_garbage_not_in_cache_readed = false;
             for await (
               const garbages of garbages_iter({
                 on_bar: async (it) => {
@@ -240,6 +241,7 @@ async function _main() {
                 if (garbage === "skip") {
                   continue;
                 }
+                is_garbage_not_in_cache_readed = true;
                 const g_id = parseInt(garbage.obj.g_id);
                 if (Nums.is_invalid(g_id)) {
                   throw new Error(
@@ -306,7 +308,7 @@ async function _main() {
                   item = await reader.next();
                 }
                 if (
-                  use_cache_on_ser &&
+                  use_cache_on_ser && is_garbage_not_in_cache_readed &&
                   cache_ser_count.value >= cache_ser_batch_size
                 ) {
                   await write_cache();
@@ -314,7 +316,10 @@ async function _main() {
               }
             }
 
-            if (use_cache_on_ser && cache_ser_count.value !== 0) {
+            if (
+              use_cache_on_ser && is_garbage_not_in_cache_readed &&
+              cache_ser_count.value !== 0
+            ) {
               await write_cache();
             }
 

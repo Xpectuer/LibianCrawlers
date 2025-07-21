@@ -766,9 +766,12 @@ export namespace LibianCrawlerCleanAndMergeUtil {
     });
   }
 
+  let _global_dto_same_count: bigint = BigInt(0);
   let _global_update_count: bigint = BigInt(0);
   let _global_update_change_count: bigint = BigInt(0);
+  let _global_update_arr_len_count: bigint = BigInt(0);
   let _global_insert_count: bigint = BigInt(0);
+  let _global_insert_arr_len_count: bigint = BigInt(0);
 
   /**
    * 本来想把 kysely 的增删改查也封装的，奈何类型体操令人头晕目眩，所以先不管。
@@ -814,15 +817,15 @@ export namespace LibianCrawlerCleanAndMergeUtil {
     const existed_list = await read_existed_list();
     try {
       const update_results: UpdateResult[] = [];
-      const samed_count = {
-        value: 0,
-      };
+      // const samed_count = {
+      //   value: 0,
+      // };
       const update_bar = async () =>
         await on_bar_text(
-          `>>> batch(DTO相同=${samed_count.value}, gid在表中=${existed_list.length}, all=${values.length}), 全局已更新=(change ${_global_update_change_count}/query ${_global_update_count}), 全局已新增=${_global_insert_count}`,
+          // batch(DTO相同=${samed_count.value},gid在表中=${existed_list.length},all=${values.length}),
+          `DTOSame=${_global_dto_same_count},Update=(change=${_global_update_change_count}/query=${_global_update_count}/arr_len=${_global_update_arr_len_count}),Insert=(query=${_global_insert_count},arr_len=${_global_insert_arr_len_count})`,
         );
       for (const existed of existed_list) {
-        await update_bar();
         const value = values.find((value) => get_id(value) === existed.id);
         if (value === undefined) {
           Errors.throw_and_format(
@@ -853,7 +856,8 @@ ${Deno.inspect(existed, { depth: 4 })}
         }
 
         if (value_equal_then_value_dto.result) {
-          samed_count.value += 1;
+          // samed_count.value += 1;
+          _global_dto_same_count += BigInt(1);
           continue;
         }
         if (pause_on_dbupdate) {
@@ -872,6 +876,7 @@ ${Deno.inspect(existed, { depth: 4 })}
           _global_update_count += update_result.numUpdatedRows;
           _global_update_change_count += update_result.numChangedRows ??
             BigInt(0);
+          _global_update_arr_len_count += BigInt(1);
           update_results.push(update_result);
         } catch (err2) {
           Errors.throw_and_format("update failed", { value, existed }, err2);
@@ -891,6 +896,7 @@ ${Deno.inspect(existed, { depth: 4 })}
           ? await exec_insert_result({ not_existed })
           : null;
 
+        _global_insert_arr_len_count += BigInt((insert_result ?? []).length);
         _global_insert_count += (insert_result ?? []).reduce(
           (prev, cur) => prev + (cur.numInsertedOrUpdatedRows ?? BigInt(0)),
           BigInt(0),
