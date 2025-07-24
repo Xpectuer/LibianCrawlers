@@ -80,7 +80,7 @@ function create_config() {
     markdown: {
       // options for @mdit-vue/plugin-toc
       // https://github.com/mdit-vue/mdit-vue/tree/main/packages/plugin-toc#options
-      toc: { level: [1, 2, 3] },
+      toc: { level: [1, 2, 3, 4, 5, 6] },
 
       config: (md) => {
         md.use(taskCheckbox, {
