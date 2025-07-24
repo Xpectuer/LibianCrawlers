@@ -119,22 +119,25 @@ camoufox fetch
 
 ```python
 import requests
+# [!code ++]
 
-inner_request_get = requests.get
+# [!code ++]
+inner_request_get = requests.get # [!code ++]
+# [!code ++]
 
+# [!code ++]
+def _request_get(*args, **kwargs): # [!code ++]
+    print(f'hook get : args={args} , kwargs={kwargs}') # [!code ++]
+    if kwargs.get('proxies') is None: # [!code ++]
+        kwargs['proxies'] = dict( # [!code ++]
+            http='http://localhost:7890', # [!code ++]
+            https='http://localhost:7890', # [!code ++]
+        ) # [!code ++]
+    return inner_request_get(*args, **kwargs) # [!code ++]
+# [!code ++]
 
-def _request_get(*args, **kwargs):
-    print(f'hook get : args={args} , kwargs={kwargs}')
-    if kwargs.get('proxies') is None:
-        kwargs['proxies'] = dict(
-            # Modify it to your proxies
-            http='http://localhost:7890',
-            https='http://localhost:7890',
-        )
-    return inner_request_get(*args, **kwargs)
-
-
-requests.get = _request_get
+# [!code ++]
+requests.get = _request_get # [!code ++]
 ```
 
 :::

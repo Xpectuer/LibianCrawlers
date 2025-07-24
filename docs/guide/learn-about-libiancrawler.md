@@ -1,123 +1,82 @@
-# 1-了解 LibianCrawler
+# LibianCrawler 系统概述
 
-LibianCrawler 是一套数据采集、清洗、存储、展示、二开的工具集。
+LibianCrawler 是一个集成了数据采集、处理、管理与可选用户界面的复合型系统。其设计目标是为复杂的、多来源的数据获取场景提供一套标准化、可扩展的解决方案。
 
-由于具体功能说起来太复杂，所以请放大查看下图。
+## 功能概述
 
-> 🔗 表示可以点击查看相关文档。
->
-> ㊙️ 表示这些私人代码是被排除在框架代码外的，框架不会包含隐私代码，但会提供常用工具。 
+系统的核心功能围绕着自动化数据工作流展开，具体包括以下几个方面：
 
-```mermaid
----
-config:
-  theme: redux
-  layout: dagre
----
-flowchart TD
-    A(["LibianCrawler"]) --> n1["数据采集"] & n4["数据存储"] & n5["数据清洗"] & n51["数据可视化 NocoDB"]
-    n1 --> n2["Camoufox 自动化"] & n3["Api库采集"] & n8["非结构化存储 MinIO"]
-    n4 --> n6@{ label: "<span style=\"padding-left:\">垃圾Postgres数据湖</span>" } & n8 & n49["NocoDB"] & n50["NocoDB自带或外部的数据集Postgres湖"]
-    n2 --> n6 & n23["脚本Json"] & n55["🔗 爬虫大全参考"]
-    n3 --> n6 & n55
-    n5 --> n10["TypeScript"]
-    n10 --> n32["Quicktype类型生成"] & n33["Jsonata开发（通过预转换前的数据）"] & n34["Kysely"] & n35["CleanAndMerge脚本"] & n54@{ label: "<span style=\"padding-left:\">㊙️</span>使用 TypeScript 读取 NocoDB Api 的视图，并作为 const 进行类型体操，生成强类型视图读取Api" }
-    n6 --> n26["🔗 ㊙️ 代码生成配置文件"]
-    n23 --> n24["脚本JsonSchema生成"] & n25["🔗脚本文档生成"]
-    n26 --> n28["㊙️ Postgres数据源读取函数生成"]
-    n8 --> n6
-    n28 --> n31["读取数仓数据并本地缓存"]
-    n29["Jsonata预转换"] --> n30["🔗 ㊙️ 数仓数据（预转换后）读取API代码、类型生成"]
-    n31 --> n33
-    n32 --> n28 & n30
-    n33 --> n29
-    n35 --> n36@{ label: "<span style=\"padding-left:\">启动时进行Kysely迁移，更新Postgres Schema</span>" } & n37["启动前对脚本进行 TypeScript 类型检查，以免数仓类型不符合脚本操作"]
-    n30 --> n37
-    n41["清洗后数据集"] --> n34
-    n37 --> n42["启动后对垃圾数据进行提取（㊙️ 只保留公开信息）、去重及合并、分类"]
-    n43["KyselyORM"] --> n44["KyselyORM会根据interface生成强类型定义，因此也会类型检查"]
-    n44 --> n37
-    n42 --> n45["本地缓存清洗后的数据集结果"] & n46@{ label: "<span style=\"padding-left:\">入库数据结构转换</span>以满足KyselyDAO定义" }
-    n46 --> n47["使用Kysely写入到清洗后数据集"]
-    n34 --> n48["㊙️ 数据清洗输出配置"]
-    n48 --> n36
-    n49 --> n50
-    n50 --> n41
-    n36 --> n43
-    n51 --> n49 & n52@{ label: "面向用户: 使用 NocoDB 的视图来给傻瓜用户提供<span style=\"padding-left:\">条件查询、分组、分享 等功能</span>" } & n53@{ label: "<span style=\"padding-left:\">㊙️</span>数据二开：基于NocoDB Api的代码生成和视图数据转换" }
-    n53 --> n54
-    n52 --> n54
-    n6@{ shape: rect}
-    n54@{ shape: rect}
-    n36@{ shape: rect}
-    n46@{ shape: rect}
-    n52@{ shape: rect}
-    n53@{ shape: rect}
-    style A fill:#FFFFFF
-    style n1 stroke-width:2px,stroke-dasharray: 0,fill:#FFCDD2
-    style n4 stroke-width:2px,stroke-dasharray: 0,fill:#FFE0B2,stroke:none
-    style n5 fill:#FFF9C4
-    style n51 fill:#C8E6C9
-    style n2 fill:#FFCDD2
-    style n3 fill:#FFCDD2
-    style n8 fill:#FFE0B2
-    style n6 fill:#FFE0B2
-    style n49 fill:#FFD600
-    style n50 fill:#FFD600
-    style n23 fill:#FFCDD2
-    style n55 fill:#FFCDD2
-    style n10 stroke:#424242,fill:#FFF9C4
-    style n32 fill:#FFF9C4
-    style n33 fill:#FFF9C4
-    style n34 fill:#FFF9C4
-    style n35 fill:#FFD600
-    style n54 fill:#C8E6C9
-    style n26 fill:#FFF9C4
-    style n24 fill:#FFCDD2
-    style n25 fill:#FFCDD2
-    style n28 fill:#FFF9C4
-    style n31 fill:#FFF9C4
-    style n29 fill:#FFF9C4
-    style n30 fill:#FFF9C4
-    style n36 fill:#FFD600
-    style n37 fill:#FFD600
-    style n41 fill:#FFD600
-    style n42 fill:#FFD600
-    style n43 fill:#FFD600
-    style n44 fill:#FFD600
-    style n45 fill:#FFD600
-    style n46 fill:#FFD600
-    style n47 fill:#FFD600
-    style n48 fill:#FFD600
-    style n52 fill:#C8E6C9
-    style n53 fill:#C8E6C9
-    click n55 "https://jiayezheng.tech/LibianCrawlers/develop/crawler/start-crawl.html"
-    click n26 "https://jiayezheng.tech/LibianCrawlers/develop/data_cleaner_ci/init-config.html"
-    click n25 "https://jiayezheng.tech/LibianCrawlers/develop/crawler/steps.html"
-    click n30 "https://jiayezheng.tech/LibianCrawlers/develop/data_cleaner_ci/start-code-gen.html"
+- **数据采集能力**: 系统支持两种主要的数据采集模式：
+  1. **API 直连采集**:  针对提供结构化数据接口（API）的目标源，系统能够直接发起网络请求以获取数据。
+  2. **浏览器自动化采集**: 针对需要动态渲染或用户交互的Web页面，系统利用  `Playwright` 库驱动 [Camoufox](https://camoufox.com/) 指纹浏览器，模拟用户行为进行数据抓取。
 
+- **分布式任务执行**: 系统包含一个 `worker` 组件，用于任务的调度与执行。该设计允许将数据采集任务分发至不同的执行节点，从而支持并行处理，提高了大规模数据采集的吞吐量和系统伸缩性。
 
-```
+- **声明式任务定义**: 数据采集流程（步骤、目标、参数等）被抽象为外部的 `JSON` 配置文件。这种声明式的方法将任务逻辑与执行引擎分离，使得非开发人员也能通过修改配置来调整或新增采集任务，降低了系统的使用门槛。
 
+- **数据处理流水线**: 系统包含一个独立的数据处理模块，该模块采用 `Deno` 作为 `TypeScript` 运行时环境。它负责对采集到的原始数据执行清洗、格式转换、结构化提取等操作。
 
-[//]: # (LibianCrawler 是一个模块化的数据处理框架，专为解决传统工具在 数据采集、数据清洗、数据存储、数据展示 和 数据计算 阶段中常见的工程问题而设计。通过整合一系列先进的技术和工具，LibianCrawler 能够高效地构建并输出高质量的数据集，同时支持与大语言模型（LLM）无缝对接，以实现各阶段脚本的自动化编写和优化。)
+- **用户交互界面**: 系统提供一个基于 `Vue.js` 的Web前端应用，作为 `worker` 系统的图形化管理终端。该界面用于监控任务状态、查看结果和管理节点。使用 `pywebview` 库封装为桌面应用程序，实现了Python后端与前端UI的本地集成。
 
-[//]: # ()
-[//]: # (传统工具在上述五个阶段中通常会遇到以下问题：)
+:::details 技术架构
 
-[//]: # ()
-[//]: # (- **数据采集**：抓取规则复杂、反反爬虫机制多样、分布式抓取效率低下。)
+LibianCrawler 采用多语言、多模块的微服务架构，旨在结合不同技术栈的优势，实现功能解耦和独立部署。
 
-[//]: # (- **数据清洗**：数据格式混乱、缺失值处理困难、清洗逻辑复杂且难以维护。)
+- **核心后端 (Python)**:
+  - **语言与环境**: 使用 `Python` 作为后端服务的主要开发语言。依赖管理和虚拟环境隔离通过 `Poetry` 工具实现。
+  - **核心组件**: `libiancrawlers` 包是系统的核心，包含了 `worker` 任务调度器 (`core.py`) 和执行节点 (`node.py`) 的实现。`app_util` 子模块则提供了配置加载、日志、网络请求封装等应用级支持功能。
+  - **浏览器驱动**: 通过 `playwright_util.py` 对 `Playwright` 库进行封装，为上层应用提供统一的浏览器操作接口。
 
-[//]: # (- **数据存储**：海量数据存储与管理效率低下，结构化与非结构化数据处理不统一。)
+- **数据处理服务 (TypeScript/Deno)**:
+  - **运行时**: `data_cleaner_ci` 模块选用 `Deno` 作为其 `TypeScript` 代码的运行时环境，利用其内置的安全性、工具链和对Web标准API的支持。
+  - **数据转换**: 该服务大量使用 `JSONata` 查询和转换语言。预定义的 `.jsonata` 模板用于执行复杂嵌套数据结构的提取和重塑，实现了数据转换逻辑的可视化和集中管理。
+  - **数据持久化**: `nocodbutil.ts` 和 `pg.ts` 文件表明，数据处理结果可被写入 `PostgreSQL` 数据库，并可能通过 `NocoDB` 平台进行管理和访问。
 
-[//]: # (- **数据展示**：数据可视化工具功能有限，无法满足多样化的展示需求。)
+- **前端界面 (Vue.js)**:
+  - **框架与构建**: `worker-ui` 目录是一个标准化的 `Vue.js` 3 项目，使用 `TypeScript` 进行类型约束，并采用 `Vite` 作为开发服务器和构建工具，以实现快速开发和高效打包。
+  - **组件化**: 界面遵循组件化开发模式，`auto-imports.d.ts` 和 `components.d.ts` 表明项目使用了自动导入功能以简化开发。
+  - **后端集成**: `pywebview.d.ts` 类型定义文件是关键，它为前端代码提供了与 `pywebview` 注入的Python后端通信的接口类型，这是实现桌面应用功能的桥梁。
 
-[//]: # (- **数据保护**：配置文件 和 数据结构中敏感字段 会在业务代码的版本管理中泄漏; 运行时没有权限管理。)
+:::
 
-[//]: # (- **数据计算**：计算能力受限，难以高效处理大规模数据，且与 LLM 的集成支持不足。)
+:::details 项目结构解析
 
-[//]: # ()
-[//]: # (LibianCrawler 针对这些痛点，提供了全面的解决方案。接下来，我们将详细介绍其核心模块和功能。)
+项目的目录结构反映了其模块化的设计思想，各主要目录的职责划分如下：
+
+- `libiancrawlers/`: Python 核心后端代码库。
+  - `app_util/`: 应用层工具，如 `config.py` (配置管理), `playwright_util.py` (浏览器自动化封装)。
+  - `crawlers/`: 存放具体爬虫逻辑的实现，可能按目标网站或类型分子目录。
+  - `worker/`: 分布式任务执行框架，包含 `core.py` (核心调度), `node.py` (工作节点), `ui.py` (与UI的接口)。
+
+- `data_cleaner_ci/`: TypeScript 数据处理服务代码库。
+  - `general_data_process/`: 通用数据处理脚本。
+  - `jsonata_templates/`: 存放 `.jsonata` 格式的数据转换模板。
+
+- `worker-ui/`: Vue.js 前端应用代码库。
+
+- `steps/`: 存放 `.json` 格式的预定义采集任务。每个文件（如`baidu.json`）描述了一个完整的数据采集流程。
+
+- `docs/`: 项目文档，使用 `VitePress` 静态站点生成器构建。
+
+:::
+
+## 工作流与数据流
+
+一个典型的数据处理任务在 LibianCrawler 系统中的生命周期如下：
+
+1. **任务启动**: 用户或外部系统通过 [**直接命令行启动**](../develop/crawler/start-crawl) 或 调用 `worker` 服务的接口，并可指定一个位于 `steps/` 目录下的 `JSON` 任务配置文件来启动一个爬虫。
+
+2. **任务执行**: `libiancrawlers` 接收到请求，解析 `JSON` 文件中 [**定义的步骤**](../develop/crawler/steps)，并调度相应的爬虫模块（API或浏览器）开始执行数据采集。
+
+3. **原始数据缓存**: 采集到的原始数据（如 HTML、JSON 响应）被存储于垃圾湖中，等待后续处理。
+
+4. **数据移交与清洗**: `libiancrawlers` 将原始数据移交给 `data_cleaner_ci` 服务。该服务根据预设的规则（如 `JSONata` 模板）对数据进行解析、验证、清洗和结构化。
+   
+5. **数据输出**: 清洗后的结构化数据被写入目标存储，例如 PostgreSQL 数据库。
+
+6. **状态监控**: 在整个过程中，用户可以通过 `worker-ui` 界面实时监控任务的执行状态、进度和结果。
+
+## 开发与贡献
+
+- **项目蓝图**: [**`docs/develop/roadmap.md`**](../develop/roadmap) 文件中可能包含了项目未来的发展方向和功能规划，为潜在的贡献者提供了参与的思路。
 

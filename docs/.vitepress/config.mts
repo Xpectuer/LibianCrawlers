@@ -2,8 +2,8 @@ import { type DefaultTheme, defineConfig } from "vitepress";
 /* @ts-ignore */
 import fs from "fs/promises";
 import { generateSidebar } from "vitepress-sidebar";
-import markdownItCheckbox from "markdown-it-checkbox";
 import { withMermaid } from "vitepress-plugin-mermaid";
+import taskCheckbox from "markdown-it-task-checkbox";
 
 function create_sidebar_item(): DefaultTheme.SidebarItem[] {
   /* @ts-ignore */
@@ -19,9 +19,8 @@ function create_sidebar_item(): DefaultTheme.SidebarItem[] {
   });
 }
 
-// https://vitepress.dev/reference/site-config
-export default withMermaid({
-  ...({
+function create_config() {
+  return defineConfig({
     lang: "zh-CN",
     title: "LibianCrawler Document",
     base: "/LibianCrawlers/",
@@ -84,8 +83,20 @@ export default withMermaid({
       toc: { level: [1, 2, 3] },
 
       config: (md) => {
-        md.use(markdownItCheckbox);
+        md.use(taskCheckbox, {
+          disabled: true,
+          divWrap: false,
+          divClass: "checkbox",
+          idPrefix: "cbx_",
+          ulClass: "task-list",
+          liClass: "task-list-item",
+        });
       },
     },
-  }),
+  });
+}
+
+// https://vitepress.dev/reference/site-config
+export default withMermaid({
+  ...create_config(),
 });
