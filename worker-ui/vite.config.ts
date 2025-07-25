@@ -28,5 +28,6 @@ export default defineConfig({
     port: 7007,
     strictPort: true,
     open: process.platform === "win32",
+    allowedHosts: ["http://localhost:7008"],
   },
 });

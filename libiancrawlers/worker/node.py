@@ -1,23 +1,17 @@
 # -*- coding: UTF-8 -*-
+import async_to_sync
+from loguru import logger
 
 
-import base64
-import os
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+def encrypt_identity_data(pwd: bytes, data: bytes):
+    return bytes(a ^ b for a, b in zip(pwd, data))
 
 
-def _get_fernet(*, password: bytes, salt: bytes):
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=1_200_000,
-    )
-    key = base64.urlsafe_b64encode(kdf.derive(password))
-    return Fernet(key)
+async def generate_new_identity(pri_key_password: str):
+    logger.debug('Start generated new identity')
 
+
+generate_new_identity_sync = async_to_sync.function(generate_new_identity)
 
 if __name__ == '__main__':
     pass

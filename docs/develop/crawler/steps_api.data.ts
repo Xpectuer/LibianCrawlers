@@ -1,6 +1,3 @@
-import fs from "node:fs/promises";
-import { json } from "node:stream/consumers";
-
 export default {
   watch: ["./step_api_mates.json"],
   async load(watchedFiles: string[]) {

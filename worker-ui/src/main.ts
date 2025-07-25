@@ -11,7 +11,7 @@ app.use(router);
 
 function check_or_init_app_context(
   resolve: () => void,
-  reject: (err: unknown) => void
+  reject: (err: unknown) => void,
 ) {
   console.debug("Start check or init app context");
   let init_started = false;
@@ -27,7 +27,7 @@ function check_or_init_app_context(
   setTimeout(() => {
     if (!is_desktop_pywebview) {
       console.info(
-        "pywebviewready not callback , it sames like browser context"
+        "pywebviewready not callback , it sames like browser context",
       );
     }
     try_init();
@@ -57,6 +57,11 @@ function check_or_init_app_context(
             },
             window_hide: async () => {
               console.debug("ignore window hide");
+            },
+            generate_new_identity: async (pri_key_password) => {
+              console.debug("ignore generate new identity", {
+                pri_key_password,
+              });
             },
           },
         };
