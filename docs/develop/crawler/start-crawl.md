@@ -1,10 +1,20 @@
 # 3-启动爬虫
 
-## 爬虫功能模块完成进度
+[[toc]]
 
-以下是爬虫模块完成进度表。
+## 开发须知
 
-常用选项:
+::: danger
+请务必阅读 [**《数据爬虫的罪与罚》**](./crawler-and-criminal-law.md) 以了解法律风险。
+
+如果你的爬虫违反了上文中的 [**禁区**](./crawler-and-criminal-law.md#禁区)，请勿 PR 到此仓库，我也不会给你提供任何工具。
+
+请务必参考 [**禁区**](./crawler-and-criminal-law.md#禁区) 了解 *DOM树的仓库* 。
+:::
+
+## 命令行启动参数文档
+
+### 常用选项
 
 `--help` 可以展示帮助。
 
@@ -26,11 +36,9 @@
 
 ## 命令行启动命令示例
 
-[[toc]]
-
 ### 购物网站
 
-#### 淘宝搜索
+#### 淘宝搜索 <Badge type="tip" text="playwright" />
 
 | 内容        | 爬取   | 清洗   |
 |-----------|------|------|
@@ -42,7 +50,7 @@
 poetry run smart-crawl --debug --url https://www.taobao.com/ --locale zh-CN --dump_page_ignore_names=svg --steps "jsonfile:steps/taobao-search.json?q=羽绒服" --mode save_file
 ```
 
-#### 拼多多(mobile.yangkeduo.com)搜索
+#### 拼多多(mobile.yangkeduo.com)搜索 <Badge type="tip" text="playwright" />
 
 | 内容        | 爬取   | 清洗   |
 |-----------|------|------|
@@ -56,7 +64,7 @@ poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-C
 
 ### 社交媒体
 
-#### 小红书搜索
+#### 小红书搜索 <Badge type="tip" text="playwright" />
 
 | 内容        | 爬取   | 清洗   |
 |-----------|------|------|
@@ -70,7 +78,7 @@ poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --d
 
 ### 搜索引擎
 
-#### 百度
+#### 百度 <Badge type="tip" text="playwright" />
 
 | 内容        | 爬取   | 清洗   |
 |-----------|------|------|
@@ -83,7 +91,7 @@ poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --dump_pa
 
 ### 学术相关
 
-#### 知网搜索
+#### 知网搜索 <Badge type="tip" text="playwright" />
 
 | 内容        | 爬取 | 清洗   |
 |-----------|----|------|
@@ -95,7 +103,7 @@ poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --dump_pa
 poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/cnki-search.json?q=肺动脉高压" --mode save_file
 ```
 
-#### Entrez 库搜索（PubMed）
+#### Entrez 库搜索（PubMed） <Badge type="tip" text="api" />
 
 | 内容   | api 请求 | 清洗 |
 |------|--------|----|
@@ -107,7 +115,7 @@ poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hype
 
 #### Embase 
 
-##### 批量下载搜索结果
+##### 批量下载搜索结果 <Badge type="tip" text="playwright" />
 
 | 内容            | 下载导出的csv | 读取csv并入库 | 清洗 |
 |---------------|----------|----------|----|
@@ -117,13 +125,13 @@ poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hype
 poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/embase-search.json" --mode save_file
 ```
 
-##### 根据 url 列表下载
+##### 根据 url 列表下载 <Badge type="tip" text="api" />
 
 ```shell
 poetry run api-crawl-pubmed-fetch-ids --data "lines_file/.data/pubmed_ids.txt"  --mode save_file
 ```
 
-#### wos-journal 期刊信息查询
+#### wos-journal 期刊信息查询 <Badge type="tip" text="playwright" />
 
 | 内容   | 爬取 | 清洗 |
 |------|----|----|
@@ -136,7 +144,7 @@ poetry run api-crawl-pubmed-fetch-ids --data "lines_file/.data/pubmed_ids.txt"  
 poetry run smart-crawl-urls --keys "jsonfile:data_cleaner_ci/user_code/journals_need_search/issn.json" --key2url_jsfunc "function(k){return 'https://wos-journal.info/?jsearch='+k.split(' ').join('+')}" --locale zh-CN --mode save_file
 ```
 
-#### 维普搜索
+#### 维普搜索 <Badge type="tip" text="playwright" />
 
 | 内容   | 爬取 | 清洗 |
 |------|----|----|
@@ -146,7 +154,7 @@ poetry run smart-crawl-urls --keys "jsonfile:data_cleaner_ci/user_code/journals_
 poetry run smart-crawl --debug --url "https://www.cqvip.com/search?k=肺动脉高压" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/cqvip-search.json" --mode save_file
 ```
 
-#### 万方搜索
+#### 万方搜索 <Badge type="tip" text="playwright" />
 
 | 内容   | 爬取 | 清洗 |
 |------|----|----|
@@ -159,7 +167,7 @@ poetry run smart-crawl --debug --url "https://s.wanfangdata.com.cn/paper?q=肺�
 
 #### WebOfScience
 
-##### 批量下载搜索结果
+##### 批量下载搜索结果 <Badge type="tip" text="playwright" />
 
 | 内容          | 下载 | 清洗 |
 |-------------|----|----|
@@ -169,13 +177,13 @@ poetry run smart-crawl --debug --url "https://s.wanfangdata.com.cn/paper?q=肺�
 poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/webofscience-download.json" --mode save_file
 ```
 
-##### 根据 url 列表下载
+##### 根据 url 列表下载 <Badge type="tip" text="playwright" />
 
 ```shell
 poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/webofscience-download-paths.json?urls=read_from/lines_file/.data/wosurls.txt" --mode save_file
 ```
 
-#### github.com/suqingdong/impactfactor 库搜索文献
+#### github.com/suqingdong/impactfactor 库搜索文献 <Badge type="tip" text="api" />
 
 > https://github.com/suqingdong/impact_factor
 
@@ -186,7 +194,7 @@ poetry run api-crawl-impactfactor-search --keywords "nature" --mode save_file
 
 ### 新闻媒体
 
-#### Washington Post 搜索
+#### Washington Post 搜索 <Badge type="tip" text="playwright" />
 
 > 用到的绕过付费限制插件：
 >
@@ -200,7 +208,7 @@ poetry run api-crawl-impactfactor-search --keywords "nature" --mode save_file
 poetry run smart-crawl --debug --url "https://www.washingtonpost.com/search/?query=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find=article --steps "jsonfile:steps/washington-post-search.json" --addons_root_dir=".data/bypass_paywalls_clean" --mode save_file
 ```
 
-#### 路透社 搜索
+#### 路透社 搜索 <Badge type="tip" text="playwright" />
 
 > 用到的绕过付费限制插件：
 >
@@ -214,7 +222,7 @@ poetry run smart-crawl --debug --url "https://www.washingtonpost.com/search/?que
 poetry run smart-crawl --debug --url "https://www.reuters.com/site-search/?query=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find=article --steps "jsonfile:steps/reuters-search.json" --addons_root_dir=".data/bypass_paywalls_clean" --mode save_file
 ```
 
-#### 美联社 搜索
+#### 美联社 搜索 <Badge type="tip" text="playwright" />
 
 | 内容   | meta 爬取 | 清洗 |
 |------|---------|----|
@@ -226,7 +234,7 @@ poetry run smart-crawl --debug --url "https://apnews.com/search?q=trump" --local
 
 ### 其他
 
-#### 千牛网页端聊天记录导出
+#### 千牛网页端聊天记录导出 <Badge type="tip" text="playwright" />
 
 | 内容   | 爬取 | 清洗 |
 |------|----|----|

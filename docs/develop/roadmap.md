@@ -3,7 +3,7 @@
 以下是详细的项目功能及进度。
 
 :::info
-- [**爬虫功能模块完成进度**](./crawler/start-crawl.md#爬虫功能模块完成进度)
+- [**爬虫功能模块完成进度**](./crawler/start-crawl.md)
 :::
 
 ## 爬虫核心 (Crawler Core)

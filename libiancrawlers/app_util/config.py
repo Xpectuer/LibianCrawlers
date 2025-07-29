@@ -125,9 +125,17 @@ async def _read_config(*, sys_exit: Optional[SysExitExConfig] = None):
     return config
 
 
-async def read_config_get_path(*args: str, create_if_not_exist: bool = False):
+async def read_config_get_path(*args: str, create_if_not_exist: bool = False, allow_null: bool = False):
     async def get_path():
-        v: str = await read_config(*args, checking_sync=lambda it: None if isinstance(it, str) else 'Should be str')
+        v: Optional[str] = await read_config(*args,
+                                             allow_null=allow_null,
+                                             checking_sync=lambda it: None
+                                             if isinstance(it, str) or (allow_null and it is None)
+                                             else 'Should be str')
+        if v is None:
+            if not allow_null:
+                raise ValueError('Config missing')
+            return None
         p = v.replace('{{HOME}}', os.path.expanduser('~')).replace('/', os.sep)
         logger.debug('get path from config : args={} , v={} , p={}', args, v, p)
         return p
