@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+import asyncio
 import hashlib
 import os
 from typing import List
@@ -50,6 +51,12 @@ async def get_file_hash_sha1(_file_path: str, *, buf_size=65536):
         buf = await f.read(buf_size)
         sha1.update(buf)
     return sha1.hexdigest()
+
+
+async def change_file_permissions(filepath: str, mode: int):
+    """Changes file permissions asynchronously."""
+    await asyncio.to_thread(os.chmod, filepath, mode)
+    logger.debug(f"Permissions for {filepath} changed to {oct(mode)}")
 
 
 if __name__ == '__main__':

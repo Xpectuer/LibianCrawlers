@@ -59,9 +59,11 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
         // Embase 下载的 csv
         const { rows, prefix } = data;
 
-        const prefix_first_line = Arrays.first_or_null(
-          prefix.split("\n"),
-        );
+        const prefix_first_line = !Strs.is_not_blank(prefix)
+          ? null
+          : Arrays.first_or_null(
+            prefix.split("\n"),
+          );
 
         const last_crawl_time = Times.parse_text_to_instant(
           smart_crawl.g_create_time,
@@ -93,20 +95,21 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
                 }
               } else {
                 console.warn(
-                  `Why missing SEARCH QUERY header in embase csv header`,
+                  `Cannot detect search query`,
                   { prefix_first_line, g_id: smart_crawl.g_id },
                 );
-                throw new Error(
-                  `Why missing SEARCH QUERY header in embase csv header`,
-                );
-                // break;
+                from_search_context = [
+                  // {
+                  //   question: prefix_first_line,
+                  // },
+                ];
               }
             } else {
-              console.warn(
-                `Why not found embase csv header`,
-                { prefix_first_line, g_id: smart_crawl.g_id },
-              );
-              throw new Error(`Why not found embase csv header`);
+              // Errors.throw_and_format(
+              //   `Why not found embase csv header`,
+              //   { prefix_first_line, g_id: smart_crawl.g_id },
+              // );
+              from_search_context = [];
               // break;
             }
 
@@ -246,7 +249,7 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
         };
         // -------------------------------------------------------
         // PubMed 下载的 excel
-        for (const record of data.sheets.savedrecs.records) {
+        for (const record of data.sheets?.savedrecs.records ?? []) {
           const title = Streams.find_first((it) => Strs.is_not_blank(it), [
             record["Article Title"],
           ])?.item;
@@ -262,6 +265,10 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
           }) => {
             const publication_year = record["Publication Year"];
             const publication_date = record["Publication Date"];
+            if (publication_date === "WIN") {
+              // 有些文献按季节发布。这里丢了得了。
+              return "SKIP";
+            }
             return Strs.is_not_blank(publication_date)
               ? Times.parse_text_to_instant(publication_date, {
                 attach_year: [publication_year, {
@@ -277,9 +284,15 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
           const create_time = parse_publication_date({
             on_found_month_range: "use_min_month",
           });
+          if (create_time === "SKIP") {
+            continue;
+          }
           const update_time = parse_publication_date({
             on_found_month_range: "use_max_month",
           });
+          if (update_time === "SKIP") {
+            continue;
+          }
           const _author_name_list = _split(
             Strs.is_not_blank(record["Author Full Names"])
               ? record["Author Full Names"]

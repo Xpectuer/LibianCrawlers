@@ -1,7 +1,10 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
 import {
+  Arrays,
+  chain,
   DataClean,
   Errors,
+  Jsons,
   Mappings,
   Nums,
   Streams,
@@ -173,9 +176,11 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
           }
         }
         keywords = Streams.deduplicate(keywords);
-        const authors = (
-          Array.isArray(info_dict.作者)
-            ? info_dict.作者.map(({ author_infos }) => {
+        const authors = chain(() => {
+          return (Array.isArray(info_dict.作者)
+            ? info_dict.作者
+            : [info_dict.作者])
+            .map(({ author_infos }) => {
               let info_href: string | null = null;
               let nickname: string = "";
               for (
@@ -205,16 +210,12 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
                   : null,
               } as const;
             })
-            : [
-              {
-                platform_user_id:
-                  `cqvip_username___${info_dict.作者.author_infos.str}`,
-                nickname: info_dict.作者.author_infos.str,
-                avater_url: null,
-                home_link_url: null,
-              },
-            ]
-        ).filter((it) => Strs.is_not_blank(it.nickname));
+            .filter((it) => Strs.is_not_blank(it.nickname));
+        })
+          .map((arr) =>
+            Streams.deduplicate(arr, (a, b) => a.nickname === b.nickname)
+          )
+          .get_value();
         let create_time: Temporal.Instant | null = null;
         if (Strs.is_not_blank(info_dict.DOI)) {
           const _doi_split = info_dict.DOI.split(".");

@@ -101,7 +101,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
   export function find_embase_search_query_exp(
     search_query: string,
   ): string | null {
-    const res = new RegExp("'(.+)'\\/exp").exec(search_query);
+    const res = new RegExp("'(.+?)'\\/exp").exec(search_query);
     return res?.at(1) ?? null;
   }
 
@@ -564,17 +564,59 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         if (cur.literatures && cur.literatures.length >= 1) {
           literatures.push(...cur.literatures);
         }
-        literatures = literatures.filter(
-          (it) =>
-            Mappings.object_entries(it).filter((e) => {
-              const v = e[1];
-              return (
-                v !== null &&
-                v !== undefined &&
-                (typeof v !== "string" || v.length > 0)
-              );
-            }).length > 0,
-        );
+        literatures = DataClean.filter_or_merge_items(literatures, {
+          on_check_filter(item) {
+            if (
+              [item.issn, item.isbn, item.eissn, item.cnsn, item.journal].find(
+                (it) => Strs.is_not_blank(it),
+              )
+            ) {
+              return "ok";
+            } else {
+              return "filter";
+            }
+          },
+          on_check_same({ item, result_item }) {
+            const take_valid = <K extends keyof typeof item>(k: K) => {
+              let v = item[k];
+              if (
+                is_nullish(v) || typeof v === "string" && !Strs.is_not_blank(v)
+              ) {
+                v = result_item[k];
+              }
+              return v;
+            };
+            for (
+              const k of ["issn", "journal", "eissn", "isbn", "cnsn"] as const
+            ) {
+              if (
+                Strs.is_not_blank(item[k]) &&
+                Strs.is_not_blank(result_item[k]) &&
+                item[k] === result_item[k]
+              ) {
+                return {
+                  is_same: true,
+                  merge_result: {
+                    issn: take_valid("issn"),
+                    journal: take_valid("journal"),
+                    isbn: take_valid("isbn"),
+                    publication_type: take_valid("publication_type"),
+                    doi: take_valid("doi"),
+                    pui: take_valid("pui"),
+                    category: take_valid("category"),
+                    level_of_evidence: take_valid("level_of_evidence"),
+                    book_publisher: take_valid("book_publisher"),
+                    cnsn: take_valid("cnsn"),
+                    eissn: take_valid("eissn"),
+                  },
+                };
+              }
+            }
+            return {
+              is_same: false,
+            };
+          },
+        }).results;
         if (literatures.length <= 0) {
           literatures = null;
         }
@@ -891,28 +933,39 @@ ${Deno.inspect(existed, { depth: 4 })}
         );
       });
 
-      try {
-        const insert_result = not_existed.length > 0
-          ? await exec_insert_result({ not_existed })
-          : null;
+      const insert_result_list: (InsertResult[] | null)[] = [];
+      for (
+        const not_existed_slice of Streams.split_array_use_batch_size(
+          50,
+          not_existed,
+        )
+      ) {
+        try {
+          const insert_result = not_existed_slice.sliced.length > 0
+            ? await exec_insert_result({
+              not_existed: not_existed_slice.sliced,
+            })
+            : null;
+          insert_result_list.push(insert_result);
 
-        _global_insert_arr_len_count += BigInt((insert_result ?? []).length);
-        _global_insert_count += (insert_result ?? []).reduce(
-          (prev, cur) => prev + (cur.numInsertedOrUpdatedRows ?? BigInt(0)),
-          BigInt(0),
-        );
-        await update_bar();
-
-        return {
-          update_results,
-          insert_result,
-        };
-      } catch (err) {
-        Errors.throw_and_format("insert failed", {
-          update_results,
-          not_existed_length: not_existed.length,
-        }, err);
+          _global_insert_arr_len_count += BigInt((insert_result ?? []).length);
+          _global_insert_count += (insert_result ?? []).reduce(
+            (prev, cur) => prev + (cur.numInsertedOrUpdatedRows ?? BigInt(0)),
+            BigInt(0),
+          );
+          await update_bar();
+        } catch (err) {
+          Errors.throw_and_format("insert failed", {
+            update_results,
+            not_existed_length: not_existed.length,
+            not_existed_slice,
+          }, err);
+        }
       }
+      return {
+        update_results,
+        insert_result_list,
+      };
     } catch (err) {
       // if (`${err}`.includes("duplicate key value violates")) {
       //   // cause by pkey duplicate
@@ -932,7 +985,7 @@ ${Deno.inspect(existed, { depth: 4 })}
       pause_on_dbupdate: boolean;
     },
   ) => Promise<{
-    insert_result: InsertResult[] | null;
+    insert_result_list: (InsertResult[] | null)[];
     update_results: UpdateResult[];
   }>;
 

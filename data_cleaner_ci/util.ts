@@ -2403,6 +2403,48 @@ export namespace DataClean {
       Errors.throw_and_format("Why not issn", { issn, matched });
     }
   }
+
+  export function filter_or_merge_items<T>(arr: T[], opt: {
+    on_check_filter: (item: T, i: number) => "filter" | "ok";
+    on_check_same: (
+      param: { item: T; result_item: T; i: number; result_idx: number },
+    ) => {
+      is_same: false;
+    } | {
+      is_same: true;
+      merge_result: T;
+    };
+  }) {
+    const { on_check_filter, on_check_same } = opt;
+    const results: T[] = [];
+    for (let i = 0; i < arr.length; i++) {
+      const item = arr[i];
+      if (on_check_filter(item, i) === "filter") {
+        continue;
+      }
+      let has_same = false;
+      for (let result_idx = 0; result_idx < results.length; result_idx++) {
+        const result_item = results[result_idx];
+        const check_same_result = on_check_same({
+          item,
+          result_item,
+          i,
+          result_idx,
+        });
+        if (check_same_result.is_same === true) {
+          has_same = true;
+          results[result_idx] = check_same_result.merge_result;
+          break;
+        }
+      }
+      if (!has_same) {
+        results.push(item);
+      }
+    }
+    return {
+      results,
+    };
+  }
 }
 
 // deno-lint-ignore no-namespace

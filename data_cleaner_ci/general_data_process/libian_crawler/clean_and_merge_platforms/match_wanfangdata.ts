@@ -1,9 +1,31 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
-import { DataClean, Errors, Streams, Strs, Times } from "../../../util.ts";
+import {
+  chain,
+  DataClean,
+  Errors,
+  Streams,
+  Strs,
+  Times,
+} from "../../../util.ts";
 import { Literature } from "../../literature.ts";
 import { MediaContent, PlatformEnum } from "../../media.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
+
+export const get_wanfangdata_platform_duplicate_id = (param: {
+  title: string;
+  authors: {
+    nickname: string;
+  }[];
+}) => {
+  let { title, authors } = param;
+  title = title.trim();
+  return `TitleAuthors---${title}---${
+    authors
+      .map((it) => it.nickname)
+      .join(";")
+  }`;
+};
 
 export const match_wanfangdata: LibianCrawlerGarbageCleaner<
   | MediaContent
@@ -69,16 +91,46 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
         }
         let keywords: string[] = details.关键词 ?? [];
         keywords = Streams.deduplicate(keywords);
-        const authors =
-          (!author ? [] : Array.isArray(author) ? author : [author])
+        const authors = chain(() => {
+          return (!author ? [] : Array.isArray(author) ? author : [author])
             .filter((it) => Strs.is_not_blank(it.name)).map((it) => {
+              let nickname = it.name;
+              let break_loop = false;
+              while (!break_loop) {
+                break_loop = true;
+                nickname = nickname.trim();
+                for (
+                  const num of [
+                    "0",
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9",
+                  ]
+                ) {
+                  if (Strs.endswith(nickname, num)) {
+                    nickname = Strs.remove_suffix_recursion(nickname, num);
+                    break_loop = false;
+                  }
+                }
+              }
               return {
-                platform_user_id: `wanfangdata_username___${it.name}`,
-                nickname: it.name,
+                platform_user_id: `wanfangdata_username___${nickname}`,
+                nickname,
                 avater_url: null,
                 home_link_url: null,
               };
-            });
+            }).filter((it) => Strs.is_not_blank(it.nickname));
+        })
+          .map((arr) =>
+            Streams.deduplicate(arr, (a, b) => a.nickname === b.nickname)
+          )
+          .get_value();
         const create_time: Temporal.Instant | null = details["论文发表日期"]
           ? Times.parse_text_to_instant(details["论文发表日期"])
           : null;
@@ -93,11 +145,10 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
           content_link_url,
           authors,
           platform: PlatformEnum.万方,
-          platform_duplicate_id: `TitleAuthors---${title}---${
-            authors
-              .map((it) => it.nickname)
-              .join(";")
-          }`,
+          platform_duplicate_id: get_wanfangdata_platform_duplicate_id({
+            title,
+            authors,
+          }),
           count_read: null,
           count_like: null,
           from_search_context: !search_keyword ? [] : [

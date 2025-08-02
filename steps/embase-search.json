@@ -172,22 +172,22 @@
                   }
                 },
                 {
-                  "fn": "sleep",
-                  "args": [
-                    1000
-                  ]
-                },
-                {
-                  "fn": "switch_page",
-                  "args": [
-                    -1
-                  ]
-                },
-                {
                   "fn": "expect_download",
                   "kwargs": {
                     "timeout": 600000,
                     "run_steps": [
+                      {
+                        "fn": "sleep",
+                        "args": [
+                          5000
+                        ]
+                      },
+                      {
+                        "fn": "switch_page",
+                        "args": [
+                          -1
+                        ]
+                      },
                       {
                         "fn": "page_click",
                         "args": [

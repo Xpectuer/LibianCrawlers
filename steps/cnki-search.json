@@ -84,6 +84,25 @@
                 "close_new_page": true,
                 "on_new_page": [
                   {
+                    "fn": "page_wait_for_selector_in_any_frame",
+                    "args": [
+                      ".verify_wrap"
+                    ],
+                    "kwargs": {
+                      "timeout": 1000
+                    },
+                    "on_timeout_steps": "continue",
+                    "on_success_steps": [
+                      {
+                        "fn": "gui_confirm",
+                        "kwargs": {
+                          "title": "Pause",
+                          "message": "请手动处理异常验证码"
+                        }
+                      }
+                    ]
+                  },
+                  {
                     "fn": "page_click",
                     "description": "跳转到期刊页面",
                     "args": [

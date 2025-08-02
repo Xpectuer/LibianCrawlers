@@ -15,6 +15,7 @@ import {
   PlatformEnum,
 } from "../../media.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
+import { get_wanfangdata_platform_duplicate_id } from "./match_wanfangdata.ts";
 import { parse_metainfo } from "./util.ts";
 
 export const match_metainfo: LibianCrawlerGarbageCleaner<
@@ -40,10 +41,15 @@ export const match_metainfo: LibianCrawlerGarbageCleaner<
       content_link_url,
       create_time,
       update_time,
-      authors,
       video_url,
     } = metainfo_parsed;
-
+    let {
+      authors,
+    } = metainfo_parsed;
+    authors = Streams.deduplicate(
+      authors.filter((it) => Strs.is_not_blank(it.nickname)),
+      (a, b) => a.nickname === b.nickname,
+    );
     if (
       !og_title || !content_link_url || (!og_description && !html2markdown) ||
       !og_site_name || (!create_time && !update_time)
@@ -91,6 +97,7 @@ export const match_metainfo: LibianCrawlerGarbageCleaner<
     if (search_key === null && Strs.is_not_blank(g_search_key)) {
       search_key = g_search_key;
     }
+    const title = og_title;
     let platform: PlatformEnum;
     let platform_duplicate_id: string =
       `OgSiteName_${og_site_name}___${content_link_url}`;
@@ -103,6 +110,10 @@ export const match_metainfo: LibianCrawlerGarbageCleaner<
         break;
       case "万方数据知识服务平台":
         platform = PlatformEnum.万方;
+        platform_duplicate_id = get_wanfangdata_platform_duplicate_id({
+          title,
+          authors,
+        });
         break;
       case "Reuters":
         platform = PlatformEnum.Reuters;
@@ -115,7 +126,7 @@ export const match_metainfo: LibianCrawlerGarbageCleaner<
     }
     const res: MediaContent = {
       last_crawl_time: Times.parse_text_to_instant(garbage.obj.g_create_time),
-      title: og_title,
+      title,
       content_text_summary: og_description,
       content_text_detail,
       content_link_url,

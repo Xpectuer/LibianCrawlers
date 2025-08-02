@@ -35,12 +35,10 @@ class JsApi:
     def window_show(self):
         webview_variables_ref['window'].show()
 
-    def generate_new_identity(self, aes_password: str):
-        from libiancrawlers.worker.node import generate_new_identity_sync
+    def generate_new_identity(self, password: str):
+        from libiancrawlers.worker.node.identity import generate_new_identity_sync
 
-
-
-        return generate_new_identity_sync(aes_password)
+        return generate_new_identity_sync(password)
 
 
 def _backend_thread(pass_args: dict):

@@ -59,7 +59,7 @@ poetry run smart-crawl --debug --url https://www.taobao.com/ --locale zh-CN --du
 | 商品详情评论区   | todo | todo |
 
 ```shell
-poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-CN --dump_page_ignore_names=svg --steps "jsonfile:steps/yangkeduo-mobile-search.json?q=羽绒服" --mode save_file
+poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-CN --dump_page_ignore_names=svg --steps "jsonfile:steps/yangkeduo-mobile-search.json?q=羽绒服" --browser_data_dir_id login_pdd --mode save_file
 ```
 
 ### 社交媒体
@@ -73,7 +73,7 @@ poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-C
 | 评论区       | todo | todo |
 
 ```shell
-poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/xiaohongshu-search.json?q=丸子头" --mode save_file
+poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/xiaohongshu-search.json?q=丸子头" --browser_data_dir_id login_xhs --mode save_file
 ```
 
 ### 搜索引擎
@@ -86,7 +86,7 @@ poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --d
 | 搜索结果的网站详情 | todo | todo |
 
 ```shell
-poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/baidu.json?q=吹风机" --mode save_file
+poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/baidu.json?q=吹风机" --browser_data_dir_id no_trace_baidu --mode save_file
 ```
 
 ### 学术相关
@@ -103,7 +103,9 @@ poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --dump_pa
 poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/cnki-search.json?q=肺动脉高压" --mode save_file
 ```
 
-#### Entrez 库搜索（PubMed） <Badge type="tip" text="api" />
+#### PubMed
+
+##### Entrez 库搜索 <Badge type="tip" text="api" />
 
 | 内容   | api 请求 | 清洗 |
 |------|--------|----|
@@ -113,7 +115,13 @@ poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --dump_pag
 poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hypertension" --mode save_file
 ```
 
-#### Embase 
+##### 根据 url 列表下载 <Badge type="tip" text="api" />
+
+```shell
+poetry run api-crawl-pubmed-fetch-ids --data "lines_file/.data/pubmed_ids.txt"  --mode save_file
+```
+
+#### Embase
 
 ##### 批量下载搜索结果 <Badge type="tip" text="playwright" />
 
@@ -123,12 +131,6 @@ poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hype
 
 ```shell
 poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/embase-search.json" --mode save_file
-```
-
-##### 根据 url 列表下载 <Badge type="tip" text="api" />
-
-```shell
-poetry run api-crawl-pubmed-fetch-ids --data "lines_file/.data/pubmed_ids.txt"  --mode save_file
 ```
 
 #### wos-journal 期刊信息查询 <Badge type="tip" text="playwright" />
@@ -191,7 +193,6 @@ poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以
 poetry run api-crawl-impactfactor-search --keywords "nature" --mode save_file
 ```
 
-
 ### 新闻媒体
 
 #### Washington Post 搜索 <Badge type="tip" text="playwright" />
@@ -243,6 +244,6 @@ poetry run smart-crawl --debug --url "https://apnews.com/search?q=trump" --local
 参数 `start` 可以传入 `now` 或 `2025-5-25` 这种日期格式。
 
 ```shell
-poetry run smart-crawl --debug --url https://qn.taobao.com/home.htm/app-customer-service/toolpage/Message --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/qianniu-message-export.json?start=now&step=-1" --mode save_file
+poetry run smart-crawl --debug --url https://qn.taobao.com/home.htm/app-customer-service/toolpage/Message --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/qianniu-message-export.json?start=now&step=-1" --browser_data_dir_id login_qianniu --mode save_file
 ```
 
