@@ -148,7 +148,7 @@ export type MediaContent = {
   /**
    * 语言
    */
-  language: string | null;
+  language: string | string[] | null;
 };
 
 export type LiteratureAbout = {
@@ -163,6 +163,7 @@ export type LiteratureAbout = {
   book_publisher: string | null;
   cnsn: string | null;
   eissn: string | null;
+  issn_list: DataClean.ISSN[] | null;
   // album: string | null;
   // theme: string | null;
   // funds: string[] | null;

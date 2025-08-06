@@ -20,4 +20,5 @@ export interface Literature {
   count_citations_total: number | null;
   impact_factor_latest: number | null;
   eissn: string | null;
+  issn_list: null | DataClean.ISSN[];
 }

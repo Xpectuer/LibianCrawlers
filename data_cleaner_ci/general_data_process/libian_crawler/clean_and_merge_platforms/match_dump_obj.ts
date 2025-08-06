@@ -149,6 +149,10 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
             if (Strs.startswith(summary, "Brief Summary")) {
               summary = Strs.remove_prefix(summary, "Brief Summary");
             }
+            const publication_type =
+              DataClean.has_information(row["Publication Type"])
+                ? row["Publication Type"]
+                : null;
             const res: MediaContent = {
               last_crawl_time,
               title: row.Title,
@@ -175,7 +179,7 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
               authors: [
                 ...(
                   row["Author Names"].split(",").filter((it) =>
-                    Strs.is_not_blank(it)
+                    DataClean.has_information(it)
                   )
                     .map((it) => ({
                       nickname: it,
@@ -212,22 +216,22 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
                 {
                   journal: null,
                   issn: DataClean.find_issn(row.ISSN),
-                  isbn: Strs.is_not_blank(row.ISBN) ? row.ISBN : null,
-                  publication_type: Strs.is_not_blank(row["Publication Type"])
-                    ? row["Publication Type"]
-                    : null,
-                  doi: Strs.is_not_blank(row.DOI) ? row.DOI : null,
-                  pui: Strs.is_not_blank(row.PUI) ? row.PUI : null,
-                  category: null,
+                  isbn: DataClean.has_information(row.ISBN) ? row.ISBN : null,
+                  publication_type,
+                  doi: DataClean.has_information(row.DOI) ? row.DOI : null,
+                  pui: DataClean.has_information(row.PUI) ? row.PUI : null,
+                  category: publication_type,
                   level_of_evidence: null,
                   book_publisher: null,
                   cnsn: null,
                   eissn: null,
+                  issn_list: null,
                 },
               ],
-              language: Strs.is_not_blank(row["Article Language"])
-                ? row["Article Language"]
-                : row["Summary Language"],
+              language: DataClean.find_languages(
+                row["Article Language"],
+                row["Summary Language"],
+              ),
             };
             yield res;
           } else {
@@ -244,15 +248,18 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
           return Strs.is_not_blank(text)
             ? text.split(";")
               .map((it) => it.trim())
-              .filter((it) => Strs.is_not_blank(it))
+              .filter((it) => DataClean.has_information(it))
             : [];
         };
         // -------------------------------------------------------
         // PubMed 下载的 excel
         for (const record of data.sheets?.savedrecs.records ?? []) {
-          const title = Streams.find_first((it) => Strs.is_not_blank(it), [
-            record["Article Title"],
-          ])?.item;
+          const title = Streams.find_first(
+            (it) => DataClean.has_information(it),
+            [
+              record["Article Title"],
+            ],
+          )?.item;
           const issn_str = record["ISSN"];
           const issn = Strs.is_not_blank(issn_str)
             ? DataClean.find_issn(issn_str)
@@ -269,7 +276,7 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
               // 有些文献按季节发布。这里丢了得了。
               return "SKIP";
             }
-            return Strs.is_not_blank(publication_date)
+            return DataClean.has_information(publication_date)
               ? Times.parse_text_to_instant(publication_date, {
                 attach_year: [publication_year, {
                   on_exist: "raise_on_not_match",
@@ -294,7 +301,7 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
             continue;
           }
           const _author_name_list = _split(
-            Strs.is_not_blank(record["Author Full Names"])
+            DataClean.has_information(record["Author Full Names"])
               ? record["Author Full Names"]
               : record["Authors"],
           );
@@ -364,6 +371,7 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
                 category: record["WoS Categories"],
                 level_of_evidence: null,
                 book_publisher: record["Publisher"],
+                issn_list: null,
               },
             ],
             language: record["Language"],

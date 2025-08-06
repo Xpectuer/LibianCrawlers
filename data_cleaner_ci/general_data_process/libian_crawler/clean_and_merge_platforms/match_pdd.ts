@@ -106,7 +106,7 @@ export const match_pdd_h5_yangkeduo: LibianCrawlerGarbageCleaner<
             label: "sideCarLabels" in sku
               ? sku.sideCarLabels
                 ?.map((it) => it.text)
-                .filter((it) => Strs.is_not_blank(it))
+                .filter((it) => DataClean.has_information(it))
                 .join(";") ?? ""
               : "",
           };

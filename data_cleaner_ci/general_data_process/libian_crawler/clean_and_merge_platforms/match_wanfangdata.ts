@@ -55,7 +55,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
         wanfangdata.periodical &&
         "title" in wanfangdata.periodical &&
         typeof wanfangdata.periodical.title === "string" &&
-        Strs.is_not_blank(wanfangdata.periodical.title) &&
+        DataClean.has_information(wanfangdata.periodical.title) &&
         "details" in wanfangdata.periodical &&
         typeof wanfangdata.periodical.details === "object"
       ) {
@@ -66,7 +66,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
             ?.url
             .url
           : null;
-        if (!Strs.is_not_blank(url)) {
+        if (!DataClean.has_information(url)) {
           Errors.throw_and_format("why url empty", { g_id, url });
         }
         const content_link_url = DataClean.url_use_https_noempty(url);
@@ -93,7 +93,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
         keywords = Streams.deduplicate(keywords);
         const authors = chain(() => {
           return (!author ? [] : Array.isArray(author) ? author : [author])
-            .filter((it) => Strs.is_not_blank(it.name)).map((it) => {
+            .filter((it) => DataClean.has_information(it.name)).map((it) => {
               let nickname = it.name;
               let break_loop = false;
               while (!break_loop) {
@@ -125,7 +125,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
                 avater_url: null,
                 home_link_url: null,
               };
-            }).filter((it) => Strs.is_not_blank(it.nickname));
+            }).filter((it) => DataClean.has_information(it.nickname));
         })
           .map((arr) =>
             Streams.deduplicate(arr, (a, b) => a.nickname === b.nickname)
@@ -174,7 +174,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
           videos: null,
           literatures: [
             {
-              journal: Strs.is_not_blank(journal) ? journal : null,
+              journal: DataClean.has_information(journal) ? journal : null,
               doi: null,
               category: null,
               level_of_evidence: null,
@@ -187,6 +187,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
               book_publisher: null,
               cnsn: null,
               eissn: null,
+              issn_list: null,
             },
           ],
           language: null,
@@ -200,7 +201,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
         wanfangdata.perio &&
         "title" in wanfangdata.perio &&
         typeof wanfangdata.perio.title === "string" &&
-        Strs.is_not_blank(wanfangdata.perio.title) &&
+        DataClean.has_information(wanfangdata.perio.title) &&
         "details" in wanfangdata.perio &&
         typeof wanfangdata.perio.details === "object"
       ) {
@@ -220,7 +221,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
               .get_literature_duplicated_id({ issn }),
             crawl_from_platform: PlatformEnum.万方,
             title,
-            languages: details["语种"] ? [details["语种"]] : [],
+            languages: DataClean.find_languages(details["语种"]),
             create_year: null,
             international_standard_serial_number: issn,
             international_standard_book_number: null,
@@ -239,6 +240,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
               : null,
             impact_factor_latest,
             eissn: null,
+            issn_list: null,
           };
           yield {
             __mode__: "literature" as const,

@@ -12,6 +12,8 @@ import Migration20250522164600 from "./20250522164600.ts";
 import Migration20250614185400 from "./20250614185400.ts";
 import Migration20250614192800 from "./20250614192800.ts";
 import Migration20250616190500 from "./20250616190500.ts";
+import Migration20250805150500 from "./20250805150500.ts";
+import Migration20250805150700 from "./20250805150700.ts";
 
 import { Mappings } from "../../../util.ts";
 
@@ -31,5 +33,7 @@ export const migrations = Mappings.object_from_entries(
     Migration20250614185400,
     Migration20250614192800,
     Migration20250616190500,
+    Migration20250805150500,
+    Migration20250805150700,
   ].map((it) => [it.version, it] as const),
 );

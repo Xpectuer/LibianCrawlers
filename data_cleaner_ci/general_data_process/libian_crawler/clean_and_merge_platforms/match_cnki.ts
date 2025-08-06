@@ -118,7 +118,7 @@ export const match_cnki: LibianCrawlerGarbageCleaner<
                 ".",
               ).trim()
               : null,
-            doi: "doi" in cnki && Strs.is_not_blank(cnki.doi)
+            doi: "doi" in cnki && DataClean.has_information(cnki.doi)
               ? cnki.doi.trim()
               : null,
             category: null,
@@ -130,6 +130,7 @@ export const match_cnki: LibianCrawlerGarbageCleaner<
             book_publisher: null,
             cnsn: null,
             eissn: null,
+            issn_list: null,
           },
         ],
         language: null,
@@ -160,7 +161,7 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
       typeof template_parse_html_tree.cnki_journal_detail.info_dict ===
         "object" &&
       "ISSN" in template_parse_html_tree.cnki_journal_detail.info_dict &&
-      Strs.is_not_blank(
+      DataClean.has_information(
         template_parse_html_tree.cnki_journal_detail.info_dict.ISSN,
       )
     ) {
@@ -168,7 +169,7 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
       const { info_dict, title } = template_parse_html_tree.cnki_journal_detail;
       const issn = DataClean.find_issn(info_dict.ISSN ?? "");
       if (
-        typeof title !== "string" || !Strs.is_not_blank(title) ||
+        typeof title !== "string" || !DataClean.has_information(title) ||
         !Strs.is_not_blank(issn)
       ) {
         console.warn("Why title or issn invalid ?", {
@@ -186,7 +187,7 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
             info_dict,
           });
         }
-        const cnsn = Strs.is_not_blank(info_dict.CN?.trim())
+        const cnsn = DataClean.has_information(info_dict.CN?.trim())
           ? info_dict.CN.trim()
           : null;
         const isbn = null;
@@ -217,7 +218,10 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
         }
         let keywords: string[] = [];
         for (
-          const kwds of [info_dict.专辑名称, info_dict.专题名称] as const
+          const kwds of [
+            info_dict.专辑名称,
+            ...("专题名称" in info_dict ? [info_dict.专题名称] : []),
+          ] as const
         ) {
           if (typeof kwds !== "string") {
             continue;
@@ -228,7 +232,7 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
               ";",
             ).split(";")
           ) {
-            if (Strs.is_not_blank(kw)) {
+            if (DataClean.has_information(kw)) {
               keywords.push(kw.trim());
             }
           }
@@ -244,13 +248,7 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
             .get_literature_duplicated_id({ issn }),
           crawl_from_platform: PlatformEnum.知网,
           title,
-          languages: [
-            ...Paragraphs.find_languages_in_text(info_dict.语种 ?? ""),
-            ...Strs.remove_prefix_suffix_recursion(
-              (info_dict.语种 ?? "").trim().replace("；", ";"),
-              ";",
-            ).split(";"),
-          ],
+          languages: DataClean.find_languages(info_dict.语种),
           create_year: chain(() =>
             info_dict.创刊时间
               ? DataClean.parse_number(
@@ -328,6 +326,7 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
           ).get_value(),
           impact_factor_latest,
           eissn: null,
+          issn_list: null,
         };
         yield {
           __mode__: "literature" as const,

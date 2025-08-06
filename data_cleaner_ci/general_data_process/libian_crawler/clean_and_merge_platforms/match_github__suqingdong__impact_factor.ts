@@ -53,6 +53,7 @@ export const match_github__suqingdong__impact_factord:
                 ? null
                 : item.factor,
             eissn: item.eissn,
+            issn_list: null,
           };
           yield {
             __mode__: "literature" as const,

@@ -33,7 +33,7 @@ SearchByKeywordResult = TypedDict('SearchByKeywordResult', {
 async def abstract_search(*,
                           mode: CrawlMode,
                           output_dir: Optional[str],
-                          keywords: Union[str, Tuple[str]],
+                          keywords: Union[int, float, str, Tuple[str]],
                           page_max: Optional[int],
                           page_size: Optional[int],
                           page_size_ignore=False,
@@ -46,6 +46,7 @@ async def abstract_search(*,
                           # on_get_content: Callable[[], None],
                           on_search_by_keyword: Callable[[SearchByKeywordContext], Awaitable[SearchByKeywordResult]],
                           on_before_retry: Callable[[int], Awaitable[bool]],
+                          set_keyword_to_g_search_key: bool = True,
                           ):
     from libiancrawlers.app_util.apicrawler_util import log_debug_which_object_maybe_very_length
 
@@ -54,6 +55,8 @@ async def abstract_search(*,
     if output_dir is None:
         output_dir = os.path.join('.data', 'apilib', filename_slugify(platform_id, allow_unicode=True), 'search')
 
+    if isinstance(keywords, int) or isinstance(keywords, float):
+        keywords = str(keywords)
     if isinstance(keywords, str):
         keywords = keywords.split(',')
 
@@ -119,7 +122,7 @@ async def abstract_search(*,
                             search_page_size=page_size,
                             search_page_max=page_max,
                         ),
-                        g_search_key=keyword,
+                        g_search_key=keyword if set_keyword_to_g_search_key else None,
                     )
                     await dump_data(
                         _output=_output,

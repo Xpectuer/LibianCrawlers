@@ -45,7 +45,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
       const g_id = smart_crawl.g_id;
       const { info_dict, title, journal } = cqvip;
       if (
-        typeof title !== "string" || !Strs.is_not_blank(title) ||
+        typeof title !== "string" || !DataClean.has_information(title) ||
         typeof info_dict !== "object" || !(
           typeof journal === "object" && "detail" in journal &&
           typeof journal.detail === "object"
@@ -69,7 +69,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
             });
           }
         }
-        const cnsn = Strs.is_not_blank(journal_detail.CN?.trim())
+        const cnsn = DataClean.has_information(journal_detail.CN?.trim())
           ? journal_detail.CN.trim()
           : null;
         const isbn = null;
@@ -100,7 +100,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
             continue;
           }
         }
-        if (issn !== null && Strs.is_not_blank(journal.title)) {
+        if (issn !== null && DataClean.has_information(journal.title)) {
           const res: Literature = {
             platform: PlatformEnum.文献,
             last_crawl_time: Times.parse_text_to_instant(
@@ -123,6 +123,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
             count_citations_total: null,
             impact_factor_latest,
             eissn: null,
+            issn_list: null,
           };
           yield {
             __mode__: "literature" as const,
@@ -134,7 +135,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
             ?.url
             .url
           : null;
-        if (!Strs.is_not_blank(url)) {
+        if (!DataClean.has_information(url)) {
           Errors.throw_and_format("why url empty", url);
         }
         const content_link_url = DataClean.url_use_https_noempty(url);
@@ -170,7 +171,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
               ";",
             ).split(";")
           ) {
-            if (Strs.is_not_blank(kw)) {
+            if (DataClean.has_information(kw)) {
               keywords.push(kw.trim());
             }
           }
@@ -188,10 +189,10 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
                   ? author_infos
                   : [author_infos])
               ) {
-                if ("href" in info && Strs.is_not_blank(info.href)) {
+                if ("href" in info && DataClean.has_information(info.href)) {
                   info_href = info.href;
                 }
-                if ("str" in info && Strs.is_not_blank(info.str)) {
+                if ("str" in info && DataClean.has_information(info.str)) {
                   if (Nums.is_int(info.str)) {
                     // ignore
                   } else {
@@ -200,24 +201,26 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
                 }
               }
               return {
-                platform_user_id: Strs.is_not_blank(info_href)
+                platform_user_id: DataClean.has_information(info_href)
                   ? `cqvip_user___${info_href.replace("/", "_")}`
                   : `cqvip_username___${nickname}`,
                 nickname,
                 avater_url: null,
-                home_link_url: Strs.is_not_blank(info_href)
-                  ? `https://www.cqvip.com${info_href}` as const
+                home_link_url: DataClean.has_information(info_href)
+                  ? `https://www.cqvip.com/${
+                    Strs.remove_prefix_recursion(info_href, "/")
+                  }` as const
                   : null,
               } as const;
             })
-            .filter((it) => Strs.is_not_blank(it.nickname));
+            .filter((it) => DataClean.has_information(it.nickname));
         })
           .map((arr) =>
             Streams.deduplicate(arr, (a, b) => a.nickname === b.nickname)
           )
           .get_value();
         let create_time: Temporal.Instant | null = null;
-        if (Strs.is_not_blank(info_dict.DOI)) {
+        if (DataClean.has_information(info_dict.DOI)) {
           const _doi_split = info_dict.DOI.split(".");
           const l = _doi_split.length;
           if (l > 3) {
@@ -293,7 +296,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
           literatures: [
             {
               journal: "title" in journal
-                ? Strs.is_not_blank(journal.title) ? journal.title : null
+                ? DataClean.has_information(journal.title) ? journal.title : null
                 : null,
               doi: info_dict.DOI ?? null,
               category: null,
@@ -305,6 +308,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
               book_publisher: null,
               cnsn,
               eissn: null,
+              issn_list: null,
             },
           ],
           language: null,

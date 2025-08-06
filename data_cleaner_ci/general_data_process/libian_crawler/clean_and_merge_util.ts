@@ -491,7 +491,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             .map((it) => to_timeline_item(it)),
         });
         const ip_location = prev?.ip_location ?? new Set();
-        if (Strs.is_not_blank(cur.ip_location)) {
+        if (DataClean.has_information(cur.ip_location)) {
           ip_location.add(cur.ip_location);
         }
         const authors:
@@ -568,7 +568,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           on_check_filter(item) {
             if (
               [item.issn, item.isbn, item.eissn, item.cnsn, item.journal].find(
-                (it) => Strs.is_not_blank(it),
+                (it) => DataClean.has_information(it),
               )
             ) {
               return "ok";
@@ -580,7 +580,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             const take_valid = <K extends keyof typeof item>(k: K) => {
               let v = item[k];
               if (
-                is_nullish(v) || typeof v === "string" && !Strs.is_not_blank(v)
+                is_nullish(v) || typeof v === "string" && !DataClean.has_information(v)
               ) {
                 v = result_item[k];
               }
@@ -590,14 +590,20 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               const k of ["issn", "journal", "eissn", "isbn", "cnsn"] as const
             ) {
               if (
-                Strs.is_not_blank(item[k]) &&
-                Strs.is_not_blank(result_item[k]) &&
+                DataClean.has_information(item[k]) &&
+                DataClean.has_information(result_item[k]) &&
                 item[k] === result_item[k]
               ) {
+                const { issn, issn_list } = DataClean.find_issn_list_and_issn(
+                  item["issn"],
+                  item["issn_list"],
+                  result_item["issn"],
+                  result_item["issn_list"],
+                );
                 return {
                   is_same: true,
                   merge_result: {
-                    issn: take_valid("issn"),
+                    issn,
                     journal: take_valid("journal"),
                     isbn: take_valid("isbn"),
                     publication_type: take_valid("publication_type"),
@@ -608,6 +614,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
                     book_publisher: take_valid("book_publisher"),
                     cnsn: take_valid("cnsn"),
                     eissn: take_valid("eissn"),
+                    issn_list,
                   },
                 };
               }
@@ -620,7 +627,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         if (literatures.length <= 0) {
           literatures = null;
         }
-        const language = prev?.language ?? cur.language;
+        const language = DataClean.find_languages(prev?.language, cur.language);
         return {
           platform: cur.platform,
           platform_duplicate_id: cur.platform_duplicate_id,
@@ -730,23 +737,23 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         const international_standard_serial_number = Arrays.first_or_null([
           prev?.international_standard_serial_number ?? null,
           cur.international_standard_serial_number,
-        ].filter((it) => Strs.is_not_blank(it)));
+        ].filter((it) => DataClean.has_information(it)));
         const international_standard_book_number = Arrays.first_or_null([
           prev?.international_standard_book_number ?? null,
           cur.international_standard_book_number,
-        ].filter((it) => Strs.is_not_blank(it)));
+        ].filter((it) => DataClean.has_information(it)));
         const china_standard_serial_number = Arrays.first_or_null([
           prev?.china_standard_serial_number ?? null,
           cur.china_standard_serial_number,
-        ].filter((it) => Strs.is_not_blank(it)));
+        ].filter((it) => DataClean.has_information(it)));
         const publication_organizer = Arrays.first_or_null([
           prev?.publication_organizer ?? null,
           cur.publication_organizer,
-        ].filter((it) => Strs.is_not_blank(it)));
+        ].filter((it) => DataClean.has_information(it)));
         const publication_place = Arrays.first_or_null([
           prev?.publication_place ?? null,
           cur.publication_place,
-        ].filter((it) => Strs.is_not_blank(it)));
+        ].filter((it) => DataClean.has_information(it)));
         const count_published_documents = Nums.take_extreme_value("max", [
           prev?.count_published_documents ?? null,
           cur.count_published_documents,
@@ -1070,6 +1077,25 @@ ${Deno.inspect(existed, { depth: 4 })}
         from_search_question_texts =
           from_search_question_texts.substring(0, 700) + "...";
       }
+
+      const languages = DataClean.find_languages(value.language).filter((it) =>
+        DataClean.has_information(it)
+      );
+      const languages_joined = languages.length <= 0
+        ? null
+        : languages.join(",");
+      const literature_issn_list = DataClean.find_issn_list_and_issn(
+        value.literatures?.flatMap((literature) => {
+          return [
+            ...(Strs.is_not_blank(literature.issn) ? [literature.issn] : []),
+            ...(literature.issn_list?.filter((it) => Strs.is_not_blank(it)) ??
+              []),
+          ];
+        }) ?? [],
+      ).issn_list;
+      const literature_issn_list_joined = literature_issn_list.length <= 0
+        ? null
+        : literature_issn_list.join(",");
       const res = {
         ...Mappings.filter_keys(value, "pick", [
           "platform",
@@ -1148,6 +1174,10 @@ ${Deno.inspect(existed, { depth: 4 })}
         literature_first_issn: literature_first?.issn ?? null,
         literature_first_isbn: literature_first?.isbn ?? null,
         literature_first_cnsn: literature_first?.cnsn ?? null,
+        languages,
+        languages_joined,
+        literature_issn_list,
+        literature_issn_list_joined,
       } satisfies Omit<
         Parameters<ReturnType<typeof db.insertInto<typeof table>>["values"]>[0],
         "id"
@@ -1242,7 +1272,7 @@ ${Deno.inspect(existed, { depth: 4 })}
         good_first_image_url: Arrays.first_or_null(
           value.good_images
             .map((it) => it.url)
-            .filter((url) => Strs.is_not_blank(url)),
+            .filter((url) => DataClean.has_information(url)),
         ),
         sku_list: value.sku_list.map((it) => {
           return {
@@ -1449,6 +1479,10 @@ ${Deno.inspect(existed, { depth: 4 })}
     const table = `libian_crawler_cleaned.literature`;
     const get_dto_for_insert_or_update = (value: (typeof values)[number]) => {
       const last_crawl_time = Times.instant_to_date(value.last_crawl_time);
+      const { issn, issn_list } = DataClean.find_issn_list_and_issn(
+        value.international_standard_serial_number,
+        value.issn_list,
+      );
       const res = {
         ...Mappings.filter_keys(value, "pick", [
           "platform",
@@ -1457,7 +1491,6 @@ ${Deno.inspect(existed, { depth: 4 })}
           "title",
           "languages",
           "create_year",
-          "international_standard_serial_number",
           "international_standard_book_number",
           "china_standard_serial_number",
           "publication_organizer",
@@ -1469,9 +1502,12 @@ ${Deno.inspect(existed, { depth: 4 })}
           "impact_factor_latest",
           "eissn",
         ]),
+        international_standard_serial_number: issn,
         last_crawl_time,
         languages_joined: (value.languages ?? []).join(","),
         keywords_joined: (value.keywords ?? []).join(","),
+        issn_list,
+        issn_list_joined: issn_list.length <= 0 ? null : issn_list.join(","),
       } satisfies Omit<
         Parameters<ReturnType<typeof db.insertInto<typeof table>>["values"]>[0],
         "id"

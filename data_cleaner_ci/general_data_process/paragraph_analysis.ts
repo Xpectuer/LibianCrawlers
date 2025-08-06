@@ -10,7 +10,7 @@ export namespace Paragraphs {
     while (Strs.startswith(tag, "#")) {
       tag = Strs.remove_prefix(tag, "#").trim();
     }
-    if (Strs.is_not_blank(tag)) {
+    if (DataClean.has_information(tag)) {
       return tag;
     } else {
       return false;
@@ -47,6 +47,12 @@ export namespace Paragraphs {
     }
     if (text.indexOf("英文") >= 0) {
       yield "English" as const;
+    }
+    for (const _word of text.split(new RegExp("[,;|&；，、]"))) {
+      const word = _word.trim();
+      if (DataClean.has_information(word)) {
+        yield word;
+      }
     }
   }
 }

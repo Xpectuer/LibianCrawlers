@@ -95,6 +95,10 @@ export interface MediaPostTable {
   literature_first_issn: string | null;
   literature_first_isbn: string | null;
   literature_first_cnsn: string | null;
+  languages: PostgresColumnType.JSON<string[]>;
+  languages_joined: string | null;
+  literature_issn_list: PostgresColumnType.JSON<string[]>;
+  literature_issn_list_joined: string | null;
 }
 
 export interface ShopGoodTable {
@@ -138,6 +142,8 @@ export interface LiteratureTable {
   count_citations_total: number | null;
   impact_factor_latest: number | null;
   eissn: string | null;
+  issn_list: PostgresColumnType.JSON<string[]>;
+  issn_list_joined: string | null;
 }
 // export interface FileStorageTable {
 //   id: string;

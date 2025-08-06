@@ -1,0 +1,22 @@
+Help for find_str_in_cache_files.ts:
+
+-----------------------------------------
+常用参数:
+
+--help
+      显示帮助。
+
+--keywords
+      要搜索的关键词列表，可用 & 或 | 符号分隔。
+
+--pause
+      每查出符合条件的数据就暂停。
+
+--count
+      指定一次性查出多少条。
+
+-----------------------------------------
+命令示例:
+
+deno run --allow-read --allow-env .\find_str_in_cache_files.ts --keywords REVIEW --pause
+

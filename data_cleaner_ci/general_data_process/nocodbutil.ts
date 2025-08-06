@@ -1,3 +1,4 @@
+import { delay } from "@std/async/delay";
 import {
   Arrays,
   DataClean,
@@ -257,6 +258,19 @@ export namespace NocoDBUtil {
     const baseurl = Strs.remove_suffix_recursion(param.baseurl, "/");
     const fetch_url = `${baseurl}${route.pth}` as const;
     const req_body = "body" in route ? Jsons.dump(route.body) : null;
+
+    let res_json: unknown = null;
+    let res_json_success: boolean = false;
+
+    const resp = await fetch(fetch_url, {
+      method: route.method,
+      headers: {
+        "xc-token": nocodb_token,
+        "content-type": "application/json;charset=utf-8",
+      },
+      body: req_body,
+    });
+
     const raise_err = (reason: string, cause?: unknown) => {
       Errors.throw_and_format(reason, {
         status: resp.status,
@@ -268,29 +282,8 @@ export namespace NocoDBUtil {
         param,
         resp,
       }, cause);
-
-      // throw new Error(
-      //   `${reason} , code is ${resp.status}, fetch url is ${fetch_url} , req body is ${
-      //     Jsons.dump(req_body)
-      //   } , ${
-      //     res_json_success
-      //       ? `response json is ${Jsons.dump(res_json)} , `
-      //       : "parse response json failed , "
-      //   }route is ${Jsons.dump(param.route)}`,
-      //   {
-      //     cause,
-      //   },
-      // );
     };
 
-    const resp = await fetch(fetch_url, {
-      method: route.method,
-      headers: {
-        "xc-token": nocodb_token,
-        "content-type": "application/json;charset=utf-8",
-      },
-      body: req_body,
-    });
     const resp_body = await resp.bytes();
     let res_text: string;
     try {
@@ -300,23 +293,19 @@ export namespace NocoDBUtil {
       raise_err(`Failed parse resp text , resp body is ${resp_body}`, err);
     }
 
-    let res_json: unknown;
-    let res_json_success: boolean;
-
-    try {
-      res_json = Jsons.load(res_text);
-      res_json_success = true;
-    } catch (err) {
-      res_json = null;
-      res_json_success = false;
-      raise_err(`Failed parse json , resp text body is ${res_text}`, err);
-    }
-
     if (resp.status !== 200) {
+      if (resp.status === 504) {
+        // 高频请求使我的 nginx 反代报错 504，这里不管了，无限重试得了。
+        console.warn("Retry on fetch nocodb resp 504:", {
+          resp,
+        });
+        await delay(3000);
+        return await _fetch_noco(param);
+      }
       if (on_status_not_200) {
         const res = await on_status_not_200(resp);
         if (res === "raise") {
-          raise_err("Failed fetch nocodb");
+          raise_err("Failed fetch nocodb on after call on_status_not_200(resp)");
         } else {
           return {
             res_json: res,
@@ -327,6 +316,16 @@ export namespace NocoDBUtil {
         raise_err("Failed fetch nocodb");
       }
     }
+
+    try {
+      res_json = Jsons.load(res_text);
+      res_json_success = true;
+    } catch (err) {
+      res_json = null;
+      res_json_success = false;
+      raise_err(`Failed parse json , resp text body is ${res_text}`, err);
+    }
+
     if (logd_fetch_noco) {
       console.debug("Success fetch nocodb", {
         route: param.route,

@@ -112,9 +112,11 @@ start-worker-core = "libiancrawlers.worker.core:cli"
 api-crawl-entrezapi-search = "libiancrawlers.crawlers.apilib.entrezapi.search:cli"
 api-crawl-impactfactor-search = "libiancrawlers.crawlers.apilib.impactfactor.search:cli"
 api-crawl-pubmed-fetch-ids = "libiancrawlers.crawlers.apilib.pubmed.fetch_ids:cli"
+api-crawl-bilibili-favorite-list = "libiancrawlers.crawlers.apilib.bilibili.favorite_list:cli"
 smart-crawl-urls = "libiancrawlers.crawlers.smart_crawl.smart_crawl_urls:cli"
 version = "libiancrawlers.app_util.print_version:cli"
 generate-steps-api-documents = "libiancrawlers.crawlers.smart_crawl.steps_api:generate_steps_api_documents"
+
 
 [[tool.poetry.source]]
 name = "tsinghua"

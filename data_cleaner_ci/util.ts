@@ -708,8 +708,7 @@ export namespace Times {
   ): AllowNull extends true ? Temporal.Instant | null : Temporal.Instant {
     // TODO: 时区问题
     if (
-      !Strs.is_not_blank(text) || text === "无" || text === "nil" ||
-      text === "null" || text === "unknown"
+      !DataClean.has_information(text)
     ) {
       if (options?.allow_null === true) {
         return null as any;
@@ -2444,6 +2443,81 @@ export namespace DataClean {
     return {
       results,
     };
+  }
+
+  export function find_issn_list_and_issn(...values: (ISSN | null | ISSN[])[]) {
+    const _issn_list_set = new Set<DataClean.ISSN>();
+    for (const value of values) {
+      if (Array.isArray(value)) {
+        for (const _issn of value) {
+          _issn_list_set.add(_issn);
+        }
+      } else if (Strs.is_not_blank(value)) {
+        _issn_list_set.add(value);
+      }
+    }
+    const issn_list = [..._issn_list_set];
+    issn_list.sort((a, b) => a.localeCompare(b));
+    return {
+      issn_list,
+      issn: issn_list.length > 0 ? issn_list[0] : null,
+    };
+  }
+
+  export function find_languages(
+    ...values: (string | string[] | null | undefined)[]
+  ) {
+    const languages_set = new Set<string>();
+    const _find = (str: string) => {
+      for (const lang of Paragraphs.find_languages_in_text(str)) {
+        if (Strs.is_not_blank(lang)) {
+          languages_set.add(lang);
+        }
+      }
+    };
+    for (const value of values) {
+      if (Array.isArray(value)) {
+        for (const value_item of value) {
+          _find(value_item);
+        }
+      } else if (Strs.is_not_blank(value)) {
+        _find(value);
+      }
+    }
+    const languages = [...languages_set];
+    languages.sort((a, b) => a.localeCompare(b));
+    return languages;
+  }
+
+  export function has_information(
+    text: string | null | undefined,
+  ): text is string {
+    if (
+      !Strs.is_not_blank(text)
+    ) {
+      return false;
+    }
+    for (
+      const invalid_str of [
+        "无",
+        "空",
+        "无效",
+        "未填写",
+        "invalid",
+        "undefined",
+        "nil",
+        "null",
+        "unknown",
+        "n/a",
+        "nan",
+        "infinity",
+      ]
+    ) {
+      if (text.toLowerCase().trim() === invalid_str.toLowerCase().trim()) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 

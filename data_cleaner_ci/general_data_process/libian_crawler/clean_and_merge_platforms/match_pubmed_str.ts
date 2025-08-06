@@ -46,19 +46,19 @@ export const match_pubmed_str: LibianCrawlerGarbageCleaner<
         return null;
       }
       line = line.replace("[doi]", "").trim();
-      return Strs.is_not_blank(line) ? line : null;
+      return DataClean.has_information(line) ? line : null;
     };
     const get_issn = () => {
       const values = pubmed_fmt.entries_multiple.find((it) => it.label === "IS")
         ?.values;
       if (typeof values === "undefined" || values.length <= 0) {
-        return null;
+        return [null, null] as const;
       }
       const issn_list = values.map((value) => {
         return DataClean.find_issn(value);
       }).filter((it) => it !== null);
       if (issn_list.length <= 0) {
-        return null;
+        return [null, null] as const;
       } else if (issn_list.length > 1) {
         for (const issn of issn_list) {
           if (issn !== issn_list[0]) {
@@ -74,12 +74,12 @@ export const match_pubmed_str: LibianCrawlerGarbageCleaner<
             //   issn_list,
             //   ncbi_fmt,
             // });
-            return issn_list[0];
+            return [issn_list[0], issn_list] as const;
           }
         }
-        return issn_list[0];
+        return [issn_list[0], issn_list] as const;
       } else {
-        return issn_list[0];
+        return [issn_list[0], issn_list] as const;
       }
     };
     const pubmed_id = find_value("PMID");
@@ -96,6 +96,8 @@ export const match_pubmed_str: LibianCrawlerGarbageCleaner<
       content_text_summary = content_text_summary.substring(0, 700) +
         "...";
     }
+    const [issn, issn_list] = get_issn();
+    const publication_type = find_value("PT");
     const res: MediaContent = {
       last_crawl_time: Times.parse_text_to_instant(g_create_time),
       title: find_value("TI") ?? "",
@@ -146,18 +148,19 @@ export const match_pubmed_str: LibianCrawlerGarbageCleaner<
         {
           journal: find_value("JT"),
           doi: get_doi(),
-          category: null,
+          category: publication_type,
           level_of_evidence: null,
-          issn: get_issn(),
+          issn,
           isbn: null,
-          publication_type: null,
+          publication_type,
           pui: null,
           book_publisher: null,
           cnsn: null,
           eissn: null,
+          issn_list,
         },
       ],
-      language: find_value("LA"),
+      language: DataClean.find_languages(find_value("LA")),
     };
     yield res;
   },
