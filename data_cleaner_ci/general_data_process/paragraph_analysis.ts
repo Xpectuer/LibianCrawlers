@@ -10,7 +10,7 @@ export namespace Paragraphs {
     while (Strs.startswith(tag, "#")) {
       tag = Strs.remove_prefix(tag, "#").trim();
     }
-    if (DataClean.has_information(tag)) {
+    if (DataClean.is_not_blank_and_valid(tag)) {
       return tag;
     } else {
       return false;
@@ -50,7 +50,7 @@ export namespace Paragraphs {
     }
     for (const _word of text.split(new RegExp("[,;|&；，、]"))) {
       const word = _word.trim();
-      if (DataClean.has_information(word)) {
+      if (DataClean.is_not_blank_and_valid(word)) {
         yield word;
       }
     }

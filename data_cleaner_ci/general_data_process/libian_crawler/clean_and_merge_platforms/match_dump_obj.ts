@@ -150,7 +150,7 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
               summary = Strs.remove_prefix(summary, "Brief Summary");
             }
             const publication_type =
-              DataClean.has_information(row["Publication Type"])
+              DataClean.is_not_blank_and_valid(row["Publication Type"])
                 ? row["Publication Type"]
                 : null;
             const res: MediaContent = {
@@ -179,7 +179,7 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
               authors: [
                 ...(
                   row["Author Names"].split(",").filter((it) =>
-                    DataClean.has_information(it)
+                    DataClean.is_not_blank_and_valid(it)
                   )
                     .map((it) => ({
                       nickname: it,
@@ -216,10 +216,10 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
                 {
                   journal: null,
                   issn: DataClean.find_issn(row.ISSN),
-                  isbn: DataClean.has_information(row.ISBN) ? row.ISBN : null,
+                  isbn: DataClean.is_not_blank_and_valid(row.ISBN) ? row.ISBN : null,
                   publication_type,
-                  doi: DataClean.has_information(row.DOI) ? row.DOI : null,
-                  pui: DataClean.has_information(row.PUI) ? row.PUI : null,
+                  doi: DataClean.is_not_blank_and_valid(row.DOI) ? row.DOI : null,
+                  pui: DataClean.is_not_blank_and_valid(row.PUI) ? row.PUI : null,
                   category: publication_type,
                   level_of_evidence: null,
                   book_publisher: null,
@@ -248,14 +248,14 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
           return Strs.is_not_blank(text)
             ? text.split(";")
               .map((it) => it.trim())
-              .filter((it) => DataClean.has_information(it))
+              .filter((it) => DataClean.is_not_blank_and_valid(it))
             : [];
         };
         // -------------------------------------------------------
         // PubMed 下载的 excel
         for (const record of data.sheets?.savedrecs.records ?? []) {
           const title = Streams.find_first(
-            (it) => DataClean.has_information(it),
+            (it) => DataClean.is_not_blank_and_valid(it),
             [
               record["Article Title"],
             ],
@@ -276,7 +276,7 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
               // 有些文献按季节发布。这里丢了得了。
               return "SKIP";
             }
-            return DataClean.has_information(publication_date)
+            return DataClean.is_not_blank_and_valid(publication_date)
               ? Times.parse_text_to_instant(publication_date, {
                 attach_year: [publication_year, {
                   on_exist: "raise_on_not_match",
@@ -301,7 +301,7 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
             continue;
           }
           const _author_name_list = _split(
-            DataClean.has_information(record["Author Full Names"])
+            DataClean.is_not_blank_and_valid(record["Author Full Names"])
               ? record["Author Full Names"]
               : record["Authors"],
           );

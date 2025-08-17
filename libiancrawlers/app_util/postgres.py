@@ -9,6 +9,7 @@ import asyncpg
 from libiancrawlers.app_util.app_init import get_app_init_conf
 from libiancrawlers.app_util.config import read_config
 from libiancrawlers.app_util.types import JSON, LibianCrawlerInitConfDisabled
+from libiancrawlers.util.coroutines import sleep
 
 _CHECKED_GARBAGE_TABLE_EXIST = False
 
@@ -111,8 +112,12 @@ async def insert_to_garbage_table(*,
         )
         logger.debug('success insert to table')
     except BaseException:
-        logger.error('Failed insert to garbage table .\n\ng_content is {}\n\ncontent is {}',
-                     g_content, content)
+        if len(content) < 50000:
+            logger.exception('Failed insert to garbage table .\n\ng_content is {}\n\ncontent is {}',
+                             g_content, content)
+        else:
+            logger.exception('Failed insert to garbage table .\n\nlen(g_content) is {}\n\nlen(content) is {}',
+                             len(g_content), len(content))
         raise
 
 

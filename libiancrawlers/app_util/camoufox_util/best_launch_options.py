@@ -4,28 +4,17 @@ import os.path
 import aiofiles.os
 from loguru import logger
 
+from libiancrawlers.app_util.networks.proxies import read_proxy_server
+
 logger.debug('camoufox import')
 
 from typing import Optional, Union, Tuple
 
+# noinspection PyUnresolvedReferences
 from camoufox.locale import get_geolocation
 
 from libiancrawlers.app_util.networks.geoutil import get_geo
 from libiancrawlers.app_util.networks.iputil import MyPublicIpInfo
-from libiancrawlers.app_util.networks.proxies import read_current_schema_proxies
-from libiancrawlers.util.dicts import find_first_value_not_null
-
-
-async def read_proxy_server():
-    read_proxies = await read_current_schema_proxies()
-    logger.debug('read proxies is {}', read_proxies)
-    if read_proxies is not None:
-        is_found_proxy, _schema, addr = find_first_value_not_null(
-            read_proxies,
-            keys=['https', 'http'])
-        if is_found_proxy:
-            return addr
-    return None
 
 
 async def get_best_launch_options(

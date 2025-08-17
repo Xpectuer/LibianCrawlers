@@ -22,7 +22,6 @@ async def parse_json_or_read_file_json_like(t: JSON) -> JSON:
         # old api
         t = t[len('jsonfile:'):]
         t = 'jsonfile/' + t
-        logger.warning('please modify "jsonfile:" to "jsonfile/" , t is {} , _old_t is {}', t, _old_t)
     if t.startswith('jsonfile/'):
         try:
             t = t[len('jsonfile/'):]

@@ -46,7 +46,7 @@ export const match_pubmed_str: LibianCrawlerGarbageCleaner<
         return null;
       }
       line = line.replace("[doi]", "").trim();
-      return DataClean.has_information(line) ? line : null;
+      return DataClean.is_not_blank_and_valid(line) ? line : null;
     };
     const get_issn = () => {
       const values = pubmed_fmt.entries_multiple.find((it) => it.label === "IS")

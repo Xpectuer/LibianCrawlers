@@ -151,7 +151,7 @@
             {
               "fn": "page_scroll_down",
               "kwargs": {
-                "max_height": 20000
+                "max_height": 3000
               }
             }
           ],

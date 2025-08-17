@@ -118,7 +118,7 @@ export const match_cnki: LibianCrawlerGarbageCleaner<
                 ".",
               ).trim()
               : null,
-            doi: "doi" in cnki && DataClean.has_information(cnki.doi)
+            doi: "doi" in cnki && DataClean.is_not_blank_and_valid(cnki.doi)
               ? cnki.doi.trim()
               : null,
             category: null,
@@ -161,7 +161,7 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
       typeof template_parse_html_tree.cnki_journal_detail.info_dict ===
         "object" &&
       "ISSN" in template_parse_html_tree.cnki_journal_detail.info_dict &&
-      DataClean.has_information(
+      DataClean.is_not_blank_and_valid(
         template_parse_html_tree.cnki_journal_detail.info_dict.ISSN,
       )
     ) {
@@ -169,7 +169,7 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
       const { info_dict, title } = template_parse_html_tree.cnki_journal_detail;
       const issn = DataClean.find_issn(info_dict.ISSN ?? "");
       if (
-        typeof title !== "string" || !DataClean.has_information(title) ||
+        typeof title !== "string" || !DataClean.is_not_blank_and_valid(title) ||
         !Strs.is_not_blank(issn)
       ) {
         console.warn("Why title or issn invalid ?", {
@@ -187,7 +187,7 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
             info_dict,
           });
         }
-        const cnsn = DataClean.has_information(info_dict.CN?.trim())
+        const cnsn = DataClean.is_not_blank_and_valid(info_dict.CN?.trim())
           ? info_dict.CN.trim()
           : null;
         const isbn = null;
@@ -232,7 +232,7 @@ export const match_cnki_journal: LibianCrawlerGarbageCleaner<
               ";",
             ).split(";")
           ) {
-            if (DataClean.has_information(kw)) {
+            if (DataClean.is_not_blank_and_valid(kw)) {
               keywords.push(kw.trim());
             }
           }

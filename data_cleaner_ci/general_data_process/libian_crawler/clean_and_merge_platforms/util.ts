@@ -71,7 +71,7 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
       if (key in metas) {
         // deno-lint-ignore no-explicit-any
         const _k: string & keyof typeof metas = key as any;
-        res = DataClean.has_information(metas[_k])  
+        res = DataClean.is_not_blank_and_valid(metas[_k])  
           ? metas[_k]
           : null;
       }
@@ -110,7 +110,7 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
       if (key in metas2) {
         // deno-lint-ignore no-explicit-any
         const _k: string & keyof typeof metas2 = key as any;
-        res = DataClean.has_information(metas2[_k])  
+        res = DataClean.is_not_blank_and_valid(metas2[_k])  
           ? metas2[_k]
           : null;
       }
@@ -186,7 +186,7 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
     })
     : null;
   let authors: MediaContentAuthor[];
-  if (DataClean.has_information(article_authors)) {
+  if (DataClean.is_not_blank_and_valid(article_authors)) {
     if (
       Strs.startswith(article_authors, "http://") ||
       Strs.startswith(article_authors, "https://")
@@ -210,7 +210,7 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
     } else {
       authors = article_authors.split(",")
         .map((article_author) => article_author.trim())
-        .filter((article_author) => DataClean.has_information(article_author))
+        .filter((article_author) => DataClean.is_not_blank_and_valid(article_author))
         .map((article_author) => {
           return {
             nickname: article_author,

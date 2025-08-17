@@ -2,7 +2,7 @@
 import asyncio
 import hashlib
 import os
-from typing import List
+from typing import List, Union
 
 import aiofiles.ospath
 import aiofiles.os as aios
@@ -17,8 +17,10 @@ aios = aios
 aios_symlink = aioify(obj=os.symlink)
 aios_listdir = aioify(obj=os.listdir)
 
+OsPath = Union[str, bytes, os.PathLike[str], os.PathLike[bytes]]
 
-async def mkdirs(dir_name: str, *, mode=0o700, exist_ok=True):
+
+async def mkdirs(dir_name: OsPath, *, mode=0o700, exist_ok=True):
     if await aiofiles.ospath.exists(dir_name):
         if not await aiofiles.ospath.isdir(dir_name):
             logger.warning('mkdirs points to existed file : {}', dir_name)

@@ -55,7 +55,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
         wanfangdata.periodical &&
         "title" in wanfangdata.periodical &&
         typeof wanfangdata.periodical.title === "string" &&
-        DataClean.has_information(wanfangdata.periodical.title) &&
+        DataClean.is_not_blank_and_valid(wanfangdata.periodical.title) &&
         "details" in wanfangdata.periodical &&
         typeof wanfangdata.periodical.details === "object"
       ) {
@@ -66,7 +66,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
             ?.url
             .url
           : null;
-        if (!DataClean.has_information(url)) {
+        if (!DataClean.is_not_blank_and_valid(url)) {
           Errors.throw_and_format("why url empty", { g_id, url });
         }
         const content_link_url = DataClean.url_use_https_noempty(url);
@@ -93,7 +93,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
         keywords = Streams.deduplicate(keywords);
         const authors = chain(() => {
           return (!author ? [] : Array.isArray(author) ? author : [author])
-            .filter((it) => DataClean.has_information(it.name)).map((it) => {
+            .filter((it) => DataClean.is_not_blank_and_valid(it.name)).map((it) => {
               let nickname = it.name;
               let break_loop = false;
               while (!break_loop) {
@@ -125,7 +125,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
                 avater_url: null,
                 home_link_url: null,
               };
-            }).filter((it) => DataClean.has_information(it.nickname));
+            }).filter((it) => DataClean.is_not_blank_and_valid(it.nickname));
         })
           .map((arr) =>
             Streams.deduplicate(arr, (a, b) => a.nickname === b.nickname)
@@ -174,7 +174,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
           videos: null,
           literatures: [
             {
-              journal: DataClean.has_information(journal) ? journal : null,
+              journal: DataClean.is_not_blank_and_valid(journal) ? journal : null,
               doi: null,
               category: null,
               level_of_evidence: null,
@@ -201,7 +201,7 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
         wanfangdata.perio &&
         "title" in wanfangdata.perio &&
         typeof wanfangdata.perio.title === "string" &&
-        DataClean.has_information(wanfangdata.perio.title) &&
+        DataClean.is_not_blank_and_valid(wanfangdata.perio.title) &&
         "details" in wanfangdata.perio &&
         typeof wanfangdata.perio.details === "object"
       ) {

@@ -8,6 +8,7 @@ from curl_cffi import requests
 from loguru import logger
 
 from libiancrawlers.util.coroutines import blocking_func, sleep
+from libiancrawlers.util.dicts import find_first_value_not_null
 
 
 async def clear_schema_proxies():
@@ -220,6 +221,18 @@ async def monkey_patch_hook_urllib():
         request_hook=request_hook, response_hook=response_hook
     )
     logger.debug('[urllib hooking] hooked')
+
+
+async def read_proxy_server():
+    read_proxies = await read_current_schema_proxies()
+    logger.debug('read proxies is {}', read_proxies)
+    if read_proxies is not None:
+        is_found_proxy, _schema, addr = find_first_value_not_null(
+            read_proxies,
+            keys=['https', 'http'])
+        if is_found_proxy:
+            return addr
+    return None
 
 
 if __name__ == '__main__':

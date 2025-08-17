@@ -76,6 +76,49 @@ poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-C
 poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/xiaohongshu-search.json?q=丸子头" --browser_data_dir_id login_xhs --mode save_file
 ```
 
+#### bilibili-api-python 封装 <Badge type="tip" text="api" />
+
+:::tip 设置登录态
+
+这里使用了多进程架构来分离需要登录和不需要登录的接口请求。（因为库本身只支持全局设置）
+
+- 需要登录的接口将:
+  - 不会使用代理
+  - 速率较低。
+
+- 不需要登录的接口将:
+  - 会使用代理
+  - 速率较高
+  - 不会受用户账号本身的推荐信息影响
+
+**以下是配置文件参考:**
+
+具体含义参考 bilibili-api-python 官方文档:
+
+https://nemo2011.github.io/bilibili-api/#/get-credential
+
+配置文件内容示例。
+
+```toml
+[crawler.apilib]
+[crawler.apilib.bilibili]
+[crawler.apilib.bilibili.init_credential]
+sessdata=""
+bili_jct=""
+buvid3=""
+buvid4=""
+dedeuserid=""
+ac_time_value="" # 可以不填
+```
+:::
+
+##### 根据一条 bvid 爬取
+
+```shell
+poetry run api-crawl-bilibili-read-video-info --is_insert_to_db --expire_time 36000 --bvid "BV1rdtizZEDE"
+```
+
+
 ### 搜索引擎
 
 #### 百度 <Badge type="tip" text="playwright" />

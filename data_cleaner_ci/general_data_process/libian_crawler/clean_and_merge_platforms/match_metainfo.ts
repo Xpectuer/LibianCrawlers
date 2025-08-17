@@ -47,7 +47,7 @@ export const match_metainfo: LibianCrawlerGarbageCleaner<
       authors,
     } = metainfo_parsed;
     authors = Streams.deduplicate(
-      authors.filter((it) => DataClean.has_information(it.nickname)),
+      authors.filter((it) => DataClean.is_not_blank_and_valid(it.nickname)),
       (a, b) => a.nickname === b.nickname,
     );
     if (
@@ -74,20 +74,20 @@ export const match_metainfo: LibianCrawlerGarbageCleaner<
           }
           if (
             search_key === null && "q" in query_dict &&
-            typeof query_dict.q === "string" && DataClean.has_information(query_dict.q)
+            typeof query_dict.q === "string" && DataClean.is_not_blank_and_valid(query_dict.q)
           ) {
             search_key = query_dict.q;
           }
           if (
             search_key === null && "k" in query_dict &&
-            typeof query_dict.k === "string" && DataClean.has_information(query_dict.k)
+            typeof query_dict.k === "string" && DataClean.is_not_blank_and_valid(query_dict.k)
           ) {
             search_key = query_dict.k;
           }
           if (
             search_key === null && "term" in query_dict &&
             typeof query_dict.term === "string" &&
-            DataClean.has_information(query_dict.term)
+            DataClean.is_not_blank_and_valid(query_dict.term)
           ) {
             search_key = query_dict.term;
           }

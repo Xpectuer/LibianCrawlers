@@ -24,7 +24,7 @@ import { JSONParser } from "@streamparser/json";
 import { finished } from "node:stream/promises";
 import { LLMReq } from "./general_data_process/jobs/llmreq.ts";
 export function is_nullish(obj: any): obj is null | undefined {
-  return obj === null || obj === undefined;
+  return obj === null || obj === undefined || typeof obj === "undefined";
 }
 
 export function is_deep_equal<B>(a: unknown, b: B): a is B {
@@ -508,7 +508,7 @@ export namespace Strs {
    * 视为空白的字符，参见： @var empty_chars
    */
   export function is_not_blank(x: string | null | undefined): x is string {
-    if (x === null || x === undefined) {
+    if (is_nullish(x)) {
       return false;
     }
     let x2 = x;
@@ -626,7 +626,7 @@ export namespace Strs {
 export namespace Times {
   export function unix_to_time(unix_ms_or_s: number): Temporal.Instant | null {
     let unit: "s" | "ms";
-    if (unix_ms_or_s === 0) {
+    if (Nums.is_invalid(unix_ms_or_s) || unix_ms_or_s <= 0) {
       return null;
     }
 
@@ -708,7 +708,7 @@ export namespace Times {
   ): AllowNull extends true ? Temporal.Instant | null : Temporal.Instant {
     // TODO: 时区问题
     if (
-      !DataClean.has_information(text)
+      !DataClean.is_not_blank_and_valid(text)
     ) {
       if (options?.allow_null === true) {
         return null as any;
@@ -1153,6 +1153,22 @@ export namespace Times {
 
   //   return [year, month, day, hour, minute, second].join("");
   // }
+
+  export function duration_to_text(d: number) {
+    if (Nums.is_invalid(d)) {
+      Errors.throw_and_format("Invalid duration value", d);
+    }
+    const h = Math.floor(Math.floor(d) / 60 / 60);
+    const m = (Math.floor(d) / 60) % 60;
+    const s = Math.floor(d) % 60;
+    return [h, m, s].map((it) => {
+      let v = it.toFixed(0);
+      while (v.length < 2) {
+        v = "0" + v;
+      }
+      return v;
+    }).join(":");
+  }
 }
 
 // deno-lint-ignore no-namespace
@@ -1792,7 +1808,7 @@ export namespace DataClean {
   export function url_use_https_emptyable<S extends string>(
     url: S | null | undefined,
   ) {
-    if (Strs.is_not_blank(url)) {
+    if (is_not_blank_and_valid(url)) {
       return url_use_https_noempty(url);
     } else {
       return null;
@@ -2112,7 +2128,11 @@ export namespace DataClean {
           return null;
         }
         v = v.trim();
-        v = DataClean.strip_html(v);
+        if (v.indexOf("<img") < 0) {
+          // 有时要在 markdown 格式的 context_text 中嵌入一个带有 styles 的图片，
+          // 如果没有的话才 strip_html 。
+          v = DataClean.strip_html(v);
+        }
         const tag_res = Paragraphs.find_and_clean_tags_in_text(v);
         tag_res.tags.forEach((tag) => {
           found_tags_in_context_text.add(tag);
@@ -2489,7 +2509,7 @@ export namespace DataClean {
     return languages;
   }
 
-  export function has_information(
+  export function is_not_blank_and_valid(
     text: string | null | undefined,
   ): text is string {
     if (
@@ -2503,6 +2523,8 @@ export namespace DataClean {
         "空",
         "无效",
         "未填写",
+        "未知",
+        "非法",
         "invalid",
         "undefined",
         "nil",
@@ -2580,6 +2602,11 @@ export namespace DataMerge {
       );
     }
   }
+
+  export type DurationLine<V> = {
+    time: number;
+    value: V;
+  }[];
 }
 
 // deno-lint-ignore no-namespace

@@ -144,7 +144,7 @@ export const match_wos_journal: LibianCrawlerGarbageCleaner<
                   err_msg: "issn already set",
                   get_var: () => issn,
                   cast_var: (value) =>
-                    !DataClean.has_information(value)
+                    !DataClean.is_not_blank_and_valid(value)
                       ? null
                       : DataClean.check_issn(value)
                       ? value
@@ -167,7 +167,7 @@ export const match_wos_journal: LibianCrawlerGarbageCleaner<
                   err_msg: "jif already set",
                   get_var: () => jif,
                   cast_var: (value) => {
-                    const n = DataClean.has_information(value)
+                    const n = DataClean.is_not_blank_and_valid(value)
                       ? DataClean.parse_number(value, "allow_nan")
                       : null;
                     return n === null ? null : Nums.is_invalid(n) ? null : n;
@@ -199,7 +199,7 @@ export const match_wos_journal: LibianCrawlerGarbageCleaner<
           }
         }
         let platform_duplicate_id: string;
-        if (!DataClean.has_information(journal)) {
+        if (!DataClean.is_not_blank_and_valid(journal)) {
           Errors.throw_and_format("journal name is blank", {
             wos_journal_slice_list,
             ii,

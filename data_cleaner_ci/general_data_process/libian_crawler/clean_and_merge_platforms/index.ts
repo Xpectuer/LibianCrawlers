@@ -15,7 +15,9 @@ import {
   match_xhs_html,
 } from "./match_xhs.ts";
 import { match_pdd_h5_yangkeduo } from "./match_pdd.ts";
-import { match_bilibili_api_search_result } from "./match_bilibili.ts";
+// import { match_bilibili_api_search_result } from "./match_bilibili.ts";
+
+import { match_bilibili_video } from "./match_bilibili.ts";
 
 export interface LibianCrawlerGarbageCleaner<R> {
   match(
@@ -39,6 +41,6 @@ export const libian_crawler_garbage_matchers = [
   match_xhs_apilib_search_list,
   match_xhs_apilib_note,
   match_pdd_h5_yangkeduo,
-  match_bilibili_api_search_result,
+  // match_bilibili_api_search_result,
+  match_bilibili_video,
 ] as const;
-

@@ -22,7 +22,7 @@ async def on_before_retry_default(retry_count: int) -> bool:
         return False
 
 
-def log_debug_which_object_maybe_very_length(*, prefix: str, obj: Any, max_output_length: int):
+def log_debug_which_object_maybe_very_length(*, prefix: str, obj: Any, max_output_length: int, ret_str: bool = False):
     """
     https://stackoverflow.com/a/2718203
     """
@@ -48,7 +48,11 @@ def log_debug_which_object_maybe_very_length(*, prefix: str, obj: Any, max_outpu
             break
     if len(out) > max_output_length:
         out = out[0:max_output_length] + '...'
-    logger.debug(out)
+    if not ret_str:
+        logger.debug(out)
+        return None
+    else:
+        return out
 
 
 async def dump_data(*, _output: JSON, is_insert_to_db: bool, is_save_file: bool, output_dir: str):

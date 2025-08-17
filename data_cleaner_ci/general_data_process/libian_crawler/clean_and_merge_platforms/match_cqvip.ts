@@ -45,7 +45,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
       const g_id = smart_crawl.g_id;
       const { info_dict, title, journal } = cqvip;
       if (
-        typeof title !== "string" || !DataClean.has_information(title) ||
+        typeof title !== "string" || !DataClean.is_not_blank_and_valid(title) ||
         typeof info_dict !== "object" || !(
           typeof journal === "object" && "detail" in journal &&
           typeof journal.detail === "object"
@@ -69,7 +69,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
             });
           }
         }
-        const cnsn = DataClean.has_information(journal_detail.CN?.trim())
+        const cnsn = DataClean.is_not_blank_and_valid(journal_detail.CN?.trim())
           ? journal_detail.CN.trim()
           : null;
         const isbn = null;
@@ -100,7 +100,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
             continue;
           }
         }
-        if (issn !== null && DataClean.has_information(journal.title)) {
+        if (issn !== null && DataClean.is_not_blank_and_valid(journal.title)) {
           const res: Literature = {
             platform: PlatformEnum.文献,
             last_crawl_time: Times.parse_text_to_instant(
@@ -135,7 +135,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
             ?.url
             .url
           : null;
-        if (!DataClean.has_information(url)) {
+        if (!DataClean.is_not_blank_and_valid(url)) {
           Errors.throw_and_format("why url empty", url);
         }
         const content_link_url = DataClean.url_use_https_noempty(url);
@@ -171,7 +171,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
               ";",
             ).split(";")
           ) {
-            if (DataClean.has_information(kw)) {
+            if (DataClean.is_not_blank_and_valid(kw)) {
               keywords.push(kw.trim());
             }
           }
@@ -189,10 +189,10 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
                   ? author_infos
                   : [author_infos])
               ) {
-                if ("href" in info && DataClean.has_information(info.href)) {
+                if ("href" in info && DataClean.is_not_blank_and_valid(info.href)) {
                   info_href = info.href;
                 }
-                if ("str" in info && DataClean.has_information(info.str)) {
+                if ("str" in info && DataClean.is_not_blank_and_valid(info.str)) {
                   if (Nums.is_int(info.str)) {
                     // ignore
                   } else {
@@ -201,26 +201,26 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
                 }
               }
               return {
-                platform_user_id: DataClean.has_information(info_href)
+                platform_user_id: DataClean.is_not_blank_and_valid(info_href)
                   ? `cqvip_user___${info_href.replace("/", "_")}`
                   : `cqvip_username___${nickname}`,
                 nickname,
                 avater_url: null,
-                home_link_url: DataClean.has_information(info_href)
+                home_link_url: DataClean.is_not_blank_and_valid(info_href)
                   ? `https://www.cqvip.com/${
                     Strs.remove_prefix_recursion(info_href, "/")
                   }` as const
                   : null,
               } as const;
             })
-            .filter((it) => DataClean.has_information(it.nickname));
+            .filter((it) => DataClean.is_not_blank_and_valid(it.nickname));
         })
           .map((arr) =>
             Streams.deduplicate(arr, (a, b) => a.nickname === b.nickname)
           )
           .get_value();
         let create_time: Temporal.Instant | null = null;
-        if (DataClean.has_information(info_dict.DOI)) {
+        if (DataClean.is_not_blank_and_valid(info_dict.DOI)) {
           const _doi_split = info_dict.DOI.split(".");
           const l = _doi_split.length;
           if (l > 3) {
@@ -296,7 +296,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
           literatures: [
             {
               journal: "title" in journal
-                ? DataClean.has_information(journal.title) ? journal.title : null
+                ? DataClean.is_not_blank_and_valid(journal.title) ? journal.title : null
                 : null,
               doi: info_dict.DOI ?? null,
               category: null,

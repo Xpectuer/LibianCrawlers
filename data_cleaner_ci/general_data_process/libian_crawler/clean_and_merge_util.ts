@@ -491,7 +491,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             .map((it) => to_timeline_item(it)),
         });
         const ip_location = prev?.ip_location ?? new Set();
-        if (DataClean.has_information(cur.ip_location)) {
+        if (DataClean.is_not_blank_and_valid(cur.ip_location)) {
           ip_location.add(cur.ip_location);
         }
         const authors:
@@ -568,7 +568,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           on_check_filter(item) {
             if (
               [item.issn, item.isbn, item.eissn, item.cnsn, item.journal].find(
-                (it) => DataClean.has_information(it),
+                (it) => DataClean.is_not_blank_and_valid(it),
               )
             ) {
               return "ok";
@@ -580,7 +580,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             const take_valid = <K extends keyof typeof item>(k: K) => {
               let v = item[k];
               if (
-                is_nullish(v) || typeof v === "string" && !DataClean.has_information(v)
+                is_nullish(v) || typeof v === "string" && !DataClean.is_not_blank_and_valid(v)
               ) {
                 v = result_item[k];
               }
@@ -590,8 +590,8 @@ export namespace LibianCrawlerCleanAndMergeUtil {
               const k of ["issn", "journal", "eissn", "isbn", "cnsn"] as const
             ) {
               if (
-                DataClean.has_information(item[k]) &&
-                DataClean.has_information(result_item[k]) &&
+                DataClean.is_not_blank_and_valid(item[k]) &&
+                DataClean.is_not_blank_and_valid(result_item[k]) &&
                 item[k] === result_item[k]
               ) {
                 const { issn, issn_list } = DataClean.find_issn_list_and_issn(
@@ -737,23 +737,23 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         const international_standard_serial_number = Arrays.first_or_null([
           prev?.international_standard_serial_number ?? null,
           cur.international_standard_serial_number,
-        ].filter((it) => DataClean.has_information(it)));
+        ].filter((it) => DataClean.is_not_blank_and_valid(it)));
         const international_standard_book_number = Arrays.first_or_null([
           prev?.international_standard_book_number ?? null,
           cur.international_standard_book_number,
-        ].filter((it) => DataClean.has_information(it)));
+        ].filter((it) => DataClean.is_not_blank_and_valid(it)));
         const china_standard_serial_number = Arrays.first_or_null([
           prev?.china_standard_serial_number ?? null,
           cur.china_standard_serial_number,
-        ].filter((it) => DataClean.has_information(it)));
+        ].filter((it) => DataClean.is_not_blank_and_valid(it)));
         const publication_organizer = Arrays.first_or_null([
           prev?.publication_organizer ?? null,
           cur.publication_organizer,
-        ].filter((it) => DataClean.has_information(it)));
+        ].filter((it) => DataClean.is_not_blank_and_valid(it)));
         const publication_place = Arrays.first_or_null([
           prev?.publication_place ?? null,
           cur.publication_place,
-        ].filter((it) => DataClean.has_information(it)));
+        ].filter((it) => DataClean.is_not_blank_and_valid(it)));
         const count_published_documents = Nums.take_extreme_value("max", [
           prev?.count_published_documents ?? null,
           cur.count_published_documents,
@@ -1079,7 +1079,7 @@ ${Deno.inspect(existed, { depth: 4 })}
       }
 
       const languages = DataClean.find_languages(value.language).filter((it) =>
-        DataClean.has_information(it)
+        DataClean.is_not_blank_and_valid(it)
       );
       const languages_joined = languages.length <= 0
         ? null
@@ -1272,7 +1272,7 @@ ${Deno.inspect(existed, { depth: 4 })}
         good_first_image_url: Arrays.first_or_null(
           value.good_images
             .map((it) => it.url)
-            .filter((url) => DataClean.has_information(url)),
+            .filter((url) => DataClean.is_not_blank_and_valid(url)),
         ),
         sku_list: value.sku_list.map((it) => {
           return {
