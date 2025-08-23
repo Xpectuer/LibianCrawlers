@@ -1,6 +1,7 @@
 import { delay } from "@std/async/delay";
 import {
   Arrays,
+  chain,
   DataClean,
   Errors,
   is_deep_equal,
@@ -13,6 +14,7 @@ import {
   Times,
   Typings,
 } from "../util.ts";
+import { create_cache_in_memory, ICache } from "./caches.ts";
 
 // deno-lint-ignore no-namespace
 export namespace NocoDBUtil {
@@ -53,7 +55,7 @@ export namespace NocoDBUtil {
     ["Lookup", "unknown"],
     ["SingleLineText", "string"],
     ["LongText", "string"],
-    ["Attachment", "unknown"],
+    ["Attachment", "attachment"],
     ["Checkbox", "unknown"],
     ["MultiSelect", "MultiSelect"],
     ["SingleSelect", "unknown"],
@@ -103,6 +105,14 @@ export namespace NocoDBUtil {
     : T extends "string" ? string | null
     : T extends "number" ? number | null
     : T extends "nocodb_id" ? number | `${number}`
+    : T extends "attachment" ?
+        | undefined
+        | null
+        | ({
+          path: string;
+          title: string;
+          mimetype: string;
+        }[])
     : T extends "CreatedTime" ? string | undefined
     : T extends "LastModifiedTime" ? string | undefined
     : T extends "CreatedBy" ? string | undefined
@@ -257,7 +267,16 @@ export namespace NocoDBUtil {
     const { route, nocodb_token, logd_fetch_noco, on_status_not_200 } = param;
     const baseurl = Strs.remove_suffix_recursion(param.baseurl, "/");
     const fetch_url = `${baseurl}${route.pth}` as const;
-    const req_body = "body" in route ? Jsons.dump(route.body) : null;
+    let req_body: string | null;
+    if (
+      "body" in route && typeof route.body === "object" && route.body !== null
+    ) {
+      req_body = Jsons.dump(route.body, {
+        allow_undefined: true,
+      });
+    } else {
+      req_body = null;
+    }
 
     let res_json: unknown = null;
     let res_json_success: boolean = false;
@@ -297,6 +316,7 @@ export namespace NocoDBUtil {
       if (resp.status === 504) {
         // 高频请求使我的 nginx 反代报错 504，这里不管了，无限重试得了。
         console.warn("Retry on fetch nocodb resp 504:", {
+          fetch_url,
           resp,
         });
         await delay(3000);
@@ -305,7 +325,9 @@ export namespace NocoDBUtil {
       if (on_status_not_200) {
         const res = await on_status_not_200(resp);
         if (res === "raise") {
-          raise_err("Failed fetch nocodb on after call on_status_not_200(resp)");
+          raise_err(
+            "Failed fetch nocodb on after call on_status_not_200(resp)",
+          );
         } else {
           return {
             res_json: res,
@@ -853,7 +875,7 @@ export namespace NocoDBUtil {
       page_size?: null | number;
     },
   ) {
-    const page_size = other_options?.page_size ?? 25;
+    const page_size = other_options?.page_size ?? 1000;
     if (page_size <= 0) {
       Errors.throw_and_format("Invalid page size", {
         other_options,
@@ -1151,6 +1173,126 @@ export namespace NocoDBUtil {
       },
     };
   }
+
+  function _check_upload_result(resp_json: unknown) {
+    const _type_check = (a: unknown): a is {
+      path: string;
+      title: string;
+      mimetype: string;
+      size: number;
+      width?: number;
+      height?: number;
+    } => {
+      if (typeof a !== "object" || a === null) {
+        return false;
+      }
+      for (const k of ["path", "title", "mimetype"]) {
+        // deno-lint-ignore no-explicit-any
+        if (!(k in a && typeof (a as any)[k] === "string")) {
+          return false;
+        }
+      }
+      if (!("size" in a && typeof a.size === "number")) {
+        return false;
+      }
+
+      if ("width" in a && typeof a.width !== "number") {
+        return false;
+      }
+      if ("height" in a && typeof a.height !== "number") {
+        return false;
+      }
+
+      return true;
+    };
+
+    if (
+      !Arrays.is_array(resp_json) ||
+      !Arrays.check_type(resp_json, _type_check) ||
+      !Arrays.length_is_1(resp_json)
+    ) {
+      return null;
+    }
+    return resp_json;
+  }
+
+  /**
+   * 调用 nocodb 的从 url 读取并上传文件的接口。
+   * 
+   * 请注意，同一时间应当只有一个文件正在被上传。因此如果要在 view.row.map 中调用，请将 queue_size 设为 1 。
+   */
+  export async function upload_by_url(
+    param: FetchOption & {
+      file_url: DataClean.HttpUrl;
+    },
+  ) {
+    const { nocodb_token, logd_fetch_noco, file_url } = param;
+    const nocodb_baseurl = Strs.remove_suffix_recursion(
+      param.baseurl,
+      "/",
+    );
+    const path_arr = [
+      "noco",
+      "p99jmyqvm2cpufy",
+      "mmz6jqm6ln8ia7f",
+      "cqmobutug0v4rz0",
+    ];
+    if (logd_fetch_noco) {
+      console.debug("upload from url to nocodb", {
+        file_url,
+        path_arr,
+      });
+    }
+    const req_url = `${nocodb_baseurl}/api/v1/db/storage/upload-by-url?path=${
+      encodeURIComponent(path_arr.join("/"))
+    }`;
+    const req_body = Jsons.dump([
+      {
+        url: file_url,
+      },
+    ], { allow_undefined: true });
+    const resp = await fetch(req_url, {
+      method: "POST",
+      headers: {
+        "xc-token": nocodb_token,
+        "content-type": "application/json",
+      },
+      body: req_body,
+    });
+    if (resp.status !== 200) {
+      Errors.throw_and_format("upload from url response not 200", {
+        file_url,
+        path_arr,
+        req_url,
+        req_body,
+        resp,
+        resp_text: await resp.text(),
+      });
+    }
+    const resp_json: unknown = await resp.json();
+    if (logd_fetch_noco) {
+      console.debug("Success upload from url to nocodb", {
+        file_url,
+        path_arr,
+        req_url,
+        req_body,
+        resp,
+        resp_json,
+      });
+    }
+    const checked = _check_upload_result(resp_json);
+    if (!checked) {
+      Errors.throw_and_format("failed to typecheck for response json", {
+        file_url,
+        path_arr,
+        req_url,
+        req_body,
+        resp,
+        resp_json,
+      });
+    }
+    return checked;
+  }
 }
 
 // deno-lint-ignore no-namespace
@@ -1240,8 +1382,13 @@ export namespace NocoDBDataset {
       base_title: BaseTitle;
       table_title: TableTitle;
       view_title: ViewTitle;
+      precache: boolean;
+      on_precache?: (
+        ctx: "finish" | "start" | { size: number },
+      ) => Promise<void>;
     }) {
-      const { base_title, table_title, view_title } = _param;
+      const { base_title, table_title, view_title, precache, on_precache } =
+        _param;
       for await (
         const ncbase of NocoDBUtil.list_bases({
           baseurl: this.baseurl,
@@ -1330,7 +1477,13 @@ export namespace NocoDBDataset {
                     nctable,
                     ncview,
                     columns_meta_entries,
+                    precache,
+                    on_precache,
                   }) as RowsApi;
+                  // const _precache_promise = rows.get_precache_promise();
+                  // if (_precache_promise) {
+                  //   await _precache_promise;
+                  // }
                   return {
                     columns_meta,
                     rows,
@@ -1363,6 +1516,11 @@ export namespace NocoDBDataset {
     A,
     _Row extends RowsData<A> = RowsData<A>,
   > {
+    private _precache: null | {
+      _records: Array<RowsData<A>>;
+      _precache_promise: Promise<void>;
+    };
+
     public constructor(
       private ctx: {
         baseurl: DataClean.HttpUrl;
@@ -1371,8 +1529,77 @@ export namespace NocoDBDataset {
         nctable: NocoDBUtil.NcTable;
         ncview: NocoDBUtil.NcView;
         columns_meta_entries: NcApiColEntry[];
+        precache: boolean;
+        on_precache?: (
+          ctx: "finish" | "start" | { size: number },
+        ) => Promise<void>;
       },
     ) {
+      const on_precache = ctx.on_precache;
+      if (this.ctx.precache) {
+        const _records = [] as Array<RowsData<A>>;
+        const _precache_func = async () => {
+          for await (
+            const record of NocoDBUtil.list_table_records(
+              {
+                baseurl: this.ctx.baseurl,
+                nocodb_token: this.ctx.nocodb_token,
+              },
+              this.ctx.nctable.id,
+              this.ctx.ncview.id,
+              undefined,
+              {
+                page_size: 1000,
+              },
+            )
+          ) {
+            if (!this.check_row_data_of_column(record)) {
+              Errors.throw_and_format("check record type falied", { record });
+            }
+            _records.push(record);
+            if (on_precache) {
+              await on_precache({ size: _records.length });
+            }
+          }
+          if (on_precache) {
+            await on_precache("finish");
+          } else {
+            console.debug(
+              `\n\n[${this.ctx.nctable.title} ${this.ctx.ncview.title}] precache promise finished\n\n`,
+            );
+          }
+        };
+        const _precache_promise = new Promise<void>((rs, rj) => {
+          try {
+            setTimeout(() => {
+              try {
+                if (on_precache) {
+                  on_precache("start");
+                } else {
+                  console.debug(
+                    `[${this.ctx.nctable.title} ${this.ctx.ncview.title}] start precache promise timer`,
+                  );
+                }
+                _precache_func().then(rs).catch(rj);
+              } catch (err) {
+                rj(err);
+              }
+            }, 1);
+          } catch (err) {
+            rj(err);
+          }
+        });
+        this._precache = {
+          _records,
+          _precache_promise,
+        };
+      } else {
+        this._precache = null;
+      }
+    }
+
+    public get_precache_promise() {
+      return this._precache?._precache_promise ?? null;
     }
 
     private check_row_data_of_column<Row extends RowsData<A>>(
@@ -1516,7 +1743,26 @@ export namespace NocoDBDataset {
             continue;
           case "unknown":
             continue;
-
+          // deno-lint-ignore no-fallthrough
+          case "attachment":
+            if (
+              value !== null && typeof value !== "undefined" &&
+              !Arrays.is_array(value)
+            ) {
+              Errors.throw_and_format(
+                "TypeError on value",
+                {
+                  record,
+                  key,
+                  value,
+                  uidt,
+                  column_meta,
+                  ui_type_entry,
+                },
+              );
+            } else {
+              continue;
+            }
           default:
             Errors.throw_and_format(
               "Invalid ui_type_entry[1]",
@@ -1562,6 +1808,41 @@ export namespace NocoDBDataset {
       return true;
     }
 
+    private async *_list_all_table_records<Row extends RowsData<A, false>>(
+      viewId: null | string,
+      other_options: {
+        page_size?: null | number;
+      },
+    ) {
+      if (this._precache) {
+        await this._precache._precache_promise;
+        for (const record of this._precache._records) {
+          if (!this.check_row_data_of_column<Row>(record)) {
+            Errors.throw_and_format("check record type falied", { record });
+          }
+          yield record;
+        }
+      } else {
+        for await (
+          const record of NocoDBUtil.list_table_records(
+            {
+              baseurl: this.ctx.baseurl,
+              nocodb_token: this.ctx.nocodb_token,
+            },
+            this.ctx.nctable.id,
+            viewId,
+            undefined,
+            other_options,
+          )
+        ) {
+          if (!this.check_row_data_of_column<Row>(record)) {
+            Errors.throw_and_format("check record type falied", { record });
+          }
+          yield record;
+        }
+      }
+    }
+
     public async map<
       R,
       Row extends RowsData<A, false> = RowsData<A, false>,
@@ -1597,22 +1878,13 @@ export namespace NocoDBDataset {
           result_future: Promise<R>;
         }[] = [];
         for await (
-          const record of NocoDBUtil.list_table_records(
-            {
-              baseurl: this.ctx.baseurl,
-              nocodb_token: this.ctx.nocodb_token,
-            },
-            this.ctx.nctable.id,
+          const record of this._list_all_table_records<Row>(
             this.ctx.ncview.id,
-            undefined,
             {
               page_size,
             },
           )
         ) {
-          if (!this.check_row_data_of_column<Row>(record)) {
-            Errors.throw_and_format("check record type falied", { record });
-          }
           // 上面的类型检查理应保证此处的类型安全。
           // const _record = record as Row;
 
@@ -1743,7 +2015,8 @@ export namespace NocoDBDataset {
       const nocodb_token = this.ctx.nocodb_token;
       const tableId = this.ctx.nctable.id;
 
-      const batch_size_find_existed = _param.batch_size_find_existed ?? 10;
+      const batch_size_find_existed =
+        _param.batch_size_find_existed ?? this._precache ? 1000 : 10;
       if (batch_size_find_existed <= 0) {
         Errors.throw_and_format("Invalid batch_size_find_existed", { _param });
       }
@@ -1772,20 +2045,44 @@ export namespace NocoDBDataset {
         }
 
         const records: Record<string, unknown>[] = [];
-        for await (
-          const record of NocoDBUtil.list_table_records(
-            {
-              baseurl,
-              nocodb_token,
-            },
-            tableId,
-            null,
-            `(${encodeURIComponent(duplicate_col)},eq,${
-              encodeURIComponent(duplicate_value)
-            })`,
-          )
-        ) {
-          records.push(record);
+        if (this._precache) {
+          for await (
+            const record of this._list_all_table_records(null, {
+              page_size: 1000,
+            })
+          ) {
+            if (
+              typeof record !== "object" || record === null
+            ) {
+              Errors.throw_and_format("invalid record", { record });
+            }
+            const _record: Record<string, unknown> = record as Record<
+              string,
+              unknown
+            >;
+            if (
+              duplicate_col in _record &&
+              _record[duplicate_col] === duplicate_value
+            ) {
+              records.push(_record);
+            }
+          }
+        } else {
+          for await (
+            const record of NocoDBUtil.list_table_records(
+              {
+                baseurl,
+                nocodb_token,
+              },
+              tableId,
+              null,
+              `(${encodeURIComponent(duplicate_col)},eq,${
+                encodeURIComponent(duplicate_value)
+              })`,
+            )
+          ) {
+            records.push(record);
+          }
         }
 
         if (records.length <= 0) {
@@ -1944,6 +2241,10 @@ export namespace NocoDBDataset {
               }
               const _ex_value = _ex[key];
               const _row_value = _row[key];
+              if (typeof _row_value === "undefined") {
+                // 不更新此字段，视为无修改
+                continue;
+              }
               const col_meta = this.ctx.columns_meta_entries.find((it) =>
                 it[0] === key
               );
@@ -2057,5 +2358,77 @@ export namespace NocoDBDataset {
       await create_rows();
       await update_rows();
     }
+  }
+
+  export function render_bar_on_rows_upsert(ctx: {
+    r: () => Promise<void>;
+    logd?: boolean;
+    inc_count_before_create?: () => void;
+    inc_count_equal?: () => void;
+    inc_count_before_update?: () => void;
+    bars_render_param: {
+      completed: number;
+      total: number;
+      // text: "read literature",
+    }[];
+    bars_render_param_indexes: number | {
+      existed: number;
+      create: number;
+      update: number;
+    };
+  }) {
+    const {
+      r,
+      logd,
+      inc_count_before_create,
+      inc_count_before_update,
+      inc_count_equal,
+      bars_render_param,
+      bars_render_param_indexes,
+    } = ctx;
+
+    return {
+      on_before_create: async (row: unknown) => {
+        if (inc_count_before_create) inc_count_before_create();
+        await r();
+        if (logd) console.debug("on before create", row);
+      },
+      on_equal: async (ctx: { existed: unknown }) => {
+        if (inc_count_before_update) inc_count_before_update();
+        await r();
+        if (logd) console.debug("on equal", ctx.existed);
+      },
+      on_before_update: async (ctx: unknown) => {
+        if (inc_count_equal) inc_count_equal();
+        await r();
+        if (logd) console.debug("on before update", ctx);
+      },
+      on_before_map_row_to_existed_info_batch: async (
+        ctx: { existed_slice: { sliced: { length: number } } },
+      ) => {
+        bars_render_param[
+          typeof bars_render_param_indexes === "number"
+            ? bars_render_param_indexes
+            : bars_render_param_indexes.existed
+        ].completed += ctx.existed_slice.sliced.length;
+        await r();
+      },
+      on_before_create_rows: async (ctx: { rows: { length: number } }) => {
+        bars_render_param[
+          typeof bars_render_param_indexes === "number"
+            ? bars_render_param_indexes
+            : bars_render_param_indexes.create
+        ].completed += ctx.rows.length;
+        await r();
+      },
+      on_before_update_rows: async (ctx: { rows: { length: number } }) => {
+        bars_render_param[
+          typeof bars_render_param_indexes === "number"
+            ? bars_render_param_indexes
+            : bars_render_param_indexes.update
+        ].completed += ctx.rows.length;
+        await r();
+      },
+    };
   }
 }

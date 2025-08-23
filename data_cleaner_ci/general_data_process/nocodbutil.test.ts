@@ -1,5 +1,6 @@
 import { NocoDBDataset, NocoDBUtil } from "./nocodbutil.ts";
 import { TestUtil } from "../util.ts";
+import { assert } from "node:console";
 
 const { nocodb_baseurl, nocodb_token, list_table_records_test_conf } =
   await TestUtil.read_vars();
@@ -93,5 +94,23 @@ Deno.test({
         break;
       }
     }
+  },
+});
+
+Deno.test({
+  ignore,
+  name: "test_upload_from_url",
+  fn: async () => {
+    if (ignore) {
+      return;
+    }
+    const uploaded = await NocoDBUtil.upload_by_url({
+      baseurl: nocodb_baseurl,
+      nocodb_token,
+      logd_fetch_noco: true,
+      file_url:
+        "https://i0.hdslb.com/bfs/archive/19ea65e9bf9029aed5631aefcefceb378dba44d5.jpg",
+    });
+    console.debug("uploaded is ", uploaded);
   },
 });

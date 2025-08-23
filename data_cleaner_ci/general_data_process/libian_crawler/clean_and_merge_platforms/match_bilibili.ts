@@ -241,7 +241,9 @@ function extract_bilibili_video_markdown(param: {
           start_time: it,
           img_element: `<img src="${
             DataClean.url_use_https_noempty(images[img_idx])
-          }" style="object-fit: none; object-position: -${x_pos}px -${y_pos}px;width: ${img_x_size}px;height: ${img_y_size}px;">` as const,
+          }" style="object-fit: none; object-position: -${x_pos}px -${y_pos}px;width: ${img_x_size}px;height: ${img_y_size}px;" alt="video screenshot at ${
+            Times.duration_to_text(it)
+          }">` as const,
         },
       };
     });
@@ -266,8 +268,6 @@ function extract_bilibili_video_markdown(param: {
       try {
         return [
           ...(before_is_subtitle ? [""] : []),
-          "",
-          `> ${Times.duration_to_text(it.value.start_time)} : video screenshot`,
           "",
           it.value.img_element,
           "",
@@ -301,8 +301,8 @@ function extract_bilibili_video_markdown(param: {
         return [
           ...(before_is_subtitle ? [""] : []),
           ai_cons_title,
-          "",
-          `> ${Times.duration_to_text(it.time)} : 由 bilibili 官方提供 AI 总结`,
+          // "",
+          // `> ${Times.duration_to_text(it.time)} : 由 bilibili 官方提供 AI 总结`,
           "",
         ];
       } finally {

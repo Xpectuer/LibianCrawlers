@@ -580,7 +580,8 @@ export namespace LibianCrawlerCleanAndMergeUtil {
             const take_valid = <K extends keyof typeof item>(k: K) => {
               let v = item[k];
               if (
-                is_nullish(v) || typeof v === "string" && !DataClean.is_not_blank_and_valid(v)
+                is_nullish(v) ||
+                typeof v === "string" && !DataClean.is_not_blank_and_valid(v)
               ) {
                 v = result_item[k];
               }
@@ -1052,13 +1053,14 @@ ${Deno.inspect(existed, { depth: 4 })}
         ...found_tags_in_context_text,
       ]);
       let authors_names = chain(() =>
-        value.authors
-          .values()
-          .map((it) => Arrays.last_or_null(it)?.value?.nickname)
-          .toArray()
-          .filter((it) => typeof it === "string")
-          .filter((it) => it.length > 0)
-          .join(",")
+        Streams.deduplicate(
+          value.authors
+            .values()
+            .map((it) => Arrays.last_or_null(it)?.value?.nickname)
+            .toArray()
+            .filter((it) => typeof it === "string")
+            .filter((it) => DataClean.is_not_blank_and_valid(it)),
+        ).join(",")
       )
         .map((it) => (it ? it : null))
         .get_value();

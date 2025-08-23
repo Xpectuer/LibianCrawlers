@@ -1190,9 +1190,12 @@ export namespace Jsons {
   export type JsonDumpOption = {
     mode?: "JSON";
     indent?: number;
+    allow_undefined?: boolean;
   };
 
-  function create_dump_replacer() {
+  function create_dump_replacer(param: {
+    allow_undefined: boolean;
+  }) {
     const replacer = function (this: any, k: string, v: any) {
       const this_v = this[k];
       const raise = (msg: string): never => {
@@ -1234,7 +1237,11 @@ ${
       } else {
         for (
           const invalid_type of [
-            ["undefined", "undefined"],
+            ...(
+              param.allow_undefined ? [] : [
+                ["undefined", "undefined"],
+              ]
+            ),
             ["bigint", "bigint"],
             ["Date", Date],
             ["RegExp", RegExp],
@@ -1290,7 +1297,13 @@ ${
     }
 
     if (option.mode === undefined || option.mode === "JSON") {
-      return JSON.stringify(obj, create_dump_replacer(), option.indent) as any;
+      return JSON.stringify(
+        obj,
+        create_dump_replacer({
+          allow_undefined: option.allow_undefined === true,
+        }),
+        option.indent,
+      ) as any;
     } // else if (option.mode === "JSON5") {
     //   return JSON5.stringify(obj, replacer, option.indent);
     // }
@@ -1310,11 +1323,14 @@ ${
     };
     spaces?: number | string;
     buf_size?: number;
+    allow_undefined?: boolean;
   }) {
-    const { obj, output, buf_size, spaces } = param;
+    const { obj, output, buf_size, spaces, allow_undefined } = param;
     const jsonStream = new JsonStreamStringify(
       obj,
-      create_dump_replacer(),
+      create_dump_replacer({
+        allow_undefined: allow_undefined === true,
+      }),
       spaces,
       false,
       buf_size,
@@ -1571,6 +1587,26 @@ export namespace Arrays {
 
   export function of<A, B>(a: A, b: B): [A, B] {
     return [a, b];
+  }
+
+  export function is_array(arr: unknown): arr is Array<unknown> {
+    return Array.isArray(arr);
+  }
+
+  export function check_type<T, R extends T>(
+    arr: Array<T>,
+    func: (item: T) => item is R,
+  ): arr is Array<R> {
+    for (const item of arr) {
+      if (!func(item)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  export function length_is_1<T>(arr: Array<T>): arr is [T] {
+    return arr.length === 1;
   }
 }
 
