@@ -49,7 +49,7 @@
         {
           "fn": "gui_confirm",
           "kwargs": {
-            "title": "need manually login taobao.com",
+            "title": "need manually login yangkeduo.com",
             "message": "LibianCrawler 需要手动完成登陆拼多多，请在浏览器窗口完成登陆后，点击此窗口的确认按钮"
           }
         }

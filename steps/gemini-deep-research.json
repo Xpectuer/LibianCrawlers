@@ -1,0 +1,277 @@
+{
+  "$schema": "./schemas/v2.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start Gemini Deep Research Crawl"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "description": "检查登录 google。",
+      "fn": "page_wait_for_selector_in_any_frame",
+      "args": [
+        "a[aria-label=\"Sign in\"]"
+      ],
+      "kwargs": {
+        "timeout": 6000
+      },
+      "on_timeout_steps": [
+        {
+          "fn": "logi",
+          "args": [
+            "已登录 Gemini, 无需手动登陆"
+          ]
+        }
+      ],
+      "on_success_steps": [
+        {
+          "fn": "logi",
+          "args": [
+            "未登录 Gemini, 需要手动登陆"
+          ]
+        },
+        {
+          "fn": "gui_confirm",
+          "kwargs": {
+            "title": "need manually login gemini.google.com",
+            "message": "LibianCrawler 需要手动完成登陆 Gemini，请在浏览器窗口完成登陆后，点击此窗口的确认按钮"
+          }
+        }
+      ]
+    },
+    {
+      "description": "关闭广告",
+      "fn": "page_click_and_expect_element_destroy",
+      "args": [
+        "discovery-card-dialog button[data-test-id=\"close-button\"]"
+      ],
+      "kwargs": {
+      },
+      "on_timeout_steps": [
+        {
+          "fn": "logi",
+          "args": [
+            "no discovery card dialog found , continue"
+          ]
+        }
+      ]
+    },
+    {
+      "description": "关闭广告",
+      "fn": "page_click_and_expect_element_destroy",
+      "args": [
+        ".discovery-card button[data-test-id=\"close-button\"]"
+      ],
+      "kwargs": {
+      },
+      "on_timeout_steps": [
+        {
+          "fn": "logi",
+          "args": [
+            "no discovery card found , continue"
+          ]
+        }
+      ]
+    },
+    {
+      "description": "确保按下 Deep Research 按钮。",
+      "fn": "page_click",
+      "args": [
+        "toolbox-drawer-item > button[aria-pressed=\"false\"]"
+      ],
+      "kwargs": {
+        "timeout": 3000,
+        "has_text": "Deep Research"
+      },
+      "on_success_steps": [
+        {
+          "fn": "logi",
+          "args": [
+            "Deep Research button press success"
+          ]
+        }
+      ],
+      "on_timeout_steps": [
+        {
+          "fn": "page_wait_for_selector_in_any_frame",
+          "args": [
+            "toolbox-drawer-item > button[aria-pressed=\"true\"]:has-text('Deep Research')"
+          ],
+          "kwargs": {
+            "timeout": 3000
+          },
+          "on_success_steps": [
+            {
+              "fn": "logi",
+              "args": [
+                "Deep Research button already pressed"
+              ]
+            }
+          ],
+          "on_timeout_steps": [
+            {
+              "fn": "loge",
+              "args": [
+                "Not found Deep Research button"
+              ]
+            },
+            "debug",
+            "stop"
+          ]
+        }
+      ]
+    },
+    {
+      "description": "依次点击所有会话",
+      "fn": "page_click",
+      "args": [
+        ".conversation-items-container"
+      ],
+      "kwargs": {
+        "timeout": 10000,
+        "each_steps_before": [
+          {
+            "fn": "sleep",
+            "args": [
+              1500
+            ]
+          },
+          {
+            "fn": "logi",
+            "args": [
+              "正在打开菜单"
+            ]
+          },
+          {
+            "description": "打开菜单。",
+            "fn": "page_click",
+            "args": [
+              "button[data-test-id=\"side-nav-menu-button\"]"
+            ],
+            "kwargs": {
+              "timeout": 5000
+            }
+          },
+          {
+            "fn": "sleep",
+            "args": [
+              1500
+            ]
+          },
+          {
+            "fn": "logi",
+            "args": [
+              "打开菜单完成，即将点击会话标签。"
+            ]
+          },
+          {
+            "fn": "sleep",
+            "args": [
+              1500
+            ]
+          }
+        ],
+        "each_steps_after": [
+          {
+            "fn": "sleep",
+            "args": [
+              3000
+            ]
+          },
+          {
+            "description": "等待报告面板出现。",
+            "fn": "page_wait_for_selector_in_any_frame",
+            "args": [
+              "immersive-panel toolbar button[data-test-id=\"close-button\"]"
+            ],
+            "kwargs": {
+              "timeout": 6000
+            },
+            "on_timeout_steps": [
+              {
+                "fn": "logi",
+                "args": [
+                  "未发现自动打开的报告面板。"
+                ]
+              }
+            ],
+            "on_success_steps": [
+              {
+                "description": "关闭直接打开的报告面板。",
+                "fn": "page_click",
+                "args": [
+                  "immersive-panel toolbar button[data-test-id=\"close-button\"]"
+                ],
+                "kwargs": {
+                  "timeout": 2000
+                }
+              },
+              {
+                "fn": "logi",
+                "args": [
+                  "关闭报告面板完成。"
+                ]
+              }
+            ]
+          },
+          {
+            "fn": "page_click",
+            "args": [
+              "button[data-test-id=\"thoughts-header-button\"]"
+            ],
+            "kwargs": {
+              "method": "dispatch_event_click",
+              "each_steps_before": "continue"
+            },
+            "on_timeout_steps": "continue"
+          },
+          {
+            "fn": "page_scroll_down"
+          },
+          {
+            "fn": "dump_page_with_uuid",
+            "args": [
+              "chat_messages"
+            ]
+          },
+          {
+            "fn": "logi",
+            "args": [
+              "会话标签业务逻辑完成。"
+            ]
+          },
+          {
+            "fn": "sleep",
+            "args": [
+              2000
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "遍历会话完成。"
+      ]
+    },
+    "debug"
+  ]
+}

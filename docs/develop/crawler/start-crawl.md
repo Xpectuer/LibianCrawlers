@@ -290,3 +290,12 @@ poetry run smart-crawl --debug --url "https://apnews.com/search?q=trump" --local
 poetry run smart-crawl --debug --url https://qn.taobao.com/home.htm/app-customer-service/toolpage/Message --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/qianniu-message-export.json?start=now&step=-1" --browser_data_dir_id login_qianniu --mode save_file
 ```
 
+### LLM Chat
+
+#### Gemini Deep Research
+
+```shell
+poetry run smart-crawl --debug --url https://gemini.google.com/app --locale en-US --steps "jsonfile:steps/gemini-deep-research.json" --dump_page_ignore_names=script,svg --browser_data_dir_id login_gemini --mode save_file
+```
+
+

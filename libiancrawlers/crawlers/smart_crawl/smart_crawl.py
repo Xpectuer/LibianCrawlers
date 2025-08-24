@@ -13,6 +13,7 @@ import aiofiles.os
 import aiofiles.ospath
 from loguru import logger
 
+from libiancrawlers.app_util.locales import Locales
 from libiancrawlers.app_util.networks import update_proxies
 from libiancrawlers.app_util.networks.iputil import get_my_public_ip_info
 from libiancrawlers.app_util.obj2dict_util import url_parse_to_dict
@@ -26,8 +27,6 @@ from libiancrawlers.util.fs import mkdirs, aios_listdir, filename_slugify
 from libiancrawlers.util.plat import PreventTheScreenSaver
 
 _valid_smart_crawl_mode = ['insert_to_db', 'save_file', 'save_file_and_insert_to_db']
-
-Locale = Literal['zh-CN']
 
 _new_thread_count = itertools.count()
 
@@ -46,7 +45,7 @@ async def smart_crawl_v1(*,
                          output_dir: Optional[str] = None,
                          tag_group: str = 'cli-group',
                          tag_version: Optional[str] = None,
-                         locale: Locale,
+                         locale: Union[Literal['proxy'], Locales],
                          browser_data_dir_id='smart-crawl-v1-default-browser-data-dir-id',
                          wait_until_close_browser=False,
                          _should_init_app=True,
@@ -57,6 +56,8 @@ async def smart_crawl_v1(*,
                          html2markdown_soup_find: Optional[Union[str, Tuple[str]]] = None,
                          addons_root_dir: Optional[str] = None,
                          play_sound_when_gui_confirm: bool = False,
+                         screen_max_height: Optional[int] = None,
+                         screen_max_width: Optional[int] = None,
                          **__kwargs,
                          ):
     if __kwargs.keys().__len__() > 0:
@@ -144,6 +145,8 @@ async def smart_crawl_v1(*,
                     proxy_server=proxy_server,
                     locale=locale,
                     addons_root_dir=addons_root_dir,
+                    screen_max_height=screen_max_height,
+                    screen_max_width=screen_max_width,
                 )
             )
 

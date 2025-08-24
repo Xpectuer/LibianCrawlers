@@ -922,6 +922,7 @@ class StepsApi:
                 if not is_timeout_error(err):
                     raise err1
                 logger.debug('page click failed , maybe element already destroy')
+
             # 有时确实按下了按钮，但是也会 timeout error
             try:
                 await sleep(0.5)

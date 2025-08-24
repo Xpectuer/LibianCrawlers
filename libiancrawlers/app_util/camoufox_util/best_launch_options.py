@@ -4,11 +4,12 @@ import os.path
 import aiofiles.os
 from loguru import logger
 
+from libiancrawlers.app_util.locales import Locales
 from libiancrawlers.app_util.networks.proxies import read_proxy_server
 
 logger.debug('camoufox import')
 
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Literal
 
 # noinspection PyUnresolvedReferences
 from camoufox.locale import get_geolocation
@@ -22,7 +23,7 @@ async def get_best_launch_options(
         my_public_ip_info: MyPublicIpInfo,
         _os: Optional[Union[str, Tuple[str]]] = None,
         headless=False,
-        locale: Optional[str] = None,
+        locale: Optional[Union[Literal['proxy'], Locales]] = None,
         debug: Optional[bool] = None,
         proxy_server: Optional[str] = None,
         proxy_username: Optional[str] = None,
@@ -31,6 +32,8 @@ async def get_best_launch_options(
         has_touch: Optional[bool] = None,
         need_page_go_back_go_forward: Optional[bool] = None,
         addons_root_dir: Optional[str] = None,
+        screen_max_height: Optional[int] = None,
+        screen_max_width: Optional[int] = None,
 ):
     logger.debug('get best launch options params : {}', locals())
     if proxy_server is None:
@@ -59,6 +62,18 @@ async def get_best_launch_options(
     if has_touch is None:
         has_touch = True
     # launch_options()
+
+    if screen_max_height is None and screen_max_width is None:
+        screen = None
+    else:
+        from browserforge.fingerprints import Screen
+        class IScreen(Screen, dict):
+            def __init__(self, **kwargs):
+                # noinspection PyArgumentList
+                Screen.__init__(self, **kwargs)
+                dict.__init__(self, **kwargs)
+
+        screen = IScreen(max_width=screen_max_width, max_height=screen_max_height)
 
     public_ip_v4 = my_public_ip_info.get('public_ip_v4')
     if public_ip_v4 is not None:
@@ -94,12 +109,13 @@ async def get_best_launch_options(
         has_touch=has_touch,
         geoip=True,
         proxy=proxy,
-        locale=locale if proxy is None else None,
+        locale=None if locale == 'proxy' else locale,
         debug=debug,
         enable_cache=need_page_go_back_go_forward,
         firefox_user_prefs={
         },
         addons=addons if addons.__len__() > 0 else None,
+        screen=screen,
     )
     logger.debug('return best launch options : {}', res)
     return res
