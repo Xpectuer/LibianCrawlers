@@ -295,7 +295,7 @@ poetry run smart-crawl --debug --url https://qn.taobao.com/home.htm/app-customer
 #### Gemini Deep Research
 
 ```shell
-poetry run smart-crawl --debug --url https://gemini.google.com/app --locale en-US --steps "jsonfile:steps/gemini-deep-research.json" --dump_page_ignore_names=script,svg --browser_data_dir_id login_gemini --mode save_file
+poetry run smart-crawl --debug --url https://gemini.google.com/app --locale en-US --screen_min_width 1200 --screen_max_height 1000 --steps "jsonfile:steps/gemini-deep-research.json" --dump_page_ignore_names=script,svg --browser_data_dir_id login_gemini --mode save_file
 ```
 
 

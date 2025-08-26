@@ -147,6 +147,7 @@
     "encoding": "npm:encoding@^0.1.13",
     "f-streams-async": "npm:f-streams-async@^3.4.4",
     "filesize": "npm:filesize@^10.1.6",
+    "hi-base32": "npm:hi-base32@^0.5.1",
     "image-meta": "npm:image-meta@^0.2.1",
     "intl-number-parser": "npm:intl-number-parser@^1.0.5",
     "is-arguments": "npm:is-arguments@^1.2.0",

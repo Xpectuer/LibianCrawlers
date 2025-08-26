@@ -252,6 +252,64 @@
             ]
           },
           {
+            "description": "开始遍历studio侧栏文件",
+            "fn": "page_click",
+            "args": [
+              "button[data-test-id=\"studio-sidebar-button\"]"
+            ],
+            "kwargs": {
+            },
+            "on_timeout_steps": [
+              {
+                "fn": "logi",
+                "args": [
+                  "未找到 studio-sidebar-button ，似乎此对话不为 Deep Research 对话。"
+                ]
+              }
+            ],
+            "on_success_steps": [
+              {
+                "description": "开始遍历 studio 侧栏文件",
+                "fn": "page_click",
+                "args": [
+                  "studio-sidebar sidebar-immersive-chip"
+                ],
+                "kwargs": {
+                  "each_steps_before": [
+                    {
+                      "fn": "logi",
+                      "args": [
+                        "点击 studio 文件信息。"
+                      ]
+                    }
+                  ],
+                  "each_steps_after": [
+                    {
+                      "fn": "sleep",
+                      "args": [
+                        5000
+                      ]
+                    },
+                    {
+                      "fn": "dump_page_with_uuid",
+                      "args": [
+                        "studio_file"
+                      ]
+                    },
+                    {
+                      "fn": "page_click",
+                      "args": [
+                        "button[data-test-id=\"studio-sidebar-button\"]"
+                      ],
+                      "kwargs": {
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
             "fn": "logi",
             "args": [
               "会话标签业务逻辑完成。"

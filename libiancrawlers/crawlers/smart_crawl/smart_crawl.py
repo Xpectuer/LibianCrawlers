@@ -58,6 +58,8 @@ async def smart_crawl_v1(*,
                          play_sound_when_gui_confirm: bool = False,
                          screen_max_height: Optional[int] = None,
                          screen_max_width: Optional[int] = None,
+                         screen_min_height: Optional[int] = None,
+                         screen_min_width: Optional[int] = None,
                          **__kwargs,
                          ):
     if __kwargs.keys().__len__() > 0:
@@ -147,6 +149,8 @@ async def smart_crawl_v1(*,
                     addons_root_dir=addons_root_dir,
                     screen_max_height=screen_max_height,
                     screen_max_width=screen_max_width,
+                    screen_min_height=screen_min_height,
+                    screen_min_width=screen_min_width,
                 )
             )
 

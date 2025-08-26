@@ -34,6 +34,8 @@ async def get_best_launch_options(
         addons_root_dir: Optional[str] = None,
         screen_max_height: Optional[int] = None,
         screen_max_width: Optional[int] = None,
+        screen_min_height: Optional[int] = None,
+        screen_min_width: Optional[int] = None,
 ):
     logger.debug('get best launch options params : {}', locals())
     if proxy_server is None:
@@ -63,7 +65,10 @@ async def get_best_launch_options(
         has_touch = True
     # launch_options()
 
-    if screen_max_height is None and screen_max_width is None:
+    if screen_max_height is None \
+            and screen_max_width is None \
+            and screen_min_height is None \
+            and screen_min_width is None:
         screen = None
     else:
         from browserforge.fingerprints import Screen
@@ -73,7 +78,12 @@ async def get_best_launch_options(
                 Screen.__init__(self, **kwargs)
                 dict.__init__(self, **kwargs)
 
-        screen = IScreen(max_width=screen_max_width, max_height=screen_max_height)
+        screen = IScreen(
+            max_width=screen_max_width,
+            max_height=screen_max_height,
+            min_width=screen_min_width,
+            min_height=screen_min_height,
+        )
 
     public_ip_v4 = my_public_ip_info.get('public_ip_v4')
     if public_ip_v4 is not None:
