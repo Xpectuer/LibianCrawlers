@@ -7,8 +7,8 @@ import {
   Strs,
   Times,
 } from "../../../util.ts";
-import { Literature } from "../../literature.ts";
-import { MediaContent, PlatformEnum } from "../../media.ts";
+import { Literature } from "../../common/literature.ts";
+import { MediaContent, PlatformEnum } from "../../common/media.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 

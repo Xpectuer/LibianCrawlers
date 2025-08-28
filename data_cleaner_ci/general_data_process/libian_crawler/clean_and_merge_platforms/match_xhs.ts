@@ -14,7 +14,7 @@ import {
   MediaSearchContext,
   MediaVideo,
   PlatformEnum,
-} from "../../media.ts";
+} from "../../common/media.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 
@@ -310,9 +310,10 @@ export const match_xhs_apilib_search_list: LibianCrawlerGarbageCleaner<
           yield res;
         }
         type Query = NonNullable<typeof rec_query | typeof hot_query>;
-        const query_mapper = (q: Query) => {
+        const query_mapper = (_q: Query) => {
+          const q = DataClean.type_flag(_q);
           const related_questions = q.queries.map(
-            (it) => ({
+            (it: typeof q["queries"][number]) => ({
               name: it.name,
               cover_url: DataClean.url_use_https_emptyable(
                 "cover" in it ? it.cover ?? null : null,

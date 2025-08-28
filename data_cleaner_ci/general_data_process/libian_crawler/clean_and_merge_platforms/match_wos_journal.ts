@@ -1,7 +1,7 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
 import { chain, DataClean, Errors, Nums, Strs, Times } from "../../../util.ts";
-import { Literature } from "../../literature.ts";
-import { PlatformEnum } from "../../media.ts";
+import { Literature } from "../../common/literature.ts";
+import { PlatformEnum } from "../../common/media.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 

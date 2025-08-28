@@ -8,7 +8,7 @@ import {
   Strs,
 } from "../../util.ts";
 import OpenAI from "openai";
-import { NocoDBUtil } from "../nocodbutil.ts";
+import { NocoDBUtil } from "../common/nocodbutil.ts";
 
 // deno-lint-ignore no-namespace
 export namespace LLMReq {

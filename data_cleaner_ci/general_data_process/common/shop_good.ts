@@ -1,4 +1,4 @@
-import { DataClean } from "../util.ts";
+import { DataClean } from "../../util.ts";
 import { PlatformEnum } from "./media.ts";
 
 export interface ShopGood {

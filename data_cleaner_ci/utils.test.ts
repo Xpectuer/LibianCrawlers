@@ -509,6 +509,33 @@ Deno.test(function parse_datetime_test() {
   //   d10.epochMilliseconds,
   //   new Date("2025-10-15 00:00:00").getTime(),
   // );
+
+  const d11 = Times.parse_text_to_instant("8月28日", {
+    ...opt1,
+  });
+  console.debug("d11", d11);
+  assertEquals(
+    d11.epochMilliseconds,
+    new Date("2025-8-28 00:00:00").getTime(),
+  );
+
+  const d12 = Times.parse_text_to_instant("8月28日 15:30", {
+    ...opt1,
+  });
+  console.debug("d12", d12);
+  assertEquals(
+    d12.epochMilliseconds,
+    new Date("2025-8-28 15:30:00").getTime(),
+  );
+
+  const d13 = Times.parse_text_to_instant("8月28日 15:30:45", {
+    ...opt1,
+  });
+  console.debug("d13", d13);
+  assertEquals(
+    d13.epochMilliseconds,
+    new Date("2025-8-28 15:30:45").getTime(),
+  );
 });
 
 Deno.test(async function parse_process_bar_bind_each_test() {

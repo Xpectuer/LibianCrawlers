@@ -13,7 +13,7 @@ import {
   MediaContentAuthor,
   MediaSearchContext,
   PlatformEnum,
-} from "../../media.ts";
+} from "../../common/media.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 
 export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
@@ -59,9 +59,11 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
     M extends Typings.ReduceUnionMapping<typeof metas>,
     KS extends (string & keyof Typings.ReduceUnionMapping<M>)[],
   >(
-    keys: KS,
+    keys: KS | Array<string>,
   ):
-    | NonNullable<Typings.ReduceUnionMapping<M>[typeof keys[number]]>
+    | (KS[number] extends keyof Typings.ReduceUnionMapping<M>
+      ? Typings.ReduceUnionMapping<M>[KS[number]]
+      : string)
     | null => {
     if (typeof metas !== "object" || metas === null) {
       return null;
@@ -71,9 +73,7 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
       if (key in metas) {
         // deno-lint-ignore no-explicit-any
         const _k: string & keyof typeof metas = key as any;
-        res = DataClean.is_not_blank_and_valid(metas[_k])  
-          ? metas[_k]
-          : null;
+        res = DataClean.is_not_blank_and_valid(metas[_k]) ? metas[_k] : null;
       }
       if (res !== null) {
         // deno-lint-ignore no-explicit-any
@@ -95,10 +95,15 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
       & keyof Typings.ReduceUnionMapping<Mappings.IsNotConcreteEmpty<M>>
     )[],
   >(
-    keys: KS,
-  ):
-    | NonNullable<Typings.ReduceUnionMapping<M>[typeof keys[number]]>
-    | null => {
+    keys: KS | Array<string>,
+    // keys: KS,
+  ): // | typeof keys[number] extends
+  | NonNullable<
+    KS[number] extends keyof Typings.ReduceUnionMapping<M>
+      ? Typings.ReduceUnionMapping<M>[KS[number]]
+      : string
+  >
+  | null => {
     if (
       typeof metas2 !== "object" || metas2 === null ||
       !Mappings.is_not_concrete_empty(metas2)
@@ -110,9 +115,7 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
       if (key in metas2) {
         // deno-lint-ignore no-explicit-any
         const _k: string & keyof typeof metas2 = key as any;
-        res = DataClean.is_not_blank_and_valid(metas2[_k])  
-          ? metas2[_k]
-          : null;
+        res = DataClean.is_not_blank_and_valid(metas2[_k]) ? metas2[_k] : null;
       }
       if (res !== null) {
         // deno-lint-ignore no-explicit-any
@@ -210,7 +213,9 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
     } else {
       authors = article_authors.split(",")
         .map((article_author) => article_author.trim())
-        .filter((article_author) => DataClean.is_not_blank_and_valid(article_author))
+        .filter((article_author) =>
+          DataClean.is_not_blank_and_valid(article_author)
+        )
         .map((article_author) => {
           return {
             nickname: article_author,

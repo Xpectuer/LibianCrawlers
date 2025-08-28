@@ -3,8 +3,8 @@ import path from "node:path";
 import { DOMParser } from "jsr:@b-fuze/deno-dom";
 import { parseChineseNumber } from "parse-chinese-number";
 import { MultiProgressBar } from "jsr:@deno-library/progress";
-import { PlatformEnum } from "./general_data_process/media.ts";
-import { Paragraphs } from "./general_data_process/paragraph_analysis.ts";
+import { PlatformEnum } from "./general_data_process/common/media.ts";
+import { Paragraphs } from "./general_data_process/common/paragraph_analysis.ts";
 import JSON5 from "json5";
 import NumberParser from "intl-number-parser";
 import { delay } from "@std/async/delay";
@@ -23,6 +23,8 @@ import { Writable } from "node:stream";
 import { JSONParser } from "@streamparser/json";
 import { finished } from "node:stream/promises";
 import { LLMReq } from "./general_data_process/jobs/llmreq.ts";
+import TurndownService from "turndown";
+
 export function is_nullish(obj: any): obj is null | undefined {
   return obj === null || obj === undefined || typeof obj === "undefined";
 }
@@ -706,6 +708,8 @@ export namespace Times {
       on_found_month_range?: "use_min_month" | "use_max_month";
     },
   ): AllowNull extends true ? Temporal.Instant | null : Temporal.Instant {
+    const errors = [];
+
     // TODO: 时区问题
     if (
       !DataClean.is_not_blank_and_valid(text)
@@ -718,8 +722,35 @@ export namespace Times {
         );
       }
     }
+
+    try {
+      return Temporal.Instant.from(text);
+    } catch (err) {
+      errors.push(err);
+    }
+    try {
+      return Temporal.ZonedDateTime.from(text).toInstant();
+    } catch (err) {
+      errors.push(err);
+    }
+    try {
+      return Temporal.PlainDateTime.from(text)
+        .toZonedDateTime("UTC")
+        .toInstant();
+    } catch (err) {
+      errors.push(err);
+    }
+    try {
+      const date_ms = new Date(text).getTime();
+      if (Nums.is_invalid(date_ms) || date_ms <= 0) {
+        throw new Error(`invalid Date.getTime() : ${date_ms}`);
+      }
+      return Temporal.Instant.fromEpochMilliseconds(date_ms);
+    } catch (err) {
+      errors.push(err);
+    }
     // 自己的规则
-    const _parse_y_m_d_v1 = (): Temporal.Instant => {
+    const _parse_y_m_d_v1 = (_text: string): Temporal.Instant => {
       const min_year = 1800;
       const max_year = 2100;
       const parse_year_v2 = (t: string) => {
@@ -791,7 +822,9 @@ export namespace Times {
           return r1;
         }
       };
-      const split_space = text.split(" ").filter((it) => Strs.is_not_blank(it));
+      const split_space = _text.split(/[w年月日]/).filter((it) =>
+        Strs.is_not_blank(it)
+      );
       let y: number | null;
       let m: MonthNum | null;
       let d: DayNum | null;
@@ -893,35 +926,40 @@ export namespace Times {
         );
       }
     };
-    const errors = [];
     try {
-      return _parse_y_m_d_v1();
+      return _parse_y_m_d_v1(text);
     } catch (err) {
       errors.push(err);
     }
+
     try {
-      return Temporal.Instant.from(text);
-    } catch (err) {
-      errors.push(err);
-    }
-    try {
-      return Temporal.ZonedDateTime.from(text).toInstant();
-    } catch (err) {
-      errors.push(err);
-    }
-    try {
-      return Temporal.PlainDateTime.from(text)
-        .toZonedDateTime("UTC")
-        .toInstant();
-    } catch (err) {
-      errors.push(err);
-    }
-    try {
-      const date_ms = new Date(text).getTime();
-      if (Nums.is_invalid(date_ms) || date_ms <= 0) {
-        throw new Error(`invalid Date.getTime() : ${date_ms}`);
+      const _text_split = text.split(" ");
+      if (_text_split.length !== 2) {
+        Errors.throw_and_format("text split length not 2", { _text_split });
       }
-      return Temporal.Instant.fromEpochMilliseconds(date_ms);
+      const ymd = _parse_y_m_d_v1(_text_split[0]);
+      const date = Times.instant_to_date(ymd);
+      const hms = _text_split[1].split(/[:时点分秒]/);
+      if (hms.length >= 2) {
+        for (let i = 0; i < Math.min(3, hms.length); i++) {
+          const t = hms[i];
+          const value = Nums.is_int(t)
+            ? parseInt(t)
+            : Errors.throw_and_format("not int of hms", { hms, t, i });
+          switch (i) {
+            case 0:
+              date.setHours(value);
+              break;
+            case 1:
+              date.setMinutes(value);
+              break;
+            case 2:
+              date.setSeconds(value);
+              break;
+          }
+        }
+      }
+      return Temporal.Instant.fromEpochMilliseconds(date.getTime());
     } catch (err) {
       errors.push(err);
     }
@@ -2577,6 +2615,20 @@ export namespace DataClean {
     }
     return true;
   }
+
+  /**
+   * 由于:
+   * 1. Code gen 时类型会被抽样滤掉。
+   * 2. 工程初始化时这些类型不存在。
+   *
+   * 因此本函数用于在类型不存在时提供一个 any 占位类型。
+   * 每个 matcher 都应当实现。
+   */
+  export function type_flag<T>(
+    obj: T,
+  ): T extends Mappings.IsNotConcreteEmpty<T> ? T : any {
+    return obj as any;
+  }
 }
 
 // deno-lint-ignore no-namespace
@@ -3328,6 +3380,93 @@ export namespace Jsonatas {
         },
         "<s:o>",
       );
+      const _to_html = (obj: unknown): string => {
+        try {
+          if (typeof obj === "symbol" || typeof obj === "function") {
+            Errors.throw_and_format(
+              "Failed to md because obj is invalid type",
+              { obj },
+            );
+          }
+          if (
+            typeof obj === "string" || typeof obj === "number" ||
+            typeof obj === "boolean" || typeof obj === "bigint"
+          ) {
+            return `${obj}`;
+          }
+          if (
+            typeof obj === "undefined" ||
+            typeof obj === "object" && obj === null
+          ) {
+            return "";
+          }
+          if (Arrays.is_array(obj)) {
+            return obj.map((o) => _to_html(o)).join("");
+          }
+          if (!Mappings.is_not_concrete_empty(obj)) {
+            return "";
+          } else {
+            const o: Record<string, unknown> = obj;
+            let tag_name = "";
+            let _str = "";
+            let _attrs = "";
+            let _children = "";
+            if ("name" in o) {
+              if (typeof o.name !== "string") {
+                Errors.throw_and_format("obj.name is not string", { o });
+              } else {
+                tag_name = o.name;
+              }
+            }
+            if (
+              "str" in o && typeof o.str === "string" && o.str !== "__IGNORE__"
+            ) {
+              _str = o.str;
+            }
+            if (
+              "attrs" in o && typeof o.attrs === "object" &&
+              o.attrs !== null && Mappings.is_not_concrete_empty(o.attrs)
+            ) {
+              for (const attrkv of Mappings.object_entries(o)) {
+                let value = attrkv[1];
+                if (Arrays.is_array(value)) {
+                  value = value.join(" ");
+                }
+                _attrs += " " + attrkv[0] + "=" + Jsons.dump(value);
+              }
+            }
+            if (
+              "children" in o && typeof o.attrs === "object" &&
+              Arrays.is_array(o.children)
+            ) {
+              for (const child of o.children) {
+                _children += _to_html(child);
+              }
+            }
+            if (tag_name) {
+              return `<${tag_name}>${_str}${_children}</${tag_name}>`;
+            } else {
+              return "";
+            }
+          }
+        } catch (err) {
+          Errors.throw_and_format("Failed to md", { obj }, err);
+        }
+      };
+      jsonata_exp.registerFunction(
+        "to_html",
+        (obj: unknown) => {
+          return _to_html(obj);
+        },
+        "<x:s>",
+      );
+      jsonata_exp.registerFunction(
+        "to_md",
+        (html: string) => {
+          return new TurndownService().turndown(html);
+        },
+        "<s:s>",
+      );
     }
   }
 
@@ -3711,8 +3850,11 @@ export namespace TestUtil {
     try {
       const obj = Jsons.load(
         new TextDecoder().decode(
-          await Deno.readFile(path.join("user_code", "testdevconfig.json")),
+          await Deno.readFile(path.join("user_code", "testdevconfig.json5")),
         ),
+        {
+          parse_json5: true,
+        },
       );
       if (typeof obj === "object" && obj && !Array.isArray(obj)) {
         if (
@@ -3792,7 +3934,9 @@ export namespace TestUtil {
         }
       }
 
-      const nocodb_baseurl = DataClean.url_use_https_noempty(nocodb_baseurl2);
+      const nocodb_baseurl = Strs.is_not_blank(nocodb_baseurl2)
+        ? DataClean.url_use_https_noempty(nocodb_baseurl2)
+        : "";
 
       return {
         nocodb_baseurl,
@@ -3809,7 +3953,7 @@ export namespace TestUtil {
           llmreq_params: null,
         } as const;
       } else {
-        console.error("Error on read user_code/testdevconfig.json", err);
+        console.error("Error on read user_code/testdevconfig.json5", err);
         throw err;
       }
     }

@@ -17,7 +17,8 @@ import {
 import ts from "typescript";
 import { parseArgs } from "jsr:@std/cli/parse-args";
 import { QuickTypeUtil } from "./quicktypeutil.ts";
-import { NocoDBUtil } from "./general_data_process/nocodbutil.ts";
+import { NocoDBUtil } from "./general_data_process/common/nocodbutil.ts";
+import lodash from "lodash";
 
 // console.debug("setGlobalVars is ", setGlobalVars);
 // console.debug("createIndexedDB() result", createIndexedDB());
@@ -614,8 +615,35 @@ export async function generate_postgres_api_type<T>(param: {
       ) => {
         return `${typename}_${Strs.remove_suffix(filename, ".ts")}`;
       };
+
+      // 在开发时，当需要模拟类型还未生成时的初始状态，可以将 sample_limit 设为 0 。
+      // 如果在 `deno check` 实在是超出了内存限制，也可以启用抽样。
+      // https://github.com/denoland/deno/issues/30531
+      //
+      // 因此这里不得不略去一些 Union Type 。
+      // 这里选取 sample_limit 个 Type 作为 Union Type 。其中 0.2*sample_limit 个从最新的获取，0.8*sample_limit 个在之前的类型中抽取。
+
+      let file_names = batch_file_name_list;
+      const sample_limit = 999999 as const;
+      if (file_names.length > sample_limit) {
+        const latest_size = Math.floor(sample_limit * 0.2);
+        file_names = [
+          ...lodash.sampleSize(
+            file_names.map((name, idx) => [name, idx] as const).slice(
+              0,
+              file_names.length - latest_size,
+            ),
+            sample_limit - latest_size,
+          ).sort((a, b) => a[1] - b[1]).map((it) => it[0]),
+          ...file_names.slice(
+            file_names.length - latest_size,
+            file_names.length,
+          ),
+        ];
+      }
+
       lines.push(
-        ...batch_file_name_list.map((filename) => {
+        ...file_names.map((filename) => {
           return `import {${typename} as ${
             filename_to_typename(
               filename,
@@ -624,9 +652,10 @@ export async function generate_postgres_api_type<T>(param: {
         }),
       );
       lines.push(`export type ${typename} = `);
+
       lines.push(
-        ...batch_file_name_list.map((filename) => {
-          return `  | ${filename_to_typename(filename)}`;
+        ...file_names.map((filename) => {
+          return `\n  | ${filename_to_typename(filename)}`;
         }),
       );
       return lines.join("\n");

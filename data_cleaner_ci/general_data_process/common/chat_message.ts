@@ -1,5 +1,5 @@
-import { DataClean } from "../util.ts";
-import { PlatformEnum } from "./media.ts";
+import { DataClean } from "../../util.ts";
+import { PlatformEnum } from "../common/media.ts";
 
 export interface ChatMessage {
   platform: PlatformEnum;

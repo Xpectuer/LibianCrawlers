@@ -1,7 +1,7 @@
 /**
  * 此文件存放一些处理文字段落内容的工具。
  */
-import { DataClean, Strs } from "../util.ts";
+import { DataClean, Strs } from "../../util.ts";
 
 // deno-lint-ignore no-namespace
 export namespace Paragraphs {

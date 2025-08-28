@@ -1,34 +1,37 @@
 import jsonata from "jsonata";
 import path from "node:path";
-import { Jsonatas, Jsons, name_function, write_file } from "../util.ts";
+import { Errors, Jsonatas, Jsons, name_function, write_file } from "../util.ts";
 
 async function run_tests() {
-  for (const func_name of [
-    // "test_xhs",
-    // "test_yangkeduo",
-    // "test_baidu",
-    // "test_xhs2",
-    // "test_cnki",
-    // "test_entrez_search",
-    // "test_qianniu_message_export",
-    // "test_cnki_journal_detail",
-    // "test_cnki_journal_detail_2",
-    // "test_wos_journal",
-    // "test_cqvip_search",
-    // "test_wanfangdata_search",
-    // "test_wanfangdata_journal",
-    // "test_washington_post",
-    "test_pubmed_fetch_ids"
-  ]) {
+  for (
+    const func_name of [
+      // "test_xhs",
+      // "test_yangkeduo",
+      // "test_baidu",
+      // "test_xhs2",
+      // "test_cnki",
+      // "test_entrez_search",
+      // "test_qianniu_message_export",
+      // "test_cnki_journal_detail",
+      // "test_cnki_journal_detail_2",
+      // "test_wos_journal",
+      // "test_cqvip_search",
+      // "test_wanfangdata_search",
+      // "test_wanfangdata_journal",
+      // "test_washington_post",
+      // "test_pubmed_fetch_ids"
+      "test_gemini_deep_research",
+    ]
+  ) {
     let target_file: string;
     const func_config_file = path.join(
       "user_code",
       "jsonata_test_config",
-      `${func_name}.json`
+      `${func_name}.json`,
     );
     try {
       const config = Jsons.load(
-        new TextDecoder("utf-8").decode(await Deno.readFile(func_config_file))
+        new TextDecoder("utf-8").decode(await Deno.readFile(func_config_file)),
       );
       if (
         typeof config === "object" &&
@@ -39,8 +42,9 @@ async function run_tests() {
       ) {
         target_file = config["target_file"];
       } else {
-        throw new Error(
-          `not found target_file field in config , config is ${config}`
+        Errors.throw_and_format(
+          `not found target_file field in config`,
+          { config },
         );
       }
     } catch (_err) {
@@ -81,7 +85,7 @@ async function run_tests() {
         const content = Jsons.load(await Deno.readTextFile(target_file));
         const exp1 = await Jsonatas.read_jsonata_template_exp(
           "parse_html_tree",
-          { no_cache: true }
+          { no_cache: true },
         );
         const result = await exp1.evaluate(content);
         const result_content = Jsons.dump(result, { indent: 2 });
@@ -89,7 +93,7 @@ async function run_tests() {
         await write_file({
           file_path: path.join(
             "user_code",
-            `jsonata_test.${func_name}.result.json`
+            `jsonata_test.${func_name}.result.json`,
           ),
           creator: {
             mode: "text",
@@ -99,7 +103,7 @@ async function run_tests() {
           },
           log_tag: { alia_name: `${func_name} result file` },
         });
-      })
+      }),
     );
   }
 }

@@ -15,7 +15,7 @@ import {
   MediaContentAuthor,
   MediaSearchContext,
   PlatformEnum,
-} from "../../media.ts";
+} from "../../common/media.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 export const match_dump_obj: LibianCrawlerGarbageCleaner<
@@ -40,7 +40,9 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
     if (!("dump_obj" in dump_page_info)) {
       return;
     }
-    const { dump_obj } = dump_page_info;
+    const dump_obj = DataClean.type_flag(
+      dump_page_info.dump_obj,
+    );
     if (
       typeof dump_obj !== "object" ||
       dump_obj === null
@@ -216,10 +218,16 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
                 {
                   journal: null,
                   issn: DataClean.find_issn(row.ISSN),
-                  isbn: DataClean.is_not_blank_and_valid(row.ISBN) ? row.ISBN : null,
+                  isbn: DataClean.is_not_blank_and_valid(row.ISBN)
+                    ? row.ISBN
+                    : null,
                   publication_type,
-                  doi: DataClean.is_not_blank_and_valid(row.DOI) ? row.DOI : null,
-                  pui: DataClean.is_not_blank_and_valid(row.PUI) ? row.PUI : null,
+                  doi: DataClean.is_not_blank_and_valid(row.DOI)
+                    ? row.DOI
+                    : null,
+                  pui: DataClean.is_not_blank_and_valid(row.PUI)
+                    ? row.PUI
+                    : null,
                   category: publication_type,
                   level_of_evidence: null,
                   book_publisher: null,

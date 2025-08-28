@@ -16,7 +16,7 @@ import {
   Streams,
   Strs,
 } from "../../util.ts";
-import { ICache } from "../caches.ts";
+import { ICache } from "../common/caches.ts";
 import {
   create_and_init_libian_crawler_database_scope,
 } from "./data_storage.ts";

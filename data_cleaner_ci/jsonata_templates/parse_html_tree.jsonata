@@ -1,4 +1,5 @@
 (
+    $all_elements := **;
     $tags := **[bs4_type="<class 'bs4.element.Tag'>"];
     $html2markdown := $.g_content.dump_page_info.frame_tree.content.html_info.html2markdown;
     $metas := $merge($tags[name="meta" and attrs.property and attrs.content].(
@@ -244,6 +245,42 @@
             {
                 "v1": $is_string(g_content.result.obj.obj) ? $parse_pubmed_str(g_content.result.obj.obj) : null,
                 "v2": $is_string($pubmed_str) ? $parse_pubmed_str($pubmed_str) : null
+            }
+        ),
+        "gemini_deep_research": (
+            {
+                "messages": $tags[name="chat-window"].**[name="user-query-content" or name="model-response"].(
+                    $user_query := $.**[name="p" and "query-text-line" in attrs.class].**[bs4_type="<class 'bs4.element.NavigableString'>"].str.$trim($);
+                    $model_responses :=  $user_query ? () : (
+                        {
+                            "elements": $distinct($.**[attrs."data-test-id" or attrs.id].({
+                                "id": $distinct($.attrs.id),
+                                "datatestid": $distinct($.attrs."data-test-id"),
+                                "str": $distinct($.**[str and $trim(str)].str)
+                            }))
+                        }
+                    );
+                    
+                    {
+                        "ids": $.**[attrs.id].attrs.id,
+                        "data_test_ids": $.**[attrs."data-test-id"].attrs."data-test-id",
+                        "user_query": $user_query,
+                        "model_responses": $model_responses
+                    }
+                ).($[$]),
+                "docs":(
+                    $title_text := $tags[name="immersive-panel"].**[name="toolbar"].**["title-text" in attrs.class].**.str;
+                    $web_preview_html := $distinct($all_elements.**[url.url and content][url.url.$contains("scf.usercontent.goog")].content.**[name="body"].$to_html($));
+                    $md := $to_md($to_html($tags[name="deep-research-immersive-panel"].**[name="message-content"].**['markdown-main-panel' in attrs.class].**[str and $trim(str)]));
+
+                    {
+                        "title_text": $title_text ? $title_text : null,
+                        "md": $md ? $md : null ,
+                        "web_preview_html": $web_preview_html ? $web_preview_html : null
+                    }
+                ),
+                "title_checked": $distinct($tags.**["conversation-title" in attrs.class and "gds-label-l" in attrs.class].**[str and $trim(str)].$trim(str)),
+                "title_other": $distinct($tags.**["conversation-title" in attrs.class and "gds-body-m" in attrs.class].**[str and $trim(str)].$trim(str))
             }
         )
     }

@@ -1,9 +1,9 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
 import { DataClean, Errors, Mappings, Times } from "../../../util.ts";
-import { PlatformEnum } from "../../media.ts";
+import { PlatformEnum } from "../../common/media.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
-import { ChatMessage } from "../../chat_message.ts";
+import { ChatMessage } from "../../common/chat_message.ts";
 
 export const match_qianniu_message_export: LibianCrawlerGarbageCleaner<
   ChatMessage & {

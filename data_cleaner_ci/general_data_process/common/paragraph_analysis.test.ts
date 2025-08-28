@@ -1,4 +1,4 @@
-import { is_deep_equal } from "../util.ts";
+import { is_deep_equal } from "../../util.ts";
 import { Paragraphs } from "./paragraph_analysis.ts";
 import { assert, assertEquals } from "@std/assert";
 

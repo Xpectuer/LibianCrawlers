@@ -13,7 +13,7 @@ import {
   Strs,
   Times,
   Typings,
-} from "../util.ts";
+} from "../../util.ts";
 import { create_cache_in_memory, ICache } from "./caches.ts";
 
 // deno-lint-ignore no-namespace

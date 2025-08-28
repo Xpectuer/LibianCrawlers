@@ -1,7 +1,7 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
-import { DataClean, Nums, Times } from "../../../util.ts";
-import { Literature } from "../../literature.ts";
-import { PlatformEnum } from "../../media.ts";
+import { DataClean, Mappings, Nums, Times } from "../../../util.ts";
+import { Literature } from "../../common/literature.ts";
+import { PlatformEnum } from "../../common/media.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 
@@ -21,9 +21,12 @@ export const match_github__suqingdong__impact_factord:
           "group__github__suqingdong__impact_factor_search_result__github__suqingdong__impact_factor"
         ]
       ) {
-        const { g_content, g_create_time } = garbage[
-          "group__github__suqingdong__impact_factor_search_result__github__suqingdong__impact_factor"
-        ];
+        const _root = DataClean.type_flag(
+          garbage[
+            "group__github__suqingdong__impact_factor_search_result__github__suqingdong__impact_factor"
+          ],
+        );
+        const { g_content, g_create_time } = _root;
         for (const item of g_content.result.obj) {
           const issn = DataClean.find_issn(item.issn);
           if (issn === null) {

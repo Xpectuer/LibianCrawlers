@@ -1,10 +1,10 @@
 import { NocoDBDataset, NocoDBUtil } from "./nocodbutil.ts";
-import { TestUtil } from "../util.ts";
-import { assert } from "node:console";
+import { TestUtil } from "../../util.ts";
 
 const { nocodb_baseurl, nocodb_token, list_table_records_test_conf } =
   await TestUtil.read_vars();
-const ignore = !nocodb_token && !nocodb_baseurl;
+const ignore = !nocodb_token || !nocodb_baseurl;
+// const ignore = true;
 
 Deno.test({
   ignore,

@@ -15,7 +15,7 @@ import {
   MediaContentAuthor,
   MediaContentTag,
   PlatformEnum,
-} from "../../media.ts";
+} from "../../common/media.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 
 // export const match_bilibili_api_search_result: LibianCrawlerGarbageCleaner<

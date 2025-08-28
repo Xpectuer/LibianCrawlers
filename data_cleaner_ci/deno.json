@@ -23,45 +23,13 @@
       "description": "⭐ 启动便于开发 jsonata 文件的一个小服务",
       "command": "deno run --allow-env --allow-read --allow-run start_dev_jsonata.ts"
     },
-    "step:check:type:root": "deno check --frozen=true --doc --all \"*.ts\"",
-    "step:check:type:general_data_process": "deno check --frozen=true --doc --all \"general_data_process/**/*.ts\"",
-    "step:check:type:jsonata_templates": "deno check --frozen=true --doc --all \"jsonata_templates/**/*.ts\"",
-    "step:check:type:serialize-anything": "deno check --frozen=true --doc --all \"serialize-anything/**/*.ts\"",
-    "step:check:type:subproc": "deno check --frozen=true --doc --all \"subproc/**/*.ts\"",
-    "step:check:type:user_code": "deno check --frozen=true --doc --all \"user_code/**/*.ts\"",
-    "step:check:type:workers": "deno check --frozen=true --doc --all \"workers/**/*.ts\"",
-    "step:check:type:data_cleaner_ci_generated:meta": "deno check --frozen=true --doc --all \"data_cleaner_ci_generated/**/meta.ts\"",
-    "step:check:type:data_cleaner_ci_generated:index": {
-      "description": "Ignore it because OOM",
-      "command": "deno check --frozen=true --doc-only \"data_cleaner_ci_generated/**/index.ts\""
-    },
-    "step:check:type:data_cleaner_ci_generated:api": {
-      "description": "Ignore it because OOM",
-      "command": "deno check --frozen=true --doc-only \"data_cleaner_ci_generated/**/api.ts\""
-    },
-    "step:check:type:data_cleaner_ci_generated": {
-      "dependencies": [
-        "step:check:type:data_cleaner_ci_generated:meta",
-        "step:check:type:data_cleaner_ci_generated:index",
-        "step:check:type:data_cleaner_ci_generated:api"
-      ]
-    },
     "step:check:type": {
       "description": "检查类型",
-      "dependencies": [
-        "step:check:type:root",
-        "step:check:type:general_data_process",
-        "step:check:type:jsonata_templates",
-        "step:check:type:serialize-anything",
-        "step:check:type:subproc",
-        "step:check:type:user_code",
-        "step:check:type:workers",
-        "step:check:type:data_cleaner_ci_generated"
-      ]
+      "command": "cross-env DENO_V8_FLAGS=--max-old-space-size=8192 deno check --doc"
     },
     "step:check": {
       "description": "⭐ 检查类型并运行测试",
-      "command": "deno test --allow-env=NODE_NDEBUG,READABLE_STREAM,OPENAI_ORG_ID,OPENAI_PROJECT_ID,OPENAI_WEBHOOK_SECRET,OPENAI_LOG --allow-read=user_code/testdevconfig.json,user_code/.tmp/.util_test --allow-write=user_code/.tmp/.util_test --allow-net --ignore=./jsonata_templates/jsonata_test.ts --quiet",
+      "command": "cross-env DENO_V8_FLAGS=--max-old-space-size=8192 deno test --allow-env=NODE_NDEBUG,READABLE_STREAM,OPENAI_ORG_ID,OPENAI_PROJECT_ID,OPENAI_WEBHOOK_SECRET,OPENAI_LOG --allow-read=user_code/testdevconfig.json5,user_code/.tmp/.util_test --allow-write=user_code/.tmp/.util_test --allow-net --ignore=./jsonata_templates/jsonata_test.ts --quiet",
       "dependencies": [
         "step:check:type"
       ]
@@ -74,18 +42,18 @@
       "command": "deno task init:code_gen:allownet --skip-existed"
     },
     "dev:libian_crawler:run_code_gen": {
-      "description": "⭐ 一键启动类型生成(启用缓存和允许网络)",
+      "description": "⭐ 一键启动 类型生成(启用缓存和允许网络)",
       "command": "deno task step:check",
       "dependencies": [
         "dev:libian_crawler:run_code_gen:no_check"
       ]
     },
     "dev:libian_crawler:run_clean": {
-      "description": "⭐ 一键启动数据清洗(启用缓存和允许网络)",
+      "description": "⭐ 一键启动 数据清洗(启用缓存和允许网络)",
       "command": "deno task step:check && deno task step:libian_crawler:clean_and_merge:allownet --use-cache"
     },
     "dev:libian_crawler:run_all": {
-      "description": "⭐ 一键启动类型生成和数据清洗(都启用缓存和允许网络)",
+      "description": "⭐ 一键启动 类型生成 和 数据清洗(都启用缓存和允许网络)",
       "command": "deno task dev:libian_crawler:run_clean",
       "dependencies": [
         "dev:libian_crawler:run_code_gen"
@@ -106,18 +74,18 @@
       "command": "deno task init:code_gen:allownet"
     },
     "dev:libian_crawler:run_code_gen:update": {
-      "description": "⭐ 一键启动类型生成(更新缓存和允许网络)",
+      "description": "⭐ 一键启动 类型生成(【更新】缓存和允许网络)",
       "command": "deno task step:check",
       "dependencies": [
         "dev:libian_crawler:run_code_gen:update:no_check"
       ]
     },
     "dev:libian_crawler:run_clean:update": {
-      "description": "⭐ 一键启动数据清洗(更新缓存和允许网络)",
+      "description": "⭐ 一键启动 数据清洗(【更新】缓存和允许网络)",
       "command": "deno task step:check && deno task step:libian_crawler:clean_and_merge:allownet --update-cache"
     },
     "dev:libian_crawler:run_all:update": {
-      "description": "⭐ 一键启动类型生成和数据清洗(都更新缓存和允许网络)",
+      "description": "⭐ 一键启动 类型生成 和 数据清洗(均【更新】缓存和允许网络)",
       "command": "deno task dev:libian_crawler:run_clean:update",
       "dependencies": [
         "dev:libian_crawler:run_code_gen:update"
@@ -135,6 +103,8 @@
     "@streamparser/json-whatwg": "npm:@streamparser/json-whatwg@^0.0.22",
     "@types/async-lock": "npm:@types/async-lock@^1.4.2",
     "@types/big-json": "npm:@types/big-json@^3.2.5",
+    "@types/lodash": "npm:@types/lodash@^4.17.20",
+    "@types/turndown": "npm:@types/turndown@^5.0.5",
     "async-lock": "npm:async-lock@^1.4.1",
     "big-json": "npm:big-json@^3.2.0",
     "collection-utils": "npm:collection-utils@^1.0.1",
@@ -147,7 +117,6 @@
     "encoding": "npm:encoding@^0.1.13",
     "f-streams-async": "npm:f-streams-async@^3.4.4",
     "filesize": "npm:filesize@^10.1.6",
-    "hi-base32": "npm:hi-base32@^0.5.1",
     "image-meta": "npm:image-meta@^0.2.1",
     "intl-number-parser": "npm:intl-number-parser@^1.0.5",
     "is-arguments": "npm:is-arguments@^1.2.0",
@@ -161,11 +130,13 @@
     "jsonata": "npm:jsonata@^2.0.6",
     "kysely": "npm:kysely@^0.27.5",
     "kysely-postgres-js": "npm:kysely-postgres-js@^2.0.0",
+    "lodash": "npm:lodash@^4.17.21",
     "openai": "npm:openai@^5.8.2",
     "parse-chinese-number": "npm:parse-chinese-number@^1.0.5",
     "postgres": "npm:postgres@^3.4.5",
     "quicktype-core": "npm:quicktype-core@^23.0.170",
     "shx": "npm:shx@^0.4.0",
+    "turndown": "npm:turndown@^7.2.1",
     "typescript": "npm:typescript@^5.7.3",
     "which-boxed-primitive": "npm:which-boxed-primitive@^1.1.1",
     "which-collection": "npm:which-collection@^1.0.2",

@@ -7,7 +7,7 @@ import {
   Strs,
   Times,
 } from "../../../util.ts";
-import { MediaContent, PlatformEnum } from "../../media.ts";
+import { MediaContent, PlatformEnum } from "../../common/media.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 
 export const match_pubmed_str: LibianCrawlerGarbageCleaner<

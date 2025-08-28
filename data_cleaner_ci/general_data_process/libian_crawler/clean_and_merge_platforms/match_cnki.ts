@@ -9,11 +9,11 @@ import {
   Strs,
   Times,
 } from "../../../util.ts";
-import { MediaContent, PlatformEnum } from "../../media.ts";
-import { Literature } from "../../literature.ts";
+import { MediaContent, PlatformEnum } from "../../common/media.ts";
+import { Literature } from "../../common/literature.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
-import { Paragraphs } from "../../paragraph_analysis.ts";
+import { Paragraphs } from "../../common/paragraph_analysis.ts";
 
 export const match_cnki: LibianCrawlerGarbageCleaner<
   MediaContent

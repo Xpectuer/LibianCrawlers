@@ -19,7 +19,7 @@ import {
   Times,
   Typings,
 } from "../../util.ts";
-import { create_cache_in_memory } from "../caches.ts";
+import { create_cache_in_memory } from "../common/caches.ts";
 import {
   MediaContent,
   MediaContentAuthor,
@@ -27,9 +27,9 @@ import {
   MediaSearchContext,
   MediaVideo,
   PlatformEnum,
-} from "../media.ts";
-import { Paragraphs } from "../paragraph_analysis.ts";
-import { ShopGood } from "../shop_good.ts";
+} from "../common/media.ts";
+import { Paragraphs } from "../common/paragraph_analysis.ts";
+import { ShopGood } from "../common/shop_good.ts";
 import {
   ChatMessageTable,
   create_and_init_libian_crawler_database_scope,
@@ -38,9 +38,9 @@ import {
   ShopGoodTable,
 } from "./data_storage.ts";
 import { pg_dto_equal } from "../../pg.ts";
-import { ChatMessage } from "../chat_message.ts";
+import { ChatMessage } from "../common/chat_message.ts";
 import { createHash } from "node:crypto";
-import { Literature } from "../literature.ts";
+import { Literature } from "../common/literature.ts";
 import { libian_crawler_garbage_matchers } from "./clean_and_merge_platforms/index.ts";
 
 // deno-lint-ignore no-namespace
@@ -173,6 +173,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
       | "content_text_summary"
       | "content_text_detail"
       | "videos"
+      | "attach_docs"
     >
     & {
       count_read: MediaContent["count_read"];
@@ -195,6 +196,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
       content_text_summary_uncleaned_timeline: DataMerge.Timeline<string>;
       content_text_detail_uncleaned_timeline: DataMerge.Timeline<string>;
       content_text_latest: string;
+      attach_docs: NonNullable<MediaContent["attach_docs"]> | null | undefined;
     };
 
   export type ShopGoodMerged = Omit<ShopGood, never>;
@@ -629,6 +631,18 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           literatures = null;
         }
         const language = DataClean.find_languages(prev?.language, cur.language);
+        let attach_docs: MediaContentMerged["attach_docs"] = Streams
+          .deduplicate(
+            [
+              ...(prev?.attach_docs ?? []),
+              ...(cur.attach_docs ?? []),
+            ],
+            (a, b) => a.id === b.id,
+          );
+        if (attach_docs.length <= 0) {
+          attach_docs = null;
+        }
+
         return {
           platform: cur.platform,
           platform_duplicate_id: cur.platform_duplicate_id,
@@ -656,6 +670,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           content_text_latest: content_text_latest ? content_text_latest : "",
           literatures,
           language,
+          attach_docs,
         };
       },
     });
@@ -1090,7 +1105,9 @@ ${Deno.inspect(existed, { depth: 4 })}
         value.literatures?.flatMap((literature) => {
           return [
             ...(Strs.is_not_blank(literature.issn) ? [literature.issn] : []),
-            ...(literature.issn_list?.filter((it) => Strs.is_not_blank(it)) ??
+            ...(literature.issn_list?.filter((it) =>
+              it && Strs.is_not_blank(it)
+            ) ??
               []),
           ];
         }) ?? [],
@@ -1098,6 +1115,16 @@ ${Deno.inspect(existed, { depth: 4 })}
       const literature_issn_list_joined = literature_issn_list.length <= 0
         ? null
         : literature_issn_list.join(",");
+      let attach_docs = value.attach_docs;
+      if (is_nullish(attach_docs)) {
+        attach_docs = [];
+      }
+      let attach_docs_markdown: string | null = attach_docs.map((it) => {
+        return `# ${it.id}\n\n${it.content_md}`;
+      }).join("\n\n\n---------------------------------------\n\n\n");
+      if (!DataClean.is_not_blank_and_valid(attach_docs_markdown)) {
+        attach_docs_markdown = null;
+      }
       const res = {
         ...Mappings.filter_keys(value, "pick", [
           "platform",
@@ -1180,6 +1207,8 @@ ${Deno.inspect(existed, { depth: 4 })}
         languages_joined,
         literature_issn_list,
         literature_issn_list_joined,
+        attach_docs,
+        attach_docs_markdown,
       } satisfies Omit<
         Parameters<ReturnType<typeof db.insertInto<typeof table>>["values"]>[0],
         "id"

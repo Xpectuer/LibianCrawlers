@@ -1,6 +1,10 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
 import { DataClean, Strs, Times } from "../../../util.ts";
-import { MediaContent, MediaSearchContext, PlatformEnum } from "../../media.ts";
+import {
+  MediaContent,
+  MediaSearchContext,
+  PlatformEnum,
+} from "../../common/media.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 
@@ -14,13 +18,21 @@ export const match_baidu_search_result: LibianCrawlerGarbageCleaner<
     if (!("template_parse_html_tree" in smart_crawl)) {
       return;
     }
-    const { template_parse_html_tree } = smart_crawl;
+    const template_parse_html_tree = smart_crawl.template_parse_html_tree;
     if (
       template_parse_html_tree.baidu &&
-      "results" in template_parse_html_tree.baidu &&
-      template_parse_html_tree.baidu.results
+      "results" in template_parse_html_tree.baidu
     ) {
-      for (const bdres of template_parse_html_tree.baidu.results) {
+      const baidu = DataClean.type_flag(
+        template_parse_html_tree.baidu,
+      );
+      if (
+        !("results" in baidu && baidu.results)
+      ) {
+        return;
+      }
+      const baidu_results = DataClean.type_flag(baidu.results);
+      for (const bdres of baidu_results) {
         if (!bdres.datatools.result) {
           continue;
         }

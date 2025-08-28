@@ -13,7 +13,7 @@ import {
   MediaContentAuthor,
   MediaSearchContext,
   PlatformEnum,
-} from "../../media.ts";
+} from "../../common/media.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 import { get_wanfangdata_platform_duplicate_id } from "./match_wanfangdata.ts";
 import { parse_metainfo } from "./util.ts";

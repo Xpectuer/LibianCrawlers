@@ -1,6 +1,6 @@
 import { Kysely, Migrator } from "kysely";
 import config from "../../config.ts";
-import { MediaContent, PlatformEnum } from "../media.ts";
+import { MediaContent, PlatformEnum } from "../common/media.ts";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 import type { Options as PostgresOptions } from "postgres";
@@ -99,6 +99,10 @@ export interface MediaPostTable {
   languages_joined: string | null;
   literature_issn_list: PostgresColumnType.JSON<string[]>;
   literature_issn_list_joined: string | null;
+  attach_docs: PostgresColumnType.JSON<
+    NonNullable<MediaContent["attach_docs"]>
+  >;
+  attach_docs_markdown: string | null;
 }
 
 export interface ShopGoodTable {

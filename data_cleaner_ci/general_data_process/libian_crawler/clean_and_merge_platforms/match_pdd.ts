@@ -1,8 +1,8 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
 import { Arrays, chain, DataClean, Nums, Strs, Times } from "../../../util.ts";
-import { PlatformEnum } from "../../media.ts";
+import { PlatformEnum } from "../../common/media.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
-import { ShopGood } from "../../shop_good.ts";
+import { ShopGood } from "../../common/shop_good.ts";
 
 export const match_pdd_h5_yangkeduo: LibianCrawlerGarbageCleaner<
   ShopGood

@@ -1,4 +1,4 @@
-import { ICache } from "../caches.ts";
+import { ICache } from "../common/caches.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "./clean_and_merge_util.ts";
 
 export async function create_reducers_and_init() {

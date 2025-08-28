@@ -1,4 +1,4 @@
-import { DataClean } from "../util.ts";
+import { DataClean } from "../../util.ts";
 export enum PlatformEnum {
   小红书 = "xiaohongshu.com",
   哔哩哔哩 = "bilibili.com",
@@ -17,6 +17,7 @@ export enum PlatformEnum {
   Reuters = "www.reuters.com",
   APNews = "www.apnews.com",
   WebOfScience = "www.webofscience.com",
+  GoogleGemini = "gemini.google.com",
   未分类 = "unknown",
 }
 
@@ -149,6 +150,13 @@ export type MediaContent = {
    * 语言
    */
   language: string | string[] | null;
+  /**
+   * 附带的文本信息，这些信息将在 merge 时根据 id 保留。
+   */
+  attach_docs?: {
+    id: string;
+    content_md: string;
+  }[];
 };
 
 export type LiteratureAbout = {
