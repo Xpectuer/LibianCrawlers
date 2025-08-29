@@ -178,7 +178,7 @@
           }
         },
         {
-          "description": "依次打开传入的 url 列表。url 列表可以用分号分隔。",
+          "description": "依次打开传入的 url 列表。",
           "type": "object",
           "additionalProperties": false,
           "required": [
@@ -232,6 +232,12 @@
                 "on_after_open_steps": {
                   "$ref": "#/definitions/StepsBlock",
                   "description": "在打开之后的操作。"
+                },
+                "retry_goto": {
+                  "type": "integer",
+                  "examples": [
+                    3
+                  ]
                 }
               }
             },
@@ -530,6 +536,73 @@
           }
         },
         {
+          "description": "根据 value 值的真假，运行不同的分支。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "if_branch"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "value",
+                "on_truthy_steps",
+                "on_falsy_steps"
+              ],
+              "properties": {
+                "value": {
+                  "description": "条件值。\n常见真值: ['1', 'true', 't', 'yes', 'y'] 。\n常见假值: ['0', 'false', 'f', 'no', 'n', ''] 。",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                },
+                "on_truthy_steps": {
+                  "$ref": "#/definitions/StepsBlock",
+                  "description": "在真值的操作。"
+                },
+                "on_falsy_steps": {
+                  "$ref": "#/definitions/StepsBlock",
+                  "description": "在假值的操作。"
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
           "description": "如果 `*args` 包含当前页面的 url，则执行 `run_steps` 块，否则执行 `else_steps`块。",
           "type": "object",
           "additionalProperties": false,
@@ -787,8 +860,8 @@
                         }
                       },
                       "required": [
-                        "x",
-                        "y"
+                        "y",
+                        "x"
                       ]
                     }
                   ]
@@ -936,8 +1009,8 @@
                         }
                       },
                       "required": [
-                        "x",
-                        "y"
+                        "y",
+                        "x"
                       ]
                     },
                     {
@@ -1050,8 +1123,8 @@
                         }
                       },
                       "required": [
-                        "x",
-                        "y"
+                        "y",
+                        "x"
                       ]
                     }
                   ]
@@ -1797,8 +1870,8 @@
                         }
                       },
                       "required": [
-                        "x",
-                        "y"
+                        "y",
+                        "x"
                       ]
                     },
                     {
@@ -1824,8 +1897,8 @@
                         }
                       },
                       "required": [
-                        "x",
-                        "y"
+                        "y",
+                        "x"
                       ]
                     },
                     {

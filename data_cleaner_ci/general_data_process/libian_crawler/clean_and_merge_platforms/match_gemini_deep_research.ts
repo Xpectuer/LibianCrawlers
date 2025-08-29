@@ -28,7 +28,7 @@ export const match_gemini_deep_research: LibianCrawlerGarbageCleaner<
       return;
     }
     const { template_parse_html_tree, g_content } = smart_crawl;
-    const last_crawl_time = Times.parse_text_to_instant(
+    const crawl_time = Times.parse_text_to_instant(
       smart_crawl.g_create_time,
     );
     if (
@@ -160,14 +160,14 @@ export const match_gemini_deep_research: LibianCrawlerGarbageCleaner<
         }
       }
     }
-    if (Arrays.is_array(create_time_text) && create_time_text !== null) {
+    if (Arrays.is_array(create_time_text)) {
       create_time_text = create_time_text[0];
     }
     create_time_text = create_time_text?.trim();
     if (Strs.is_not_blank(create_time_text)) {
       create_time = Times.parse_text_to_instant(create_time_text, {
         attach_year: [
-          Times.instant_to_date(last_crawl_time).getFullYear(),
+          Times.instant_to_date(crawl_time).getFullYear(),
           {
             on_exist: "use_exist",
           },
@@ -204,7 +204,7 @@ export const match_gemini_deep_research: LibianCrawlerGarbageCleaner<
     // Times.parse_text_to_instant()
 
     const res: MediaContent = {
-      last_crawl_time,
+      last_crawl_time: crawl_time,
       title: title_checked,
       content_text_summary: null,
       content_text_detail,

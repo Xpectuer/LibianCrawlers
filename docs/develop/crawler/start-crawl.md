@@ -83,13 +83,13 @@ poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --d
 这里使用了多进程架构来分离需要登录和不需要登录的接口请求。（因为库本身只支持全局设置）
 
 - 需要登录的接口将:
-  - 不会使用代理
-  - 速率较低。
+    - 不会使用代理
+    - 速率较低。
 
 - 不需要登录的接口将:
-  - 会使用代理
-  - 速率较高
-  - 不会受用户账号本身的推荐信息影响
+    - 会使用代理
+    - 速率较高
+    - 不会受用户账号本身的推荐信息影响
 
 **以下是配置文件参考:**
 
@@ -103,13 +103,14 @@ https://nemo2011.github.io/bilibili-api/#/get-credential
 [crawler.apilib]
 [crawler.apilib.bilibili]
 [crawler.apilib.bilibili.init_credential]
-sessdata=""
-bili_jct=""
-buvid3=""
-buvid4=""
-dedeuserid=""
-ac_time_value="" # 可以不填
+sessdata = ""
+bili_jct = ""
+buvid3 = ""
+buvid4 = ""
+dedeuserid = ""
+ac_time_value = "" # 可以不填
 ```
+
 :::
 
 ##### 根据一条 bvid 爬取
@@ -117,7 +118,6 @@ ac_time_value="" # 可以不填
 ```shell
 poetry run api-crawl-bilibili-read-video-info --is_insert_to_db --expire_time 36000 --bvid "BV1rdtizZEDE"
 ```
-
 
 ### 搜索引擎
 
@@ -292,10 +292,32 @@ poetry run smart-crawl --debug --url https://qn.taobao.com/home.htm/app-customer
 
 ### LLM Chat
 
-#### Gemini Deep Research
+#### Gemini Deep Research <Badge type="tip" text="playwright" />
+
+脚本参数:
+
+- `enable_answer_collect=yes` 将收集近期对话内容。
+- `enable_query=yes` 将启用 Deep Research 提问。
+- `q` 为要提问的问题。
+- `enable_wait_report=yes` 将等待并点击“开始研究”。
+
+示例:
+
+- 提问并开始研究，然后收集近期对话内容。
 
 ```shell
-poetry run smart-crawl --debug --url https://gemini.google.com/app --locale en-US --screen_min_width 1200 --screen_max_height 1000 --steps "jsonfile:steps/gemini-deep-research.json" --dump_page_ignore_names=script,svg --browser_data_dir_id login_gemini --mode save_file
+poetry run smart-crawl --debug --url https://gemini.google.com/app --locale en-US --screen_min_width 1200 --screen_max_height 1000 --dump_page_ignore_names=script,svg --browser_data_dir_id login_gemini --mode save_file --steps "jsonfile:steps/gemini-deep-research.json?enable_answer_collect=yes&enable_query=yes&q=明朝灭亡的原因&enable_wait_report=yes" 
 ```
 
+- 仅提问。
+
+```shell
+poetry run smart-crawl --debug --url https://gemini.google.com/app --locale en-US --screen_min_width 1200 --screen_max_height 1000 --dump_page_ignore_names=script,svg --browser_data_dir_id login_gemini --mode save_file --steps "jsonfile:steps/gemini-deep-research.json?enable_answer_collect=no&enable_query=yes&q=明朝灭亡的原因&enable_wait_report=yes" 
+```
+
+- 仅收集近期对话内容。
+
+```shell
+poetry run smart-crawl --debug --url https://gemini.google.com/app --locale en-US --screen_min_width 1200 --screen_max_height 1000 --dump_page_ignore_names=script,svg --browser_data_dir_id login_gemini --mode save_file --steps "jsonfile:steps/gemini-deep-research.json?enable_answer_collect=yes&enable_query=no&q=0&enable_wait_report=no"
+```
 

@@ -132,7 +132,7 @@
   },
   {
     "name": "each_url_list",
-    "desc": "依次打开传入的 url 列表。url 列表可以用分号分隔。",
+    "desc": "依次打开传入的 url 列表。",
     "varargs": false,
     "varargs_types": null,
     "args_min": 0,
@@ -204,6 +204,22 @@
         "desc": "在打开之后的操作。",
         "require": true,
         "default": null
+      },
+      {
+        "name": "retry_goto",
+        "type": {
+          "py_hint": "<class 'int'>",
+          "conf_type": null,
+          "json_schema": {
+            "type": "integer",
+            "examples": [
+              3
+            ]
+          }
+        },
+        "desc": null,
+        "require": false,
+        "default": 3
       }
     ],
     "kwargs_min": null,
@@ -552,6 +568,74 @@
     "kwargs_max": null
   },
   {
+    "name": "if_branch",
+    "desc": "根据 value 值的真假，运行不同的分支。",
+    "varargs": false,
+    "varargs_types": null,
+    "args_min": 0,
+    "args_max": 0,
+    "args": [],
+    "kwargs": [
+      {
+        "name": "value",
+        "type": {
+          "py_hint": "typing.Union[NoneType, str, int, bool]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "条件值。\n常见真值: ['1', 'true', 't', 'yes', 'y'] 。\n常见假值: ['0', 'false', 'f', 'no', 'n', ''] 。",
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          }
+        },
+        "desc": "条件值。\n常见真值: ['1', 'true', 't', 'yes', 'y'] 。\n常见假值: ['0', 'false', 'f', 'no', 'n', ''] 。",
+        "require": true,
+        "default": null
+      },
+      {
+        "name": "on_truthy_steps",
+        "type": {
+          "py_hint": "ForwardRef('StepsBlock')",
+          "conf_type": null,
+          "json_schema": {
+            "$ref": "#/definitions/StepsBlock",
+            "description": "在真值的操作。"
+          }
+        },
+        "desc": "在真值的操作。",
+        "require": true,
+        "default": null
+      },
+      {
+        "name": "on_falsy_steps",
+        "type": {
+          "py_hint": "ForwardRef('StepsBlock')",
+          "conf_type": null,
+          "json_schema": {
+            "$ref": "#/definitions/StepsBlock",
+            "description": "在假值的操作。"
+          }
+        },
+        "desc": "在假值的操作。",
+        "require": true,
+        "default": null
+      }
+    ],
+    "kwargs_min": null,
+    "kwargs_max": null
+  },
+  {
     "name": "if_url_is",
     "desc": "如果 `*args` 包含当前页面的 url，则执行 `run_steps` 块，否则执行 `else_steps`块。",
     "varargs": true,
@@ -718,8 +802,8 @@
                   }
                 },
                 "required": [
-                  "x",
-                  "y"
+                  "y",
+                  "x"
                 ]
               }
             ]
@@ -992,8 +1076,8 @@
                   }
                 },
                 "required": [
-                  "x",
-                  "y"
+                  "y",
+                  "x"
                 ]
               },
               {
@@ -1165,8 +1249,8 @@
                   }
                 },
                 "required": [
-                  "x",
-                  "y"
+                  "y",
+                  "x"
                 ]
               }
             ]
@@ -2113,8 +2197,8 @@
                   }
                 },
                 "required": [
-                  "x",
-                  "y"
+                  "y",
+                  "x"
                 ]
               },
               {
@@ -2150,8 +2234,8 @@
                   }
                 },
                 "required": [
-                  "x",
-                  "y"
+                  "y",
+                  "x"
                 ]
               },
               {

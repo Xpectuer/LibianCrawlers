@@ -91,171 +91,63 @@
       ]
     },
     {
-      "description": "确保按下 Deep Research 按钮。",
-      "fn": "page_click",
-      "args": [
-        "toolbox-drawer-item > button[aria-pressed=\"false\"]"
-      ],
+      "description": "是否开始提问。",
+      "fn": "if_branch",
       "kwargs": {
-        "timeout": 3000,
-        "has_text": "Deep Research"
-      },
-      "on_success_steps": [
-        {
-          "fn": "logi",
-          "args": [
-            "Deep Research button press success"
-          ]
-        }
-      ],
-      "on_timeout_steps": [
-        {
-          "fn": "page_wait_for_selector_in_any_frame",
-          "args": [
-            "toolbox-drawer-item > button[aria-pressed=\"true\"]:has-text('Deep Research')"
-          ],
-          "kwargs": {
-            "timeout": 3000
-          },
-          "on_success_steps": [
-            {
-              "fn": "logi",
-              "args": [
-                "Deep Research button already pressed"
-              ]
-            }
-          ],
-          "on_timeout_steps": [
-            {
-              "fn": "loge",
-              "args": [
-                "Not found Deep Research button"
-              ]
-            },
-            "debug",
-            "stop"
-          ]
-        }
-      ]
-    },
-    {
-      "description": "依次点击所有会话",
-      "fn": "page_click",
-      "args": [
-        ".conversation-items-container"
-      ],
-      "kwargs": {
-        "timeout": 10000,
-        "each_steps_before": [
+        "value": "<<<<!enable_query!>>>>",
+        "on_falsy_steps": "continue",
+        "on_truthy_steps": [
           {
-            "fn": "sleep",
-            "args": [
-              1500
-            ]
-          },
-          {
-            "fn": "logi",
-            "args": [
-              "正在打开菜单"
-            ]
-          },
-          {
-            "description": "打开菜单。",
+            "description": "确保按下 Deep Research 按钮。",
             "fn": "page_click",
             "args": [
-              "button[data-test-id=\"side-nav-menu-button\"]"
+              "toolbox-drawer-item > button[aria-pressed=\"false\"]"
             ],
             "kwargs": {
-              "timeout": 5000
-            }
-          },
-          {
-            "fn": "sleep",
-            "args": [
-              1500
-            ]
-          },
-          {
-            "fn": "logi",
-            "args": [
-              "打开菜单完成，即将点击会话标签。"
-            ]
-          },
-          {
-            "fn": "sleep",
-            "args": [
-              1500
-            ]
-          }
-        ],
-        "each_steps_after": [
-          {
-            "fn": "sleep",
-            "args": [
-              3000
-            ]
-          },
-          {
-            "description": "等待报告面板出现。",
-            "fn": "page_wait_for_selector_in_any_frame",
-            "args": [
-              "immersive-panel toolbar button[data-test-id=\"close-button\"]"
-            ],
-            "kwargs": {
-              "timeout": 6000
+              "timeout": 3000,
+              "has_text": "Deep Research"
             },
-            "on_timeout_steps": [
-              {
-                "fn": "logi",
-                "args": [
-                  "未发现自动打开的报告面板。"
-                ]
-              }
-            ],
             "on_success_steps": [
               {
-                "description": "关闭直接打开的报告面板。",
-                "fn": "page_click",
-                "args": [
-                  "immersive-panel toolbar button[data-test-id=\"close-button\"]"
-                ],
-                "kwargs": {
-                  "timeout": 2000
-                }
-              },
-              {
                 "fn": "logi",
                 "args": [
-                  "关闭报告面板完成。"
+                  "Deep Research button press success"
+                ]
+              }
+            ],
+            "on_timeout_steps": [
+              {
+                "fn": "page_wait_for_selector_in_any_frame",
+                "args": [
+                  "toolbox-drawer-item > button[aria-pressed=\"true\"]:has-text('Deep Research')"
+                ],
+                "kwargs": {
+                  "timeout": 3000
+                },
+                "on_success_steps": [
+                  {
+                    "fn": "logi",
+                    "args": [
+                      "Deep Research button already pressed"
+                    ]
+                  }
+                ],
+                "on_timeout_steps": [
+                  {
+                    "fn": "loge",
+                    "args": [
+                      "Not found Deep Research button"
+                    ]
+                  }
                 ]
               }
             ]
           },
           {
-            "fn": "page_click",
+            "description": "关闭广告",
+            "fn": "page_click_and_expect_element_destroy",
             "args": [
-              "button[data-test-id=\"thoughts-header-button\"]"
-            ],
-            "kwargs": {
-              "method": "dispatch_event_click",
-              "each_steps_before": "continue"
-            },
-            "on_timeout_steps": "continue"
-          },
-          {
-            "fn": "page_scroll_down"
-          },
-          {
-            "fn": "dump_page_with_uuid",
-            "args": [
-              "chat_messages"
-            ]
-          },
-          {
-            "description": "开始遍历studio侧栏文件",
-            "fn": "page_click",
-            "args": [
-              "button[data-test-id=\"studio-sidebar-button\"]"
+              "discovery-card-dialog button[data-test-id=\"close-button\"]"
             ],
             "kwargs": {
             },
@@ -263,73 +155,343 @@
               {
                 "fn": "logi",
                 "args": [
-                  "未找到 studio-sidebar-button ，似乎此对话不为 Deep Research 对话。"
+                  "no discovery card dialog found , continue"
                 ]
               }
+            ]
+          },
+          {
+            "description": "关闭广告",
+            "fn": "page_click_and_expect_element_destroy",
+            "args": [
+              ".discovery-card button[data-test-id=\"close-button\"]"
             ],
-            "on_success_steps": [
+            "kwargs": {
+            },
+            "on_timeout_steps": [
               {
-                "description": "开始遍历 studio 侧栏文件",
-                "fn": "page_click",
+                "fn": "logi",
                 "args": [
-                  "studio-sidebar sidebar-immersive-chip"
-                ],
-                "kwargs": {
-                  "each_steps_before": [
+                  "no discovery card found , continue"
+                ]
+              }
+            ]
+          },
+          {
+            "fn": "page_type",
+            "args": [
+              ".ql-editor",
+              "<<<<!q!>>>>"
+            ]
+          },
+          {
+            "fn": "sleep",
+            "args": [
+              1000
+            ]
+          },
+          {
+            "fn": "page_click",
+            "args": [
+              ".send-button-icon"
+            ]
+          },
+          {
+            "fn": "sleep",
+            "args": [
+              1000
+            ]
+          },
+          {
+            "description": "是否等待“开始研究”按钮并点击。",
+            "fn": "if_branch",
+            "kwargs": {
+              "value": "<<<<!enable_wait_report!>>>>",
+              "on_falsy_steps": "continue",
+              "on_truthy_steps": [
+                {
+                  "fn": "page_wait_for_selector_in_any_frame",
+                  "args": [
+                    "deep-research-confirmation-widget button[data-test-id=\"confirm-button\"]"
+                  ],
+                  "kwargs": {
+                    "timeout": 300000
+                  }
+                },
+                {
+                  "fn": "page_click",
+                  "args": [
+                    "deep-research-confirmation-widget button[data-test-id=\"confirm-button\"]"
+                  ]
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    2000
+                  ]
+                },
+                {
+                  "description": "等待报告面板出现。",
+                  "fn": "page_wait_for_selector_in_any_frame",
+                  "args": [
+                    "immersive-panel toolbar button[data-test-id=\"close-button\"]"
+                  ],
+                  "kwargs": {
+                    "timeout": 20000
+                  },
+                  "on_timeout_steps": [
                     {
                       "fn": "logi",
                       "args": [
-                        "点击 studio 文件信息。"
+                        "未发现自动打开的报告面板。"
                       ]
                     }
                   ],
-                  "each_steps_after": [
+                  "on_success_steps": [
                     {
-                      "fn": "sleep",
-                      "args": [
-                        5000
-                      ]
-                    },
-                    {
-                      "fn": "dump_page_with_uuid",
-                      "args": [
-                        "studio_file"
-                      ]
-                    },
-                    {
+                      "description": "关闭直接打开的报告面板。",
                       "fn": "page_click",
                       "args": [
-                        "button[data-test-id=\"studio-sidebar-button\"]"
+                        "immersive-panel toolbar button[data-test-id=\"close-button\"]"
                       ],
                       "kwargs": {
+                        "timeout": 2000
                       }
+                    },
+                    {
+                      "fn": "logi",
+                      "args": [
+                        "关闭报告面板完成。"
+                      ]
                     }
                   ]
                 }
-              }
-            ]
-          },
-          {
-            "fn": "logi",
-            "args": [
-              "会话标签业务逻辑完成。"
-            ]
-          },
-          {
-            "fn": "sleep",
-            "args": [
-              2000
-            ]
+              ]
+            }
           }
         ]
       }
     },
     {
-      "fn": "logi",
-      "args": [
-        "遍历会话完成。"
-      ]
-    },
-    "debug"
+      "fn": "if_branch",
+      "kwargs": {
+        "value": "<<<<!enable_answer_collect!>>>>",
+        "on_falsy_steps": "continue",
+        "on_truthy_steps": [
+          {
+            "description": "依次点击所有会话",
+            "fn": "page_click",
+            "args": [
+              ".conversation-items-container"
+            ],
+            "kwargs": {
+              "timeout": 10000,
+              "each_steps_before": [
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1500
+                  ]
+                },
+                {
+                  "fn": "page_wait_for_selector_in_any_frame",
+                  "args": [
+                    ".chat-history.collapsed"
+                  ],
+                  "kwargs": {
+                    "timeout": 5000
+                  },
+                  "on_success_steps": [
+                    {
+                      "fn": "logi",
+                      "args": [
+                        "正在打开菜单"
+                      ]
+                    },
+                    {
+                      "description": "打开菜单。",
+                      "fn": "page_click",
+                      "args": [
+                        "button[data-test-id=\"side-nav-menu-button\"]"
+                      ],
+                      "kwargs": {
+                        "timeout": 7000,
+                        "force": true
+                      }
+                    },
+                    {
+                      "fn": "sleep",
+                      "args": [
+                        1500
+                      ]
+                    }
+                  ],
+                  "on_timeout_steps": [
+                    {
+                      "fn": "logi",
+                      "args": [
+                        "侧边栏似乎已经打开"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "fn": "logi",
+                  "args": [
+                    "打开菜单完成，即将点击会话标签。"
+                  ]
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    1500
+                  ]
+                }
+              ],
+              "each_steps_after": [
+                {
+                  "fn": "sleep",
+                  "args": [
+                    3000
+                  ]
+                },
+                {
+                  "description": "等待报告面板出现。",
+                  "fn": "page_wait_for_selector_in_any_frame",
+                  "args": [
+                    "immersive-panel toolbar button[data-test-id=\"close-button\"]"
+                  ],
+                  "kwargs": {
+                    "timeout": 6000
+                  },
+                  "on_timeout_steps": [
+                    {
+                      "fn": "logi",
+                      "args": [
+                        "未发现自动打开的报告面板。"
+                      ]
+                    }
+                  ],
+                  "on_success_steps": [
+                    {
+                      "description": "关闭直接打开的报告面板。",
+                      "fn": "page_click",
+                      "args": [
+                        "immersive-panel toolbar button[data-test-id=\"close-button\"]"
+                      ],
+                      "kwargs": {
+                        "timeout": 2000
+                      }
+                    },
+                    {
+                      "fn": "logi",
+                      "args": [
+                        "关闭报告面板完成。"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "fn": "page_click",
+                  "args": [
+                    "button[data-test-id=\"thoughts-header-button\"]"
+                  ],
+                  "kwargs": {
+                    "method": "dispatch_event_click",
+                    "each_steps_before": "continue"
+                  },
+                  "on_timeout_steps": "continue"
+                },
+                {
+                  "fn": "page_scroll_down"
+                },
+                {
+                  "fn": "dump_page_with_uuid",
+                  "args": [
+                    "chat_messages"
+                  ]
+                },
+                {
+                  "description": "开始遍历studio侧栏文件",
+                  "fn": "page_click",
+                  "args": [
+                    "button[data-test-id=\"studio-sidebar-button\"]"
+                  ],
+                  "kwargs": {
+                  },
+                  "on_timeout_steps": [
+                    {
+                      "fn": "logi",
+                      "args": [
+                        "未找到 studio-sidebar-button ，似乎此对话不为 Deep Research 对话。"
+                      ]
+                    }
+                  ],
+                  "on_success_steps": [
+                    {
+                      "description": "开始遍历 studio 侧栏文件",
+                      "fn": "page_click",
+                      "args": [
+                        "studio-sidebar sidebar-immersive-chip"
+                      ],
+                      "kwargs": {
+                        "each_steps_before": [
+                          {
+                            "fn": "logi",
+                            "args": [
+                              "点击 studio 文件信息。"
+                            ]
+                          }
+                        ],
+                        "each_steps_after": [
+                          {
+                            "fn": "sleep",
+                            "args": [
+                              5000
+                            ]
+                          },
+                          {
+                            "fn": "dump_page_with_uuid",
+                            "args": [
+                              "studio_file"
+                            ]
+                          },
+                          {
+                            "fn": "page_click",
+                            "args": [
+                              "button[data-test-id=\"studio-sidebar-button\"]"
+                            ],
+                            "kwargs": {
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "fn": "logi",
+                  "args": [
+                    "会话标签业务逻辑完成。"
+                  ]
+                },
+                {
+                  "fn": "sleep",
+                  "args": [
+                    2000
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "fn": "logi",
+            "args": [
+              "遍历会话完成。"
+            ]
+          }
+        ]
+      }
+    }
   ]
 }

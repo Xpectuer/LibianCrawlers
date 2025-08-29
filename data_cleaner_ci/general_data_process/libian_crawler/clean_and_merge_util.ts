@@ -1041,7 +1041,13 @@ ${Deno.inspect(existed, { depth: 4 })}
         )
         .get_value();
       const author_first_platform_user_id = chain(() => author_first?.[0])
-        .map((it) => (it === null ? null : `${it}`))
+        .map((it) => (
+          is_nullish(it) ||
+            typeof it === "string" && !Strs.is_not_blank(it) ||
+            typeof it === "number" && Nums.is_invalid(it)
+            ? null
+            : `${it}`
+        ))
         .get_value();
       const literature_first =
         value.literatures === null || value.literatures === undefined

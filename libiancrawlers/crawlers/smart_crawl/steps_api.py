@@ -2146,6 +2146,49 @@ class StepsApi:
                 await self._set_page(_page_root)
         logger.debug('finish each url list')
 
+    _truthy_values = ['1', 'true', 't', 'yes', 'y']
+    _falsy_values = ['0', 'false', 'f', 'no', 'n', '']
+
+    @arg_conf('value', desc=f"条件值。\n常见真值: {_truthy_values} 。\n常见假值: {_falsy_values} 。")
+    @arg_conf('on_truthy_steps', desc="在真值的操作。")
+    @arg_conf('on_falsy_steps', desc="在假值的操作。")
+    async def if_branch(self, *,
+                        value: Union[None, str, int, bool],
+                        on_truthy_steps: StepsBlock,
+                        on_falsy_steps: StepsBlock, ):
+        """
+        根据 value 值的真假，运行不同的分支。
+        """
+        truthy = True
+        if value is None:
+            truthy = False
+        elif isinstance(value, bool):
+            truthy = value
+        elif bool(value) is False:
+            truthy = False
+        else:
+            _value = str(value).lower().strip()
+            if _value in StepsApi._truthy_values:
+                truthy = True
+            elif _value in StepsApi._falsy_values:
+                truthy = False
+            else:
+                raise ValueError(f'Invalid boolean value : {value}')
+        if truthy:
+            if on_truthy_steps is not None:
+                logger.debug('start process on_truthy_steps to page : value is {}', value)
+                await self._process_steps(on_truthy_steps)
+                logger.debug('success process on_truthy_steps to page : value is {}', value)
+            else:
+                logger.debug('value ({}) is truthy , but no on_truthy_steps', value)
+        else:
+            if on_falsy_steps is not None:
+                logger.debug('start process on_falsy_steps to page : value is {}', value)
+                await self._process_steps(on_falsy_steps)
+                logger.debug('success process on_falsy_steps to page : value is {}', value)
+            else:
+                logger.debug('value ({}) is falsy , but no on_falsy_steps', value)
+
 
 StepMemberMetaType = TypedDict('StepMemberMetaType', {
     'py_hint': Optional[str],
