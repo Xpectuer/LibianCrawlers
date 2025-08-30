@@ -2189,6 +2189,101 @@ class StepsApi:
             else:
                 logger.debug('value ({}) is falsy , but no on_falsy_steps', value)
 
+    @arg_conf('stop_value', desc="""stop_value 和 stop_value_from_selector 必须二选一填入。停止值。""")
+    @arg_conf('stop_value_from_selector',
+              desc="""stop_value 和 stop_value_from_selector 必须二选一填入。从元素中读取停止值。""")
+    @arg_conf('step_value', desc="""步长值。""")
+    @arg_conf('start_value', desc="""起始值。""")
+    @arg_conf('offset_value', desc="""迭代后 start = min(start + step, stop) + offset""")
+    @arg_conf('page_type_start_selector', desc="""输入范围头值的选择器。""")
+    @arg_conf('page_type_end_selector', desc="""输入范围尾值的选择器。""")
+    @arg_conf('on_before_input_steps', desc="""输入范围头值之前的操作。""")
+    @arg_conf('on_between_input_steps', desc="""输入范围头值之后、输入范围尾值之前的操作。""")
+    @arg_conf('on_after_input_steps', desc="""输入范围尾值之后的操作。""")
+    async def for_each_range(self, *,
+                             stop_value: Optional[str] = None,
+                             stop_value_from_selector: Optional[str] = None,
+                             step_value: Union[int, str],
+                             start_value: Union[int, str] = 1,
+                             offset_value: Union[int, str] = 0,
+                             page_type_start_selector: Optional[str] = None,
+                             page_type_end_selector: Optional[str] = None,
+                             page_type_kwargs: Optional[Dict[str, typing.Any]] = None,
+                             on_before_input_steps: StepsBlock = None,
+                             on_between_input_steps: StepsBlock = None,
+                             on_after_input_steps: StepsBlock = None,
+                             ):
+        """
+        循环填入某个数字范围选择器组件并进行操作。
+        """
+        _page = await self._get_page()
+
+        if stop_value is None and stop_value_from_selector is None:
+            raise ValueError('stop_value and stop_value_from_selector should not both null !')
+
+        if stop_value is not None:
+            try:
+                stop = int(stop_value)
+            except ValueError as err:
+                raise ValueError(f'Error on parse int value {stop_value} from stop_value') from err
+        else:
+            stop = await _page.locator(stop_value_from_selector).all_text_contents()
+            if isinstance(stop, list) or isinstance(stop, tuple) or isinstance(stop, set):
+                stop = ''.join(stop)
+            if not isinstance(stop, str):
+                raise ValueError('value is not str')
+            _old_stop = stop
+            while True:
+                stop = stop.strip()
+                stop = stop.replace(' ', '')
+                stop = stop.replace(',', '')
+                if _old_stop == stop:
+                    break
+                else:
+                    _old_stop = stop
+            try:
+                stop = int(stop)
+            except ValueError as err:
+                raise ValueError(f'Error on parse int value {stop} from selector {stop_value_from_selector}') from err
+        logger.debug('stop = {}', stop)
+
+        try:
+            step = int(step_value)
+        except ValueError as err:
+            raise ValueError(f'Error on parse int value {step_value} from step_value') from err
+
+        try:
+            start = int(start_value)
+        except ValueError as err:
+            raise ValueError(f'Error on parse int value {start_value} from start_value') from err
+
+        try:
+            offset = int(offset_value)
+        except ValueError as err:
+            raise ValueError(f'Error on parse int value {offset_value} from offset_value') from err
+
+        if page_type_kwargs is None:
+            page_type_kwargs = dict()
+
+        while start < stop:
+            start = start
+            end = start + step if start + step < stop else stop
+            logger.debug('Range start={}, end={}, stop={}', start, end, stop)
+            try:
+                if on_before_input_steps is not None:
+                    await self._process_steps(on_before_input_steps)
+                if page_type_start_selector is not None:
+                    await self.page_type(page_type_start_selector, f'{start}', **page_type_kwargs)
+                if on_between_input_steps is not None:
+                    await self._process_steps(on_between_input_steps)
+                if page_type_end_selector is not None:
+                    await self.page_type(page_type_end_selector, f'{end}', **page_type_kwargs)
+                if on_after_input_steps is not None:
+                    await self._process_steps(on_after_input_steps)
+            finally:
+                start = end + offset
+        logger.debug('Break because start {} >= stop {}', start, stop)
+
 
 StepMemberMetaType = TypedDict('StepMemberMetaType', {
     'py_hint': Optional[str],

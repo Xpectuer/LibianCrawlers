@@ -43,61 +43,83 @@
       ]
     },
     {
-      "fn": "page_click",
-      "description": "点击 Export",
-      "args": [
-        "app-export-menu"
-      ]
-    },
-    {
-      "fn": "page_click",
-      "description": "点击导出为 excel",
-      "args": [
-        "#exportToExcelButton"
-      ]
-    },
-    {
-      "fn": "page_click",
-      "description": "点击 Records from 1 to ... 按钮",
-      "args": [
-        "#radio3-input"
-      ],
+      "fn": "for_each_range",
       "kwargs": {
-        "method": "dispatch_event_click"
-      }
-    },
-    {
-      "fn": "page_click",
-      "description": "点击 Record Content 按钮",
-      "args": [
-        ".ng-star-inserted > wos-select > button"
-      ],
-      "kwargs": {
-      }
-    },
-    {
-      "fn": "page_click",
-      "args": [
-        "[title=\"Full Record\"]"
-      ],
-      "kwargs": {
-      }
-    },
-    {
-      "fn": "expect_download",
-      "kwargs": {
-        "timeout": 60000,
-        "run_steps": [
+        "step_value": 900,
+        "stop_value_from_selector": ":nth-match(.tab-results-count, 1)",
+        "page_type_start_selector": "input[aria-label=\"Input starting record range\"]",
+        "page_type_end_selector": "input[aria-label=\"Input ending record range. A maximum of 1000 records can be exported at one time.\"]",
+        "page_type_kwargs": {
+          "use_fill": true
+        },
+        "on_before_input_steps": [
+          {
+            "fn": "sleep",
+            "args": [
+              1000
+            ]
+          },
           {
             "fn": "page_click",
+            "description": "点击 Export",
             "args": [
-              "#exportButton"
+              "app-export-menu"
+            ]
+          },
+          {
+            "fn": "page_click",
+            "description": "点击导出为 excel",
+            "args": [
+              "#exportToExcelButton"
+            ]
+          },
+          {
+            "fn": "page_click",
+            "description": "点击 Records from 1 to ... 按钮",
+            "args": [
+              "#radio3-input"
             ],
             "kwargs": {
+              "method": "dispatch_event_click"
             }
           }
         ],
-        "dump_excel": true
+        "on_after_input_steps": [
+          {
+            "fn": "page_click",
+            "description": "点击 Record Content 按钮",
+            "args": [
+              ".ng-star-inserted > wos-select > button"
+            ],
+            "kwargs": {
+            }
+          },
+          {
+            "fn": "page_click",
+            "args": [
+              "[title=\"Full Record\"]"
+            ],
+            "kwargs": {
+            }
+          },
+          {
+            "fn": "expect_download",
+            "kwargs": {
+              "timeout": 60000,
+              "run_steps": [
+                {
+                  "fn": "page_click",
+                  "args": [
+                    "#exportButton"
+                  ],
+                  "kwargs": {
+                  }
+                }
+              ],
+              "dump_excel": true
+            }
+          }
+        ]
       }
     }
   ]

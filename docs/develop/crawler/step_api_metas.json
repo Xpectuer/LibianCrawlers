@@ -510,6 +510,255 @@
     "kwargs_max": null
   },
   {
+    "name": "for_each_range",
+    "desc": "循环填入某个数字范围选择器组件并进行操作。",
+    "varargs": false,
+    "varargs_types": null,
+    "args_min": 0,
+    "args_max": 0,
+    "args": [],
+    "kwargs": [
+      {
+        "name": "stop_value",
+        "type": {
+          "py_hint": "typing.Optional[str]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "stop_value 和 stop_value_from_selector 必须二选一填入。停止值。",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "desc": "stop_value 和 stop_value_from_selector 必须二选一填入。停止值。",
+        "require": false,
+        "default": null
+      },
+      {
+        "name": "stop_value_from_selector",
+        "type": {
+          "py_hint": "typing.Optional[str]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "stop_value 和 stop_value_from_selector 必须二选一填入。从元素中读取停止值。",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "desc": "stop_value 和 stop_value_from_selector 必须二选一填入。从元素中读取停止值。",
+        "require": false,
+        "default": null
+      },
+      {
+        "name": "step_value",
+        "type": {
+          "py_hint": "typing.Union[int, str]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "步长值。",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "desc": "步长值。",
+        "require": true,
+        "default": null
+      },
+      {
+        "name": "start_value",
+        "type": {
+          "py_hint": "typing.Union[int, str]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "起始值。",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "examples": [
+              1
+            ]
+          }
+        },
+        "desc": "起始值。",
+        "require": false,
+        "default": 1
+      },
+      {
+        "name": "offset_value",
+        "type": {
+          "py_hint": "typing.Union[int, str]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "迭代后 start = min(start + step, stop) + offset",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "examples": [
+              0
+            ]
+          }
+        },
+        "desc": "迭代后 start = min(start + step, stop) + offset",
+        "require": false,
+        "default": 0
+      },
+      {
+        "name": "page_type_start_selector",
+        "type": {
+          "py_hint": "typing.Optional[str]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "输入范围头值的选择器。",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "desc": "输入范围头值的选择器。",
+        "require": false,
+        "default": null
+      },
+      {
+        "name": "page_type_end_selector",
+        "type": {
+          "py_hint": "typing.Optional[str]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "输入范围尾值的选择器。",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "desc": "输入范围尾值的选择器。",
+        "require": false,
+        "default": null
+      },
+      {
+        "name": "page_type_kwargs",
+        "type": {
+          "py_hint": "typing.Optional[typing.Dict[str, typing.Any]]",
+          "conf_type": null,
+          "json_schema": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "desc": null,
+        "require": false,
+        "default": null
+      },
+      {
+        "name": "on_before_input_steps",
+        "type": {
+          "py_hint": "typing.Optional[ForwardRef('StepsBlock')]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "输入范围头值之前的操作。",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/StepsBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "desc": "输入范围头值之前的操作。",
+        "require": false,
+        "default": null
+      },
+      {
+        "name": "on_between_input_steps",
+        "type": {
+          "py_hint": "typing.Optional[ForwardRef('StepsBlock')]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "输入范围头值之后、输入范围尾值之前的操作。",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/StepsBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "desc": "输入范围头值之后、输入范围尾值之前的操作。",
+        "require": false,
+        "default": null
+      },
+      {
+        "name": "on_after_input_steps",
+        "type": {
+          "py_hint": "typing.Optional[ForwardRef('StepsBlock')]",
+          "conf_type": null,
+          "json_schema": {
+            "description": "输入范围尾值之后的操作。",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/StepsBlock"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "desc": "输入范围尾值之后的操作。",
+        "require": false,
+        "default": null
+      }
+    ],
+    "kwargs_min": null,
+    "kwargs_max": null
+  },
+  {
     "name": "gui_confirm",
     "desc": "弹出gui弹窗，请求程序员确认。常用于在网站登录情景下，请求程序员手动操作浏览器并在完成后点击确认。\n等待的过程中程序会暂停执行。",
     "varargs": false,

@@ -4,6 +4,7 @@ import {
   chain,
   DataClean,
   Errors,
+  is_nullish,
   Jsons,
   Mappings,
   Nums,
@@ -181,7 +182,11 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
           return (Array.isArray(info_dict.作者)
             ? info_dict.作者
             : [info_dict.作者])
-            .map(({ author_infos }) => {
+            .map((_author) => {
+              if (is_nullish(_author)) {
+                return null;
+              }
+              const author_infos = _author.author_infos;
               let info_href: string | null = null;
               let nickname: string = "";
               for (
@@ -189,10 +194,14 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
                   ? author_infos
                   : [author_infos])
               ) {
-                if ("href" in info && DataClean.is_not_blank_and_valid(info.href)) {
+                if (
+                  "href" in info && DataClean.is_not_blank_and_valid(info.href)
+                ) {
                   info_href = info.href;
                 }
-                if ("str" in info && DataClean.is_not_blank_and_valid(info.str)) {
+                if (
+                  "str" in info && DataClean.is_not_blank_and_valid(info.str)
+                ) {
                   if (Nums.is_int(info.str)) {
                     // ignore
                   } else {
@@ -213,6 +222,7 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
                   : null,
               } as const;
             })
+            .filter((it) => !is_nullish(it))
             .filter((it) => DataClean.is_not_blank_and_valid(it.nickname));
         })
           .map((arr) =>
@@ -296,7 +306,9 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
           literatures: [
             {
               journal: "title" in journal
-                ? DataClean.is_not_blank_and_valid(journal.title) ? journal.title : null
+                ? DataClean.is_not_blank_and_valid(journal.title)
+                  ? journal.title
+                  : null
                 : null,
               doi: info_dict.DOI ?? null,
               category: null,

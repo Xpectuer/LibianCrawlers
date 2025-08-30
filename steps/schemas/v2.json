@@ -480,6 +480,172 @@
           }
         },
         {
+          "description": "循环填入某个数字范围选择器组件并进行操作。",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fn"
+          ],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": [
+                "for_each_range"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0,
+              "additionalItems": false
+            },
+            "kwargs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "step_value"
+              ],
+              "properties": {
+                "stop_value": {
+                  "description": "stop_value 和 stop_value_from_selector 必须二选一填入。停止值。",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "stop_value_from_selector": {
+                  "description": "stop_value 和 stop_value_from_selector 必须二选一填入。从元素中读取停止值。",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "step_value": {
+                  "description": "步长值。",
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "start_value": {
+                  "description": "起始值。",
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "examples": [
+                    1
+                  ]
+                },
+                "offset_value": {
+                  "description": "迭代后 start = min(start + step, stop) + offset",
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "examples": [
+                    0
+                  ]
+                },
+                "page_type_start_selector": {
+                  "description": "输入范围头值的选择器。",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "page_type_end_selector": {
+                  "description": "输入范围尾值的选择器。",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "page_type_kwargs": {
+                  "anyOf": [
+                    {
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "on_before_input_steps": {
+                  "description": "输入范围头值之前的操作。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "on_between_input_steps": {
+                  "description": "输入范围头值之后、输入范围尾值之前的操作。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "on_after_input_steps": {
+                  "description": "输入范围尾值之后的操作。",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/StepsBlock"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "on_success_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "on_timeout_steps": {
+              "$ref": "#/definitions/StepsBlock"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        },
+        {
           "description": "弹出gui弹窗，请求程序员确认。常用于在网站登录情景下，请求程序员手动操作浏览器并在完成后点击确认。\n等待的过程中程序会暂停执行。",
           "type": "object",
           "additionalProperties": false,

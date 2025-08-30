@@ -38,8 +38,15 @@ export const match_gemini_deep_research: LibianCrawlerGarbageCleaner<
       return;
     }
 
-    const { docs, messages, title_checked } =
-      template_parse_html_tree.gemini_deep_research;
+    const { docs } = template_parse_html_tree.gemini_deep_research;
+
+    const messages = "messages" in template_parse_html_tree.gemini_deep_research
+      ? template_parse_html_tree.gemini_deep_research.messages
+      : null;
+    const title_checked =
+      "title_checked" in template_parse_html_tree.gemini_deep_research
+        ? template_parse_html_tree.gemini_deep_research.title_checked
+        : null;
 
     if (!Strs.is_not_blank(title_checked)) {
       return;
