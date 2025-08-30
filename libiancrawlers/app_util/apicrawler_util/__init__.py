@@ -41,11 +41,23 @@ def log_debug_which_object_maybe_very_length(*, prefix: str, obj: Any, max_outpu
         except BaseException:
             out += ' (can not get length)'
 
-    out += ' ; CJK char >>> '
+    _cjk_chars = ''
     for n in re.findall(r'[\u4e00-\u9fff]+', text):
-        out += n
-        if len(out) > max_output_length:
-            break
+        _cjk_chars += n
+    _cjk_chars = _cjk_chars.strip()
+    if _cjk_chars.__len__() > 0:
+        out += ' ; CJK char >>> '
+        for _cjk_ch in _cjk_chars:
+            out += _cjk_ch
+            if len(out) > max_output_length:
+                break
+    else:
+        out += ' ; result >>> '
+        for ch in text:
+            out += ch
+            if len(out) > max_output_length:
+                break
+
     if len(out) > max_output_length:
         out = out[0:max_output_length] + '...'
     if not ret_str:

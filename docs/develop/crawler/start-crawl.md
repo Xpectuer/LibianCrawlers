@@ -154,8 +154,10 @@ poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --dump_pag
 |------|--------|----|
 | 查询论文 | ✔️     | ✔️ |
 
+- `--mindate` 和 `--maxdate` 可选。格式参考: https://www.ncbi.nlm.nih.gov/books/NBK25499/#chapter4.ESearch
+
 ```shell
-poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hypertension" --mode save_file
+poetry run api-crawl-entrezapi-search --page_max 1000 --keywords "Pulmonary hypertension" --mindate "2025/07/31" --maxdate "2025/08/31" --mode save_file
 ```
 
 ##### 根据 url 列表下载 <Badge type="tip" text="api" />
