@@ -68,12 +68,18 @@ async def search(*,
         if not isinstance(rid_list, list) and not isinstance(rid_list, tuple):
             raise ValueError(f'rid_list should be list or tuple , but rid_list is {rid_list} , record is {record}')
         for idx in range(0, rid_list.__len__()):
+            logger.debug('idx is {} , rid_list len is {}', idx, rid_list.__len__())
             rid = rid_list[idx]
+            logger.debug('rid is {}', idx, rid)
             efetch_handle = Entrez.efetch(db=db, id=rid, rettype='medline', retmode='text')
             try:
-                yield rid, efetch_handle.read(), idx < rid_list.__len__() - 1
+                logger.debug('start read')
+                read_res = efetch_handle.read()
+                logger.debug('start yield')
+                yield rid, read_res, idx < rid_list.__len__() - 1
             finally:
                 efetch_handle.close()
+        return
 
     efetch_list_iter_dict: Dict[str, Generator[tuple[Any, Any, bool], Any, Any]] = dict()
 
@@ -82,17 +88,26 @@ async def search(*,
         if email is not None:
             Entrez.email = email
 
-        async def on_search_by_keyword(c: SearchByKeywordContext) -> SearchByKeywordResult:
+        async def on_search_by_keyword(c: SearchByKeywordContext) -> Optional[SearchByKeywordResult]:
             keyword = c.get('keyword')
             if keyword not in efetch_list_iter_dict.keys():
                 efetch_list_iter_dict[keyword] = efetch_list(kwd=keyword)
 
             def _get_next():
-                return efetch_list_iter_dict[keyword].__next__()
+                logger.debug('start get next')
+                try:
+                    res = efetch_list_iter_dict[keyword].__next__()
+                    logger.debug('end get next')
+                    return res
+                except StopIteration:
+                    return None
 
+            logger.debug('wait get next')
             result = await loop.run_in_executor(None, _get_next)
+            if result is None:
+                return None
 
-            return {
+            r: SearchByKeywordResult = {
                 'search_result': {
                     "obj": {
                         'rid': result[0],
@@ -101,6 +116,7 @@ async def search(*,
                 },
                 'has_more': result[2]
             }
+            return r
 
         async def on_init():
             pass

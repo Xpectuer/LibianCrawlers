@@ -142,6 +142,8 @@ poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --dump_pa
 | 搜索结果的文献详情 | ✔️ | ✔️   |
 | 文献的期刊详情   | ✔️ | ✔️   |
 
+##### 单关键字
+
 ```shell
 poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/cnki-search.json?q=肺动脉高压" --mode save_file
 ```
@@ -197,8 +199,22 @@ poetry run smart-crawl-urls --keys "jsonfile:data_cleaner_ci/user_code/journals_
 |------|----|----|
 | 文献详情 | ✔️ | ✔️ |
 
+##### 单关键字
+
 ```shell
 poetry run smart-crawl --debug --url "https://www.cqvip.com/search?k=肺动脉高压" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/cqvip-search.json" --mode save_file
+```
+
+##### 多关键字
+
+例如以以下关键字:
+
+`'pulmonary hypertension' OR 'Sotatercept' OR 'ACE-011' OR 'ActRIIA-IgG1' OR 'ACTRIIA-Fc' OR 'MK-7962' OR 'RAP-011' OR 'ActRIIA-IgG1Fc' OR 'Activin receptor type IIA antagonist' OR 'activin signaling inhibition' OR 'activin signaling inhibitor' OR 'CTD-PAH' OR 'PAH-CHD'`
+
+```shell
+poetry run smart-crawl --debug --url "https://www.cqvip.com/search?k=%27pulmonary%20hypertension%27%20O
+R%20%27Sotatercept%27%20OR%20%27ACE-011%27%20OR%20%27ActRIIA-IgG1%27%20OR%20%27ACTRIIA-Fc%27%20OR%20%27MK-7962%27%20OR%20%27RAP-011%27%20OR%20%27ActRIIA-IgG1Fc%27%20OR%20%27A
+ctivin%20receptor%20type%20IIA%20antagonist%27%20OR%20%27activin%20signaling%20inhibition%27%20OR%20%27activin%20signaling%20inhibitor%27%20OR%20%27CTD-PAH%27%20OR%20%27PAH-CHD%27&ex=false" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/cqvip-search.json" --mode all
 ```
 
 #### 万方搜索 <Badge type="tip" text="playwright" />
@@ -207,6 +223,8 @@ poetry run smart-crawl --debug --url "https://www.cqvip.com/search?k=肺动脉�
 |------|----|----|
 | 文献详情 | ✔️ | ✔️ |
 | 期刊详情 | ✔️ | ✔️ |
+
+##### 单关键字
 
 ```shell
 poetry run smart-crawl --debug --url "https://s.wanfangdata.com.cn/paper?q=肺动脉高压" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/wanfangdata-search.json" --mode save_file

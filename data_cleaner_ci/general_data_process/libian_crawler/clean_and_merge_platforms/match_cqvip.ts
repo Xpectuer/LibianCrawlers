@@ -70,9 +70,10 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
             });
           }
         }
-        const cnsn = DataClean.is_not_blank_and_valid(journal_detail.CN?.trim())
-          ? journal_detail.CN.trim()
+        const cn_trim = "CN" in journal_detail
+          ? journal_detail.CN?.trim()
           : null;
+        const cnsn = DataClean.is_not_blank_and_valid(cn_trim) ? cn_trim : null;
         const isbn = null;
         let impact_factor_latest_year = 1970;
         let impact_factor_latest: null | number = null;

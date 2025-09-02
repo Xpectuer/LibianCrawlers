@@ -275,12 +275,15 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
           const journal = record["Source Title"];
           const doi = record["DOI"];
           const platform_duplicate_id = record["UT (Unique WOS ID)"];
+          if (!Strs.is_not_blank(platform_duplicate_id)) {
+            continue;
+          }
           const parse_publication_date = (_param: {
             on_found_month_range: "use_min_month" | "use_max_month";
           }) => {
             const publication_year = record["Publication Year"];
             const publication_date = record["Publication Date"];
-            if (publication_date === "WIN") {
+            if (publication_date === "WIN" || publication_date === "SUM") {
               // 有些文献按季节发布。这里丢了得了。
               return "SKIP";
             }

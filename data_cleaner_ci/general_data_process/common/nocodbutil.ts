@@ -1218,7 +1218,7 @@ export namespace NocoDBUtil {
 
   /**
    * 调用 nocodb 的从 url 读取并上传文件的接口。
-   * 
+   *
    * 请注意，同一时间应当只有一个文件正在被上传。因此如果要在 view.row.map 中调用，请将 queue_size 设为 1 。
    */
   export async function upload_by_url(
@@ -1383,12 +1383,21 @@ export namespace NocoDBDataset {
       table_title: TableTitle;
       view_title: ViewTitle;
       precache: boolean;
+      precache_option?: {
+        page_size?: number;
+      };
       on_precache?: (
         ctx: "finish" | "start" | { size: number },
       ) => Promise<void>;
     }) {
-      const { base_title, table_title, view_title, precache, on_precache } =
-        _param;
+      const {
+        base_title,
+        table_title,
+        view_title,
+        precache,
+        precache_option,
+        on_precache,
+      } = _param;
       for await (
         const ncbase of NocoDBUtil.list_bases({
           baseurl: this.baseurl,
@@ -1478,6 +1487,7 @@ export namespace NocoDBDataset {
                     ncview,
                     columns_meta_entries,
                     precache,
+                    precache_option,
                     on_precache,
                   }) as RowsApi;
                   // const _precache_promise = rows.get_precache_promise();
@@ -1530,6 +1540,9 @@ export namespace NocoDBDataset {
         ncview: NocoDBUtil.NcView;
         columns_meta_entries: NcApiColEntry[];
         precache: boolean;
+        precache_option?: {
+          page_size?: number;
+        };
         on_precache?: (
           ctx: "finish" | "start" | { size: number },
         ) => Promise<void>;
@@ -1549,7 +1562,7 @@ export namespace NocoDBDataset {
               this.ctx.ncview.id,
               undefined,
               {
-                page_size: 1000,
+                page_size: this.ctx.precache_option?.page_size ?? 1000,
               },
             )
           ) {

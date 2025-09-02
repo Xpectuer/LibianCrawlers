@@ -3,6 +3,7 @@ import {
   chain,
   DataClean,
   Errors,
+  is_nullish,
   Streams,
   Strs,
   Times,
@@ -59,8 +60,10 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
         "details" in wanfangdata.periodical &&
         typeof wanfangdata.periodical.details === "object"
       ) {
-        const { title, details, author, journal, issn_text } =
-          wanfangdata.periodical;
+        const { title, details, journal, issn_text } = wanfangdata.periodical;
+        const author = "author" in wanfangdata.periodical
+          ? wanfangdata.periodical.author
+          : null;
         const url = "dump_page_info" in smart_crawl.g_content
           ? smart_crawl.g_content.dump_page_info?.page_info_smart_wait
             ?.url
@@ -92,48 +95,55 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
         let keywords: string[] = details.关键词 ?? [];
         keywords = Streams.deduplicate(keywords);
         const authors = chain(() => {
-          return (!author ? [] : Array.isArray(author) ? author : [author])
-            .filter((it) => DataClean.is_not_blank_and_valid(it.name)).map((it) => {
-              let nickname = it.name;
-              let break_loop = false;
-              while (!break_loop) {
-                break_loop = true;
-                nickname = nickname.trim();
-                for (
-                  const num of [
-                    "0",
-                    "1",
-                    "2",
-                    "3",
-                    "4",
-                    "5",
-                    "6",
-                    "7",
-                    "8",
-                    "9",
-                  ]
-                ) {
-                  if (Strs.endswith(nickname, num)) {
-                    nickname = Strs.remove_suffix_recursion(nickname, num);
-                    break_loop = false;
+          return (!author
+            ? []
+            : Array.isArray(author)
+            ? author
+            : [author])
+            .filter((it) => DataClean.is_not_blank_and_valid(it.name)).map(
+              (it) => {
+                let nickname = it.name;
+                let break_loop = false;
+                while (!break_loop) {
+                  break_loop = true;
+                  nickname = nickname.trim();
+                  for (
+                    const num of [
+                      "0",
+                      "1",
+                      "2",
+                      "3",
+                      "4",
+                      "5",
+                      "6",
+                      "7",
+                      "8",
+                      "9",
+                    ]
+                  ) {
+                    if (Strs.endswith(nickname, num)) {
+                      nickname = Strs.remove_suffix_recursion(nickname, num);
+                      break_loop = false;
+                    }
                   }
                 }
-              }
-              return {
-                platform_user_id: `wanfangdata_username___${nickname}`,
-                nickname,
-                avater_url: null,
-                home_link_url: null,
-              };
-            }).filter((it) => DataClean.is_not_blank_and_valid(it.nickname));
+                return {
+                  platform_user_id: `wanfangdata_username___${nickname}`,
+                  nickname,
+                  avater_url: null,
+                  home_link_url: null,
+                };
+              },
+            ).filter((it) => DataClean.is_not_blank_and_valid(it.nickname));
         })
           .map((arr) =>
             Streams.deduplicate(arr, (a, b) => a.nickname === b.nickname)
           )
           .get_value();
-        const create_time: Temporal.Instant | null = details["论文发表日期"]
-          ? Times.parse_text_to_instant(details["论文发表日期"])
-          : null;
+        const create_time: Temporal.Instant | null =
+          "论文发表日期" in details && details["论文发表日期"]
+            ? Times.parse_text_to_instant(details["论文发表日期"])
+            : null;
 
         const res2: MediaContent = {
           last_crawl_time: Times.parse_text_to_instant(
@@ -174,7 +184,9 @@ export const match_wanfangdata: LibianCrawlerGarbageCleaner<
           videos: null,
           literatures: [
             {
-              journal: DataClean.is_not_blank_and_valid(journal) ? journal : null,
+              journal: DataClean.is_not_blank_and_valid(journal)
+                ? journal
+                : null,
               doi: null,
               category: null,
               level_of_evidence: null,

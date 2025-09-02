@@ -44,7 +44,8 @@ async def abstract_search(*,
                           crawler_tag: JSON,
                           on_init: Callable[[], Awaitable[None]],
                           # on_get_content: Callable[[], None],
-                          on_search_by_keyword: Callable[[SearchByKeywordContext], Awaitable[SearchByKeywordResult]],
+                          on_search_by_keyword: Callable[
+                              [SearchByKeywordContext], Awaitable[Optional[SearchByKeywordResult]]],
                           on_before_retry: Callable[[int], Awaitable[bool]],
                           set_keyword_to_g_search_key: bool = True,
                           ):
@@ -107,6 +108,10 @@ async def abstract_search(*,
                         'page': page,
                         'page_size': page_size,
                     })
+
+                    if res is None:
+                        logger.warning('Nothing to found on search page {}', page)
+                        break
 
                     log_debug_which_object_maybe_very_length(prefix='Result of on_search_by_keyword',
                                                              obj=res,
