@@ -24,6 +24,7 @@ function create_config() {
     title: "LibianCrawler Document",
     base: "/LibianCrawlers/",
     description: "",
+    ignoreDeadLinks: "localhostLinks",
     themeConfig: {
       // https://vitepress.dev/reference/default-theme-config
       nav: [
