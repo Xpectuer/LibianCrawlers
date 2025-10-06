@@ -480,7 +480,7 @@
           }
         },
         {
-          "description": "循环填入某个数字范围选择器组件并进行操作。",
+          "description": "循环的将类似于 [(0,500), (501,1000), (1001,1500), ...] 迭代填入某个数字范围选择器组件并进行操作。",
           "type": "object",
           "additionalProperties": false,
           "required": [

@@ -2214,7 +2214,7 @@ class StepsApi:
                              on_after_input_steps: StepsBlock = None,
                              ):
         """
-        循环填入某个数字范围选择器组件并进行操作。
+        循环的将类似于 [(0,500), (501,1000), (1001,1500), ...] 迭代填入某个数字范围选择器组件并进行操作。
         """
         _page = await self._get_page()
 
@@ -2513,7 +2513,7 @@ def _to_json_schema(*,
 def generate_steps_api_documents():
     import inspect
     members_meta_list: List[StepMemberMeta] = []
-    warns: List[str] = []
+    outputs: List[str] = []
     for member in inspect.getmembers(StepsApi):
         try:
             member_name, member_obj = member
@@ -2596,7 +2596,7 @@ def generate_steps_api_documents():
                         _desc = __desc
                     _desc = _trim_desc(_desc)
                     if _desc is None:
-                        warns.append(f'⚠️ WARN: {member_name}.{param_name} desc empty')
+                        outputs.append(f'⚠️ WARN: {member_name}.{param_name} desc empty')
 
                     _json_schema: typing.Any = _to_json_schema(_conf_type=_conf_type,
                                                                _hint=_conf_type_hint if _conf_type_hint is not None else _hint,
@@ -2640,7 +2640,7 @@ def generate_steps_api_documents():
                 _desc = ac['desc']
                 _desc = _trim_desc(_desc)
                 if _desc is None:
-                    warns.append(f'⚠️ WARN: {member_name}.{ac_name} desc empty')
+                    outputs.append(f'⚠️ WARN: {member_name}.{ac_name} desc empty')
                 _conf_type = ac['type']
                 _json_schema = _to_json_schema(_conf_type=_conf_type, _desc=_desc, _hint=ac['type_hint'])
                 _type: StepMemberMetaType = {
@@ -2908,11 +2908,11 @@ def generate_steps_api_documents():
             step_obj = json.load(f)
         try:
             validate(step_obj, _schema)
-            warns.append(f'✅ INFO: success validate file {filename}')
+            outputs.append(f'✅ INFO: success validate file {filename}')
         except BaseException as err:
-            warns.append('\n    '.join(f'❌ ERROR: validate failed for file {filename} : {err}'.splitlines()[0:10]))
-    for warn in warns:
-        print(warn)
+            outputs.append('\n    '.join(f'❌ ERROR: validate failed for file {filename} : {err}'.splitlines()[0:10]))
+    for output in outputs:
+        print(output)
     with open(os.path.abspath(os.path.join('docs', 'develop', 'crawler', 'step_api_metas.json')), mode='wt',
               encoding='utf-8') as f:
         json.dump(members_meta_list, f, ensure_ascii=False, indent=2)

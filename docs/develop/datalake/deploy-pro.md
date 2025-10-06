@@ -1,4 +1,4 @@
-# 1-部署数据湖
+# 2-在公网部署数据湖且启用ssl
 
 :::danger
 似乎存在错误，虽然在 DockerCompose 内部 NocoDB 连接到 postgres 启用 SSL 没问题。但为啥我在家中的内网环境下死活没法启用 SSL，我试图从公网域名连也无法启用 SSL ？是 GFW 干的，还是我的配置文件问题？
@@ -11,14 +11,14 @@
 
 第一步，先创建好 `.env` 文件。它之后会被 shell 命令与 `docker-compose.yml` 读取。
 
-:::warning
+:::danger
 
 ⚠️ 将以下 `.env` 文件中的值改为你自己的！并且不要泄漏。
 
 :::
 
 :::code-group
-<<< @/develop/datalake/.env-template [.env]
+<<< @/develop/datalake/template.pro.env {.dotenv}[.env]
 :::
 
 然后使用以下命令读入并检查 `.env` 中的环境变量。
@@ -194,11 +194,11 @@ FILE_LOG_LEVEL = logging.INFO
 
 ```shell
 echo '
-<!--@include: ./docker-compose.yml-->
+<!--@include: ./docker-compose.pro.yml-->
 ' > docker-compose.yml
 ```
 
-<<< @/develop/datalake/docker-compose.yml
+<<< @/develop/datalake/docker-compose.pro.yml
 
 :::
 
@@ -222,7 +222,7 @@ docker compose up -d && docker compose logs -t -f -n 100
 - **pgAdmin 安装时间较长**：在 CPU 性能较低的服务器上，pgAdmin 的安装可能需要约 20 分钟，请耐心等待。
 - **高效利用时间**：建议在等待 pgAdmin 安装完成的同时，先手动初始化 NocoDB 和 MinIO 的相关配置。
 
-#### 具体步骤
+#### First-Init
 
 1. **NocoDB 配置**
    - 打开 NocoDB 应用程序。
@@ -235,7 +235,7 @@ docker compose up -d && docker compose logs -t -f -n 100
      - 创建所需的存储桶（Bucket）。
      - 生成新的访问密钥（Access Key）和秘密密钥（Secret Key）。
 
-3. **NocoDB 中配置 MinIO 存储**
+3. **NocoDB 中配置 MinIO 存储** *(可选, 建议)*
    - 在 NocoDB 的 `Integrations` 栏目中，找到并选择 MinIO 作为存储服务。
    - 输入之前在 MinIO 中创建的存储桶名称、访问密钥和秘密密钥，完成存储服务的集成配置。
 

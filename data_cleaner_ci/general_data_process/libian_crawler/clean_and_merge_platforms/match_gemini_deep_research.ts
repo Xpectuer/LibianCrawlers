@@ -16,6 +16,7 @@ import { Literature } from "../../common/literature.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 import { Paragraphs } from "../../common/paragraph_analysis.ts";
+import { parse_metainfo } from "./util.ts";
 
 export const match_gemini_deep_research: LibianCrawlerGarbageCleaner<
   MediaContent
@@ -208,6 +209,10 @@ export const match_gemini_deep_research: LibianCrawlerGarbageCleaner<
       });
     }
 
+    const metainfo = parse_metainfo(garbage);
+
+    const og_profile_acct = metainfo?.og_profile_acct ?? null;
+
     // Times.parse_text_to_instant()
 
     const res: MediaContent = {
@@ -216,7 +221,16 @@ export const match_gemini_deep_research: LibianCrawlerGarbageCleaner<
       content_text_summary: null,
       content_text_detail,
       content_link_url,
-      authors: [],
+      authors: DataClean.is_not_blank_and_valid(og_profile_acct)
+        ? [
+          {
+            nickname: og_profile_acct,
+            platform_user_id: `Google_username_${og_profile_acct}`,
+            avater_url: null,
+            home_link_url: null,
+          },
+        ]
+        : [],
       platform: PlatformEnum.GoogleGemini,
       platform_duplicate_id,
       platform_rank_score: null,

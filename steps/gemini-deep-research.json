@@ -134,9 +134,44 @@
                 ],
                 "on_timeout_steps": [
                   {
-                    "fn": "loge",
+                    "fn": "page_wait_for_selector_in_any_frame",
                     "args": [
-                      "Not found Deep Research button"
+                      "toolbox-drawer button"
+                    ],
+                    "kwargs": {
+                      "timeout": 3000
+                    },
+                    "on_timeout_steps": [
+                      {
+                        "fn": "loge",
+                        "args": [
+                          "Not found Deep Research Button"
+                        ]
+                      },
+                      {
+                        "fn": "page_wait_for_selector_in_any_frame",
+                        "args": [
+                          "button[aria-pressed=\"true\"]:has-text('Deep Research')"
+                        ],
+                        "kwargs": {
+                          "timeout": 3000
+                        }
+                      },
+                      "debug"
+                    ],
+                    "on_success_steps": [
+                      {
+                        "fn": "page_click",
+                        "args": [
+                          "toolbox-drawer button"
+                        ]
+                      },
+                      {
+                        "fn": "page_click",
+                        "args": [
+                          "toolbox-drawer-item button:has-text('Deep Research')"
+                        ]
+                      }
                     ]
                   }
                 ]
@@ -215,7 +250,7 @@
                     "deep-research-confirmation-widget button[data-test-id=\"confirm-button\"]"
                   ],
                   "kwargs": {
-                    "timeout": 300000
+                    "timeout": 60000
                   }
                 },
                 {

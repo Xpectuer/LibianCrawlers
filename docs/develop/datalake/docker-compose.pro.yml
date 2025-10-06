@@ -101,7 +101,7 @@ services:
     volumes:
       - "./volume/nc_data:/usr/app/data"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:8080"]
+      test: ["CMD", "wget", "--spider", "http://localhost:8080/favicon.ico"]
       interval: 1m
       timeout: 20s
       retries: 5

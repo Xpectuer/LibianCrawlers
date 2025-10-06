@@ -163,6 +163,7 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
   const xhs_note_like = read_metas2(["og:xhs:note_like"]);
   const xhs_note_comment = read_metas2(["og:xhs:note_comment"]);
   const xhs_note_collect = read_metas2(["og:xhs:note_collect"]);
+  const og_profile_acct = read_metas2(["og-profile-acct"]); // "og-profile-acct"
 
   let html2markdown: string | null;
   if ("html2markdown" in metainfo) {
@@ -259,5 +260,6 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
     update_time,
     authors,
     video_url,
+    og_profile_acct,
   };
 }

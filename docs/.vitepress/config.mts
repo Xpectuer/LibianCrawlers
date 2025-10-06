@@ -1,9 +1,8 @@
 import { type DefaultTheme, defineConfig } from "vitepress";
-/* @ts-ignore */
-import fs from "fs/promises";
 import { generateSidebar } from "vitepress-sidebar";
 import { withMermaid } from "vitepress-plugin-mermaid";
-import taskCheckbox from "markdown-it-task-checkbox";
+/* @ts-ignore */
+import taskCheckbox from "markdown-it-task-checkbox"; // ts ignore
 
 function create_sidebar_item(): DefaultTheme.SidebarItem[] {
   /* @ts-ignore */
@@ -81,7 +80,7 @@ function create_config() {
       // options for @mdit-vue/plugin-toc
       // https://github.com/mdit-vue/mdit-vue/tree/main/packages/plugin-toc#options
       toc: { level: [1, 2, 3, 4, 5, 6] },
-
+      lineNumbers: true,
       config: (md) => {
         md.use(taskCheckbox, {
           disabled: true,
