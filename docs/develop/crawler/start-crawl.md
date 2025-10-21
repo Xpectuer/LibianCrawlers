@@ -269,7 +269,7 @@ poetry run api-crawl-impactfactor-search --keywords "nature" --mode save_file
 | 资讯详情 | ✔️      | ✔️ |
 
 ```shell
-poetry run smart-crawl --debug --url "https://www.washingtonpost.com/search/?query=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find=article --steps "jsonfile:steps/washington-post-search.json" --addons_root_dir=".data/bypass_paywalls_clean" --mode save_file
+poetry run smart-crawl --debug --url "https://www.washingtonpost.com/search/?query=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find=article --steps "jsonfile:steps/washington-post-search.json" --addons_root_dir=".data/bypass_paywalls_clean" --browser_data_dir_id read_washington_post --mode save_file
 ```
 
 #### 路透社 搜索 <Badge type="tip" text="playwright" />
@@ -283,7 +283,7 @@ poetry run smart-crawl --debug --url "https://www.washingtonpost.com/search/?que
 | 资讯详情 | ✔️      | ✔️ |
 
 ```shell
-poetry run smart-crawl --debug --url "https://www.reuters.com/site-search/?query=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find=article --steps "jsonfile:steps/reuters-search.json" --addons_root_dir=".data/bypass_paywalls_clean" --mode save_file
+poetry run smart-crawl --debug --url "https://www.reuters.com/site-search/?query=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find=article --steps "jsonfile:steps/reuters-search.json" --addons_root_dir=".data/bypass_paywalls_clean" --browser_data_dir_id read_reuters --mode save_file
 ```
 
 #### 美联社 搜索 <Badge type="tip" text="playwright" />
@@ -293,7 +293,25 @@ poetry run smart-crawl --debug --url "https://www.reuters.com/site-search/?query
 | 资讯详情 | ✔️      | ✔️ |
 
 ```shell
-poetry run smart-crawl --debug --url "https://apnews.com/search?q=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find "main,.Page-body" --play_sound_when_gui_confirm --steps "jsonfile:steps/apnews-search.json" --mode save_file
+poetry run smart-crawl --debug --url "https://apnews.com/search?q=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find "main,.Page-body" --play_sound_when_gui_confirm --steps "jsonfile:steps/apnews-search.json" --browser_data_dir_id read_apnews --mode save_file
+```
+
+#### 雪球
+
+##### 搜索单关键字 <Badge type="tip" text="playwright" />
+
+| 内容     | 爬取   | 清洗   |
+|--------|------|------|
+| 搜索结果列表 | ✔️   | TODO |
+
+```shell
+poetry run smart-crawl --debug --url "https://xueqiu.com/k?q=trump" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/scroll-down-v1.json" --browser_data_dir_id read_xueqiu --mode save_file
+```
+
+##### 搜索多关键字 <Badge type="tip" text="playwright" />
+
+```shell
+poetry run smart-crawl-urls --debug --keys "jsonfile:.data/media_search_keywords.json5" --key2url_jsfunc "function(k){return 'https://xueqiu.com/k?q='+k.split(' ').join('+')}" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/scroll-down-v1.json" --browser_data_dir_id read_xueqiu --mode save_file
 ```
 
 ### 其他

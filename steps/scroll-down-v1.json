@@ -1,0 +1,53 @@
+{
+  "$schema": "./schemas/v2.json",
+  "steps": [
+    "enable_devtool",
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "page_wait_loaded"
+    },
+    {
+      "fn": "page_random_mouse_move"
+    },
+    {
+      "fn": "logi",
+      "args": [
+        "Start scroll down v1"
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_scroll_down",
+      "kwargs": {
+        "max_height": 20000,
+        "delta_y": 555
+      }
+    },
+    {
+      "fn": "dump_page_with_uuid",
+      "args": [
+        "scroll_down_v1_before_height_20000"
+      ]
+    },
+    {
+      "fn": "page_scroll_down",
+      "kwargs": {
+        "max_height": 100000,
+        "delta_y": 888
+      }
+    },
+    {
+      "fn": "dump_page_with_uuid",
+      "args": [
+        "scroll_down_v1_after_height_20000"
+      ]
+    }
+  ]
+}
