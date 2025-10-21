@@ -6,11 +6,11 @@
     },
     "init:code_gen": {
       "description": "⭐ 启动代码生成(--help 查看帮助)",
-      "command": "deno run --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV,NODE_NDEBUG --allow-read=code_gen_help.txt,data_cleaner_ci_generated,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,quicktypeutil.ts,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=user_code,data_cleaner_ci_generated --v8-flags=--max-old-space-size=5120 code_gen.ts"
+      "command": "deno run --v8-flags=--max-old-space-size=8192 --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV,NODE_NDEBUG --allow-read=code_gen_help.txt,data_cleaner_ci_generated,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,quicktypeutil.ts,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=user_code,data_cleaner_ci_generated code_gen.ts"
     },
     "init:code_gen:allownet": {
       "description": "启动代码生成(允许网络)(--help 查看帮助)",
-      "command": "deno run --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV,NODE_NDEBUG --allow-read=code_gen_help.txt,data_cleaner_ci_generated,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,quicktypeutil.ts,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=user_code,data_cleaner_ci_generated --v8-flags=--max-old-space-size=5120 --allow-net code_gen.ts"
+      "command": "deno run --v8-flags=--max-old-space-size=8192 --allow-env=\"PG*\",READABLE_STREAM,CI,\"TSC_*\",NODE_INSPECTOR_IPC,VSCODE_INSPECTOR_OPTIONS,NODE_ENV,NODE_NDEBUG --allow-read=code_gen_help.txt,data_cleaner_ci_generated,jsonata_templates,user_code/.tmp,workers,util.ts,general_data_process,quicktypeutil.ts,serialize-anything --allow-run=deno,../.venv/Scripts/python --allow-write=user_code,data_cleaner_ci_generated --allow-net code_gen.ts"
     },
     "step:init:code_gen:allownet:cached": {
       "command": "deno task init:code_gen:allownet --skip-existed",

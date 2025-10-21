@@ -48,15 +48,22 @@ async def smart_crawl_urls(*,
             _args.append(f'--{k}')
             _args.append(f'{kwargs[k]}')
         logger.debug('subprocess args: {}', _args)
-        proc = await asyncio.create_subprocess_exec(
-            os.path.join('.venv', 'scripts', 'python'),
-            os.path.join('.venv', 'scripts', 'smart-crawl'),
-            *_args,
-        )
-        logger.debug('created subprocess ...')
-        code = await proc.wait()
-        if code != 0:
-            raise ValueError('Subprocess quit not 0 !')
+        retry = 3
+        while True:
+            proc = await asyncio.create_subprocess_exec(
+                os.path.join('.venv', 'scripts', 'python'),
+                os.path.join('.venv', 'scripts', 'smart-crawl'),
+                *_args,
+            )
+            logger.debug('created subprocess ...')
+            code = await proc.wait()
+            if code != 0:
+                if retry > 0:
+                    retry = retry - 1
+                    logger.warning('RETRY ! Subprocess quit not 0 !')
+                    continue
+                raise ValueError('Subprocess quit not 0 !')
+            break
         logger.debug('finish subprocess , code is {}', code)
 
 

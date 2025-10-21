@@ -1,3 +1,4 @@
+import { Errors } from "../../util.ts";
 import { ICache } from "../common/caches.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "./clean_and_merge_util.ts";
 
@@ -31,10 +32,21 @@ export async function create_reducers_and_init() {
       stop: async () => {
         const reduced_result = await reducer.next("stop");
         // const res = reducer.return
+        // if (!reduced_result.done || !reduced_result.value) {
+        //   throw new Error(
+        //     `Generator should return after pass "stop" to it , but reduced_result.done=${reduced_result.done}, params.tag_text=${params.tag_text}, reduced_result.value=${reduced_result.value}`,
+        //   );
+        // }
+
         if (!reduced_result.done || !reduced_result.value) {
-          throw new Error(
-            `Generator should return after pass "stop" to it , but reduced_result.done=${reduced_result.done}, params.tag_text=${params.tag_text}, reduced_result.value=${reduced_result.value}`,
-          );
+          Errors.throw_and_format(
+            `Generator should return [all_keys, cache] after pass "stop" to it`,
+            {
+              reduced_result_done: reduced_result.done,
+              params_tag_text: params.tag_text,
+              reduced_result_value: reduced_result.value,
+            },
+          ); 
         }
         const [all_key, cache] = reduced_result.value;
         return {

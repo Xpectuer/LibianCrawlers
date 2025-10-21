@@ -890,6 +890,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           // batch(DTO相同=${samed_count.value},gid在表中=${existed_list.length},all=${values.length}),
           `DTOSame=${_global_dto_same_count},Update=(change=${_global_update_change_count}/query=${_global_update_count}/arr_len=${_global_update_arr_len_count}),Insert=(query=${_global_insert_count},arr_len=${_global_insert_arr_len_count})`,
         );
+
       for (const existed of existed_list) {
         const value = values.find((value) => get_id(value) === existed.id);
         if (value === undefined) {
@@ -950,10 +951,34 @@ ${Deno.inspect(existed, { depth: 4 })}
       }
       await update_bar();
 
-      const not_existed = [...values].filter((it) => {
+      const not_existed = [...values].filter((value) => {
         return (
-          undefined === existed_list.find((exist) => exist.id === get_id(it))
+          undefined === existed_list.find((exist) => exist.id === get_id(value))
         );
+      }).filter((value) => {
+        if (
+          value !== null && typeof value === "object" &&
+          "platform_duplicate_id" in value
+        ) {
+          if (typeof value.platform_duplicate_id !== "string") {
+            Errors.throw_and_format(
+              "value.platform_duplicate_id should be string",
+              { value },
+            );
+          }
+          if (
+            new TextEncoder().encode(value.platform_duplicate_id).length >= 499
+          ) {
+            console.warn(
+              "\n\nSkip wait insert item because value.platform_duplicate_id too long",
+              {
+                value,
+              },
+            );
+            return false;
+          }
+          return true;
+        }
       });
 
       const insert_result_list: (InsertResult[] | null)[] = [];

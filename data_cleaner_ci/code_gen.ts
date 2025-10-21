@@ -1,5 +1,5 @@
 import path from "node:path";
-import config from "./config.ts";
+import { get_config } from "./config.ts";
 import { read_postgres_table, read_postgres_table_type_wrap } from "./pg.ts";
 import { data_cleaner_ci_generated, recommended_batch_size } from "./consts.ts";
 import {
@@ -22,6 +22,8 @@ import lodash from "lodash";
 
 // console.debug("setGlobalVars is ", setGlobalVars);
 // console.debug("createIndexedDB() result", createIndexedDB());
+
+const _CODE_GEN_DEBUG = false;
 
 const _TIP = `此文件由 code_gen.ts 生成。
 请通过修改 ${data_cleaner_ci_generated}/config.json 来修改此文件，
@@ -51,6 +53,7 @@ export async function generate_repository_api(
 
   await QuickTypeUtil.init_monkey_patch();
 
+  const config = get_config();
   for (const repository of config.repositories) {
     if (
       repository.typ === "postgres" && "dataset_tables" in repository &&
@@ -166,15 +169,15 @@ export async function generate_repository_api(
               high_water_mark: cmdarg.high_water_mark,
               skip_existed: cmdarg.skip_existed,
             });
-            if (cmdarg.only_gen_batches_union_merge_file) {
-              const _batch = await rows_gen.next();
-              if (!_batch.done) {
-                throw new Error("it should no batch output");
-              }
-              if (step1_total_remember.value === 0) {
-                throw new Error("it should be set value");
-              }
-            }
+            // if (cmdarg.only_gen_batches_union_merge_file) {
+            //   const _batch = await rows_gen.next();
+            //   if (!_batch.done) {
+            //     throw new Error("it should no batch output");
+            //   }
+            //   if (step1_total_remember.value === 0) {
+            //     throw new Error("it should be set value");
+            //   }
+            // }
             await generate_postgres_api_type({
               typename,
               typedesc,
@@ -314,7 +317,7 @@ export async function generate_repository_api(
           await bar.set_text(`Reading nocodb meta from ${repository.base_url}`);
           await bar.set_total(2);
           const ncbases = await NocoDBUtil.fetch_ncbases_all_info({
-            baseurl: DataClean.url_use_https_noempty(repository.base_url),
+            baseurl: repository.base_url,
             nocodb_token: repository.token,
             logd_simple: cmdarg.only_gen_nocodb ? true : false,
           });
@@ -437,6 +440,14 @@ export async function generate_postgres_api_type<T>(param: {
           }
           if (skip_existed && res_file_existed) {
             if (samples_res.find((it) => it !== "skip")) {
+              if (_CODE_GEN_DEBUG) {
+                console.debug("\n\nsamples_res info :", {
+                  batch_start,
+                  batch_end,
+                  length: samples_res.length,
+                  first: samples_res[0],
+                });
+              }
               throw new Error(
                 `If skip_existed && res_file_existed (Existed ${batch_file_name}) , Assert generator should return all "skip" , item !== \"skip\" items indexes is ${
                   Jsons.dump(
@@ -448,7 +459,9 @@ export async function generate_postgres_api_type<T>(param: {
                 }`,
               );
             }
-            // console.log(`\nSkip existed : ${res_file_path}\n`);
+            if (_CODE_GEN_DEBUG) {
+              console.log(`\n\nSkip existed : ${res_file_path}\n`);
+            }
             continue;
           }
           const samples = samples_res.map((it) => JSON.stringify(it));

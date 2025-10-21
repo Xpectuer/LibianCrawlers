@@ -1,12 +1,12 @@
 import {
-  TypeScriptTargetLanguage,
-  TypeScriptRenderer,
-  RenderContext,
-  getOptionValues,
-  tsFlowOptions,
   EnumType,
-  Name,
+  getOptionValues,
   jsonInputForTargetLanguage,
+  Name,
+  RenderContext,
+  tsFlowOptions,
+  TypeScriptRenderer,
+  TypeScriptTargetLanguage,
 } from "quicktype-core";
 
 import { utf16StringEscape } from "quicktype-core/dist/support/Strings.js";
@@ -54,13 +54,13 @@ export namespace QuickTypeUtil {
     protected override makeRenderer(
       renderContext: RenderContext,
       // deno-lint-ignore no-explicit-any
-      untypedOptionValues: { [name: string]: any }
+      untypedOptionValues: { [name: string]: any },
     ): MyTypeScriptRenderer {
       console.debug("untypedOptionValues : ", untypedOptionValues);
       return new MyTypeScriptRenderer(
         this,
         renderContext,
-        getOptionValues(tsFlowOptions, untypedOptionValues)
+        getOptionValues(tsFlowOptions, untypedOptionValues),
       );
     }
   }
@@ -73,7 +73,13 @@ export namespace QuickTypeUtil {
     } as const;
   }
 
+  let monkey_patch_flag = false;
+
   export async function init_monkey_patch() {
+    if (monkey_patch_flag) {
+      throw new Error("Quicktype monkey patch already called");
+    }
+
     const { UnionAccumulator } = await import(
       "quicktype-core/dist/UnionBuilder.js"
     );
@@ -95,7 +101,9 @@ export namespace QuickTypeUtil {
         }
 
         return original();
-      }
+      },
     );
+
+    monkey_patch_flag = true;
   }
 }

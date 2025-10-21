@@ -22,6 +22,17 @@ import { Nums } from "./util.ts";
 import { delay } from "@std/async/delay";
 import { isDate } from "node:util/types";
 
+const _PG_DEBUG = false;
+const _debug_obj = <T>(msg: string, ctx: unknown, obj: T) => {
+  if (_PG_DEBUG) {
+    console.debug(`\n${msg}`, {
+      ctx,
+      obj,
+    });
+  }
+  return obj;
+};
+
 export type PostgresConnectionParam = {
   dbname: string;
   user: string;
@@ -41,6 +52,19 @@ export type ReadPostgresTableSkipExisted = (
   total: number,
 ) => Promise<"skip" | "no-skip">;
 
+/**
+ * 读取 postgres 数据库的一致接口。
+ *
+ * @param params.network 为 false 时，将不会读取远程 postgres 数据库，而是仅从本地缓存中读取。
+ *
+ * 这在postgres服务机崩溃，但是数据计算的开发机正常，需要【数据恢复】时非常有用。
+ *
+ * 同时也可以用于本地缓存业务代码开发使用。
+ *
+ * @param params.skip_existed 与跳过读取的业务相关的回调参数.（例如在 code_gen 的过程中， 发现 batch_100_200.ts 已存在，则会跳过读取 100-200 的数据）
+ *
+ * 传入的回调函数将会影响业务逻辑。
+ */
 export async function* read_postgres_table(
   params:
     & PostgresConnectionParam
@@ -110,6 +134,11 @@ export async function* read_postgres_table(
     ".cache_by_id",
     typename,
   );
+  /**
+   * 识别文件名中的garbage主键id
+   * @param cache_file
+   * @returns 如果并非json文件，则返回 "pass"。
+   */
   const get_g_id = (cache_file: Deno.DirEntry) => {
     if (!Strs.endswith(cache_file.name, ".json")) {
       console.warn(`ignore invalid file ${cache_file}`);
@@ -158,7 +187,7 @@ export async function* read_postgres_table(
   }
   console.debug("total=", total);
   if (Nums.is_invalid(total)) {
-    throw new Error("Count(*) return NAN");
+    throw new Error(`Count(*) return NAN , total is ${total}`);
   }
   if (on_total) {
     switch (await on_total(total)) {
@@ -234,15 +263,31 @@ export async function* read_postgres_table(
             const cache_file_name = cache_file.name;
             const cache_file_path = path.join(cache_dir, cache_file_name);
             const cache_file_stat = await Deno.stat(cache_file_path);
+            const _log_statu = (obj: object) => {
+              if (_PG_DEBUG) {
+                return {
+                  batch_start: batch.start,
+                  batch_end: batch.end,
+                  batch_total: batch.total,
+                  g_id,
+                  cache_file_name,
+                  ...obj,
+                };
+              }
+            };
             if (is_skip === "skip") {
-              yield {
-                g_id,
-                cache_file_name,
-                cache_file_path,
-                cache_file_stat,
-                bytes: null,
-                is_skip: "skip" as const,
-              };
+              yield _debug_obj(
+                "cache_file_generator yield (skip)",
+                _log_statu({ is_skip }),
+                {
+                  g_id,
+                  cache_file_name,
+                  cache_file_path,
+                  cache_file_stat,
+                  bytes: null,
+                  is_skip: "skip" as const,
+                },
+              );
             } else {
               const start_at = new Date().getTime();
               const bytes = await Deno.readFile(cache_file_path);
@@ -256,14 +301,18 @@ export async function* read_postgres_table(
                   console.debug(""); // next line
                 }
               }
-              yield {
-                g_id,
-                cache_file_name,
-                cache_file_path,
-                cache_file_stat,
-                bytes,
-                is_skip: "no-skip" as const,
-              };
+              yield _debug_obj(
+                "cache_file_generator yield (no-skip)",
+                _log_statu({ is_skip }),
+                {
+                  g_id,
+                  cache_file_name,
+                  cache_file_path,
+                  cache_file_stat,
+                  bytes,
+                  is_skip: "no-skip" as const,
+                },
+              );
             }
           }
         }
@@ -453,18 +502,24 @@ export async function* read_postgres_table_type_wrap<
       gen: rows_gen,
       queue_size: high_water_mark,
       before_event(ev) {
-        if (debugopt_logtime) {
+        if (_PG_DEBUG || debugopt_logtime) {
           if (ev === "reader_delay_queue_full") {
-            console.debug("read_postgres_table_type_wrap queue full");
+            console.debug("\nread_postgres_table_type_wrap queue full");
           }
           if (ev === "write_pop") {
-            console.debug("read_postgres_table_type_wrap queue consume");
+            console.debug("\nread_postgres_table_type_wrap queue consume");
           }
         }
       },
     })();
 
   for await (const rows of rows_gen_queued) {
+    if (_PG_DEBUG) {
+      console.debug("\nread_postgres_table_type_wrap debug", {
+        len: rows.length,
+        first: rows[0],
+      });
+    }
     const typing_wrap_start_at = new Date().getTime();
     const typing_wrap_result = await Promise.all(
       rows.map(async (it) => {
@@ -514,7 +569,7 @@ export async function* read_postgres_table_type_wrap<
         return _after_jsonate_group as T;
       }),
     );
-    if (debugopt_logtime) {
+    if (_PG_DEBUG || debugopt_logtime) {
       console.debug("batch typing wrap status", {
         cast_time: `${(new Date().getTime() - typing_wrap_start_at) / 1000} s`,
         typing_wrap_batch_size: typing_wrap_result.length,

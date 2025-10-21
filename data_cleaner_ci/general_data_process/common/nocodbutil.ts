@@ -90,7 +90,7 @@ export namespace NocoDBUtil {
     ["LastModifiedTime", "LastModifiedTime"],
     ["CreatedBy", "CreatedBy"],
     ["LastModifiedBy", "LastModifiedBy"],
-    ["Order", "unknown"],
+    ["Order", "Order"],
   ] as const;
 
   export function is_ui_types_key(
@@ -1663,6 +1663,23 @@ export namespace NocoDBDataset {
               );
             }
             continue;
+          case "Order":
+            if (
+              !(typeof value === "undefined" || typeof value === "string")
+            ) {
+              Errors.throw_and_format(
+                "TypeError on value",
+                {
+                  record,
+                  key,
+                  value,
+                  uidt,
+                  column_meta,
+                  ui_type_entry,
+                },
+              );
+            }
+            continue;
           case "string":
             if (
               !(typeof value === "string" ||
@@ -1798,7 +1815,13 @@ export namespace NocoDBDataset {
           if (
             (record_keys.indexOf(meta_key) < 0 ||
               typeof value === "undefined") &&
-            ["CreatedTime", "LastModifiedTime", "CreatedBy", "LastModifiedBy"]
+            [
+                "CreatedTime",
+                "LastModifiedTime",
+                "CreatedBy",
+                "LastModifiedBy",
+                "Order",
+              ]
                 .indexOf(col_def.uidt) < 0
           ) {
             Errors.throw_and_format(

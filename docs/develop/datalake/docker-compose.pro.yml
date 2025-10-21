@@ -37,7 +37,7 @@ services:
       - "-c"
       - "ssl_key_file=/var/lib/postgresql/server.key"
   miniosnsd:
-    image: "minio/minio:latest"
+    image: "minio/minio:RELEASE.2025-04-22T22-12-26Z"
     # The internal domain name and port should be 
     # the same as the public domain name and port.
     #

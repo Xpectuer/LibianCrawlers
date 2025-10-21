@@ -1,5 +1,5 @@
 import { Kysely, Migrator } from "kysely";
-import config from "../../config.ts";
+import { get_config } from "../../config.ts";
 import { MediaContent, PlatformEnum } from "../common/media.ts";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
@@ -225,6 +225,7 @@ export interface ChatMessageTable {
 export async function create_and_init_libian_crawler_database_scope<R>(
   scope: (db: Kysely<LibianCrawlerDatabase>) => Promise<R>,
 ) {
+  const config = get_config();
   const { data_storage } = config.libian_crawler;
   const { connect_param, migration } = data_storage;
   if (connect_param.ssl) {

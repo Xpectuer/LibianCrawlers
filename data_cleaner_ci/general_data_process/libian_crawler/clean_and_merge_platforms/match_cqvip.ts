@@ -266,12 +266,16 @@ export const match_cqvip: LibianCrawlerGarbageCleaner<
           }
         }
 
+        const summary = DataClean.is_not_blank_and_valid(info_dict["摘要"])
+          ? info_dict["摘要"]
+          : null;
+
         const res2: MediaContent = {
           last_crawl_time: Times.parse_text_to_instant(
             smart_crawl.g_create_time,
           ),
           title,
-          content_text_summary: info_dict["摘要"],
+          content_text_summary: summary,
           content_text_detail: null,
           content_link_url,
           authors,

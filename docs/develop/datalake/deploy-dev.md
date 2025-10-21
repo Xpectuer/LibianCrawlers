@@ -149,13 +149,13 @@ docker compose up
 
 ## 5. 最后
 
-| 服务         | 地址                   | 管理员账号                            | 管理员密码                     | 备注                                                                     |
-| ------------ | ---------------------- | ------------------------------------- | ------------------------------ | ------------------------------------------------------------------------ |
-| postgres     | localhost:18191        | `postgres`                            | `libian-datalake-dev-password` | 登陆时语言一定要选 `English`                                             |
-| pgadmin      | http://localhost:18192 | `pgadmin-libian-datalake@example.com` | `libian-datalake-dev-password` |                                                                          |
+| 服务         | 地址                   | 管理员账号                            | 管理员密码                     | 备注                                                             |
+| ------------ | ---------------------- | ------------------------------------- | ------------------------------ |----------------------------------------------------------------|
+| postgres     | localhost:18191        | `postgres`                            | `libian-datalake-dev-password` | 登陆时语言一定要选 `English`                                            |
+| pgadmin      | http://localhost:18192 | `pgadmin-libian-datalake@example.com` | `libian-datalake-dev-password` |                                                                |
 | nocodb       | http://localhost:18193 | `ncadmin-libian-datalake@example.com` | `libian-datalake-dev-password` | 需要参照 [First-Init](./deploy-pro.md#first-init) 配置 postgres 数据源。 |
-| minio        | localhost:18194        |                                       |                                | 需去控制台配置 access token                                              |
-| minio 控制台 | http://localhost:18195 | `myminioadmin`                        | `libian-datalake-dev-password` |                                                                          |
+| minio        | localhost:18194        |                                       |                                | 需去控制台配置 `access_key` 和 `secret_key`                                        |
+| minio 控制台 | http://localhost:18195 | `myminioadmin`                        | `libian-datalake-dev-password` |                                                                |
 
 
 

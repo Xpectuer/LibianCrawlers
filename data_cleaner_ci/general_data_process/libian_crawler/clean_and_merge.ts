@@ -182,9 +182,13 @@ async function _main() {
             value: 0,
           };
 
-          for (const [datasetid, garbages_iter] of read_LibianCrawlerGarbage) {
-            const dataset_store = cache_ctx.refs.datasets.get(datasetid)!;
-
+          for (
+            const [datasetid, garbages_iter] of read_LibianCrawlerGarbage
+              .toSorted((a, b) => a[0] - b[0])
+          ) {
+            const dataset_store = cache_ctx.refs.datasets.get(datasetid) ?? {
+              maxgid_deser: null,
+            };
             let current_maxgid: number | null = null;
 
             const write_cache = async () => {
@@ -371,14 +375,14 @@ async function _main() {
                   };
                   // 只要不乱改，这的类型就没问题。
                   // 我只想偷懒。
-                  
+
                   if (_last_insert_or_update_promise !== null) {
                     await _last_insert_or_update_promise;
                   }
                   _last_insert_or_update_promise = ctx.insert_or_update(
                     db,
                     // deno-lint-ignore no-explicit-any
-                    values as any, 
+                    values as any,
                     {
                       on_bar_text,
                       pause_on_dbupdate,

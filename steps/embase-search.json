@@ -53,6 +53,12 @@
               "div": 19,
               "before_steps": [
                 {
+                  "fn": "sleep",
+                  "args": [
+                    5000
+                  ]
+                },
+                {
                   "fn": "page_click",
                   "args": [
                     "label[for='selectAllOnPage']>>nth=0"
@@ -174,7 +180,7 @@
                 {
                   "fn": "expect_download",
                   "kwargs": {
-                    "timeout": 600000,
+                    "timeout": 120000,
                     "run_steps": [
                       {
                         "fn": "sleep",
