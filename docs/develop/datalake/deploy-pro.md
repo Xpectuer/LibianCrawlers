@@ -13,7 +13,9 @@ SSL，我试图从公网域名连也无法启用 SSL ？是 GFW 干的，还是�
 
 :::danger
 
-⚠️ 将以下 `.env` 文件中的值改为你自己的！并且不要泄漏。
+⚠️ **请立刻** 将以下 `.env` 文件中的属性值 **修改**！并且不要泄漏。
+
+- 关于 MinIO 相关配置，参见 [minio-api-domain-and-port](#minio-api-domain-and-port)
 
 :::
 
@@ -75,6 +77,7 @@ cp /path/to/your/private.key ./ca/server.key
 > 这个示例中的 `./ca/server.*` 是通配符证书，如果你的证书不是通配符证书，则自行修改。
 
 :::code-group
+
 ```shell
 chmod 600 ./ca/server.crt && \
   chmod 600 ./ca/server.key && \
@@ -88,8 +91,8 @@ chmod 600 ./ca/server.crt && \
   sudo chown 0:0 ./ca/minio-public.crt && \
   ls -la ./ca
 ```
-:::
 
+:::
 
 :::info 踩坑
 
@@ -210,6 +213,8 @@ FILE_LOG_LEVEL = logging.INFO
 如果你已经拥有自己的 MinIO 或 S3 存储，则可以使用自己的 MinIO 存储，并修改此文件内容。
 :::
 
+#### create-docker-compose-yml
+
 :::code-group
 
 ```shell
@@ -230,7 +235,40 @@ echo '
 docker compose up
 ```
 
-## 6. 手动初始化 NocoDB 和 MinIO 配置
+## 6. 容器暴露的本地端口
+
+> 如果更改暴露的本地端口，则直接修改 [`docker.compose.yml` 文件](#create-docker-compose-yml) 即可。
+
+各服务用户名和密码参见你的 `.env` 文件。
+
+| 服务            | 协议      | 暴露为本地端口 | 容器内网端口                | 备注                                                                       |
+|---------------|---------|---------|-----------------------|--------------------------------------------------------------------------|
+| Postgres      | tcp/ssl | 18191   | 5432                  |                                                                          |
+| PgAdmin       | http    | 18192   | 80                    | 登陆时语言一定要选 `English`                                                      |
+| NocoDB        | http    | 18193   | 8080                  | 需要参照 [First-Init](./deploy-pro.md#first-init) 配置 postgres 数据源。           |
+| MinIO API     | https   | 18194   | `MINIOSNSD_BOTH_PORT` | MinIO 相关配置很讲究，参见 [minio-api-domain-and-port](#minio-api-domain-and-port) |
+| MinIO Console | https   | 18195   | 9001                  | 需去控制台配置 **存储桶** 及其 token 的 `access_key` 和 `secret_key`                   |
+
+#### minio-api-domain-and-port
+
+:::tip MinIO 的公网和内网 url 应当相同
+
+- 容器内网域名应该 与 反向代理后暴露的域名 相同。即 环境变量 `MINIOSNSD_HOSTNAME` ，请务必修改 。
+- 容器内网端口应该 与 反向代理后暴露的端口 相同。即 环境变量 `MINIOSNSD_BOTH_PORT` ，若没修改则为 `443` 。
+- 容器内网协议应该 与 反向代理后暴露的协议 相同。即 `https` 。
+
+之所以要相同，是为了:
+
+- MinIO API 上传时的签名正确。
+    - See: https://github.com/minio/minio/issues/19394
+- MinIO Console 跳转到 API 图片预览地址正确。
+- 与 NocoDB 集成时:
+    - 让 NocoDB 上传附件到 MinIO 时维持公网内网 url 相同。
+    - 让 NocoDB 从 MinIO 链接下载文件时 url 正确。
+
+:::
+
+## 7. 手动初始化 NocoDB 和 MinIO 配置
 
 #### 注意事项
 
@@ -248,17 +286,36 @@ docker compose up
 2. **MinIO 配置**
     - 登录 MinIO 管理界面。
         - 创建所需的存储桶（Bucket）。
+            - 配置好存储桶的权限，如果是爬虫数据存放的话，建议设为公开读取、修改需要权限。
         - 生成新的访问密钥（Access Key）和秘密密钥（Secret Key）。
 
 3. **NocoDB 中配置 MinIO 存储** *(可选, 建议)*
     - 在 NocoDB 的 `Integrations` 栏目中，找到并选择 MinIO 作为存储服务。
     - 输入之前在 MinIO 中创建的存储桶名称、访问密钥和秘密密钥，完成存储服务的集成配置。
 
+4. **NocoDB 中测试 SMTP**
+    - 在 NocoDB 中测试 SMTP 是否能正常收发邮件。
+
+5. **NocoDB 中添加外部数据源**
+    - 可以将内网的 Postgres 的 **洁净数据池** 添加为外部数据源。
+        - 配置如下:
+            - 域名为 环境变量 `POSTGRES_HOSTNAME`，会走 compose 的服务域名。
+            - 端口为内网端口 5432。
+            - 数据库为 环境变量 `POSTGRES_DB` ，默认为 `libian-datalake` 。
+            - 用户名为 环境变量 `POSTGRES_USERNAME`， 默认为 `postgres` 。
+            - 密码为 环境变量 `POSTGRES_PASSWORD` ，请在 `.env` 文件中查看修改后的值。
+            - schema 为 `libian_crawler_cleaned`，此 schema 名是
+              [data_storage.ts](https://github.com/Xpectuer/LibianCrawlers/blob/main/data_cleaner_ci/general_data_process/libian_crawler/data_storage.ts)
+              文件中硬编码写入的 schema 名。
+            - SSL 启用。
+        - 必须禁用 Schema 修改，因为现在使用了 [Kysely](https://kysely.dev/) 框架在目录
+          [migrations](https://github.com/Xpectuer/LibianCrawlers/blob/main/data_cleaner_ci/general_data_process/libian_crawler/migrations)
+          中控制版本迁移，如果改了会破坏迁移完整性，出大问题。
+    - 也可以添加你的其他数据库地址。
+
 通过以上步骤，您可以在等待 pgAdmin 安装的同时，高效地完成 NocoDB 和 MinIO 的基础配置工作。
 
-## 其他
-
-### NginX 反向代理 MinIO 配置文件参考
+## 8. NginX 反向代理 MinIO 配置文件参考
 
 :::code-group
 
@@ -331,5 +388,8 @@ server {
 ```
 
 :::
+
+
+
 
 
