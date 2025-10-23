@@ -13,6 +13,7 @@
 :::
 
 :::code-group
+
 ```bash
 echo '
 <!--@include: ./template.dev.env-->
@@ -25,6 +26,7 @@ echo '
 然后使用以下命令读入并检查 `.env` 中的环境变量。
 
 :::code-group
+
 ```bash
 [ ! -f .env ] || export $(grep -v '^#' .env | xargs) && echo $POSTGRES_HOSTNAME
 ```
@@ -32,13 +34,15 @@ echo '
 ```shell
 export $(cat .env | xargs) && echo $POSTGRES_HOSTNAME
 ```
+
 :::
 
 ## 2. 创建 MinIO 配置文件
 
 MinIO 的单节点单磁盘（SNSD, Single Node Single Drive）部署模式需要通过配置文件来指定运行环境参数。为此，我们需要创建并导入必要的环境变量。
 
-根据 [MinIO 官方文档](https://min.io/docs/minio/container/operations/install-deploy-manage/deploy-minio-single-node-single-drive.html#create-the-environment-variable-file)，请按照以下步骤操作:
+根据 [MinIO 官方文档](https://min.io/docs/minio/container/operations/install-deploy-manage/deploy-minio-single-node-single-drive.html#create-the-environment-variable-file)
+，请按照以下步骤操作:
 
 ```bash
 [ ! -f .env ] || export $(grep -v '^#' .env | xargs) && \
@@ -66,9 +70,11 @@ MINIO_VOLUMES=\"/mnt/data\"
 
 :::tip 为什么需要预先创建存储卷
 
-pgAdmin4容器通常以非root用户身份运行（例如UID:5050），因此宿主机上的存储卷目录必须与容器内部的用户环境保持一致，以确保容器内的进程能够正确访问和修改这些目录下的文件。如果不预先设置正确的用户组和权限，可能会导致容器无法写入数据或出现其他权限相关的问题。
+pgAdmin4容器通常以非root用户身份运行（例如UID:
+5050），因此宿主机上的存储卷目录必须与容器内部的用户环境保持一致，以确保容器内的进程能够正确访问和修改这些目录下的文件。如果不预先设置正确的用户组和权限，可能会导致容器无法写入数据或出现其他权限相关的问题。
 
-可参考 [pgAdmin 官方文档](https://www.pgadmin.org/docs/pgadmin4/latest/container_deployment.html#mapped-files-and-directories) 了解更多。
+可参考 [pgAdmin 官方文档](https://www.pgadmin.org/docs/pgadmin4/latest/container_deployment.html#mapped-files-and-directories)
+了解更多。
 
 :::
 
@@ -107,17 +113,17 @@ CONSOLE_LOG_LEVEL = logging.INFO
 FILE_LOG_LEVEL = logging.INFO
 
 " > ./volume/pgadmin_config/config_local.py && \
-  chown -R 5050:5050 ./volume/pgadmin_data && \
-  chown -R 5050:5050 ./volume/pgadmin_config && \
-  chown -R 5050:5050 ./volume/pgadmin_config/servers.json && \
-  chown -R 5050:5050 ./volume/pgadmin_config/pgpass && \
-  chown -R 5050:5050 ./volume/pgadmin_config/config_local.py && \
   cat ./volume/pgadmin_config/servers.json && \
   cat ./volume/pgadmin_config/pgpass && \
   cat ./volume/pgadmin_config/config_local.py && \
   chmod 644 ./volume/pgadmin_config/servers.json && \
   chmod 644 ./volume/pgadmin_config/config_local.py && \
   chmod 600 ./volume/pgadmin_config/pgpass && \
+  sudo chown -R 5050:5050 ./volume/pgadmin_config/servers.json && \
+  sudo chown -R 5050:5050 ./volume/pgadmin_config/pgpass && \
+  sudo chown -R 5050:5050 ./volume/pgadmin_config/config_local.py && \
+  sudo chown -R 5050:5050 ./volume/pgadmin_data && \
+  sudo chown -R 5050:5050 ./volume/pgadmin_config && \
   ls -la volume/*
 ```
 
@@ -149,12 +155,12 @@ docker compose up
 
 ## 5. 最后
 
-| 服务         | 地址                   | 管理员账号                            | 管理员密码                     | 备注                                                             |
-| ------------ | ---------------------- | ------------------------------------- | ------------------------------ |----------------------------------------------------------------|
-| postgres     | localhost:18191        | `postgres`                            | `libian-datalake-dev-password` | 登陆时语言一定要选 `English`                                            |
-| pgadmin      | http://localhost:18192 | `pgadmin-libian-datalake@example.com` | `libian-datalake-dev-password` |                                                                |
-| nocodb       | http://localhost:18193 | `ncadmin-libian-datalake@example.com` | `libian-datalake-dev-password` | 需要参照 [First-Init](./deploy-pro.md#first-init) 配置 postgres 数据源。 |
-| minio        | localhost:18194        |                                       |                                | 需去控制台配置 `access_key` 和 `secret_key`                                        |
+| 服务        | 地址                     | 管理员账号                                 | 管理员密码                          | 备注                                                             |
+|-----------|------------------------|---------------------------------------|--------------------------------|----------------------------------------------------------------|
+| postgres  | localhost:18191        | `postgres`                            | `libian-datalake-dev-password` | 登陆时语言一定要选 `English`                                            |
+| pgadmin   | http://localhost:18192 | `pgadmin-libian-datalake@example.com` | `libian-datalake-dev-password` |                                                                |
+| nocodb    | http://localhost:18193 | `ncadmin-libian-datalake@example.com` | `libian-datalake-dev-password` | 需要参照 [First-Init](./deploy-pro.md#first-init) 配置 postgres 数据源。 |
+| minio     | localhost:18194        |                                       |                                | 需去控制台配置 `access_key` 和 `secret_key`                            |
 | minio 控制台 | http://localhost:18195 | `myminioadmin`                        | `libian-datalake-dev-password` |                                                                |
 
 

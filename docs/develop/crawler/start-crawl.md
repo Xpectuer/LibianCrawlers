@@ -311,7 +311,7 @@ poetry run smart-crawl --debug --url "https://xueqiu.com/k?q=trump" --locale zh-
 ##### 搜索多关键字 <Badge type="tip" text="playwright" />
 
 ```shell
-poetry run smart-crawl-urls --debug --keys "jsonfile:.data/media_search_keywords.json5" --key2url_jsfunc "function(k){return 'https://xueqiu.com/k?q='+k.split(' ').join('+')}" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/scroll-down-v1.json" --browser_data_dir_id read_xueqiu --mode save_file
+poetry run smart-crawl-urls --keys "jsonfile:.data/media_search_keywords.json5" --key2url_jsfunc "function(k){return 'https://xueqiu.com/k?q='+k.split(' ').join('+')}" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/scroll-down-v1.json" --browser_data_dir_id read_xueqiu --mode save_file
 ```
 
 ### 其他
