@@ -24,6 +24,9 @@ export const match_gemini_deep_research: LibianCrawlerGarbageCleaner<
   match: async function* (
     garbage: LibianCrawlerGarbage,
   ) {
+    if (!("obj" in garbage) || is_nullish(garbage.obj)) {
+      return;
+    }
     const smart_crawl = garbage.obj;
     if (!("template_parse_html_tree" in smart_crawl)) {
       return;

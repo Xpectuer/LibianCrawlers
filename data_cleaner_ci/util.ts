@@ -513,6 +513,9 @@ export namespace Strs {
     if (is_nullish(x)) {
       return false;
     }
+    if (typeof x !== "string") {
+      Errors.throw_and_format("Typeguard out !", { x, typeof_x: typeof x });
+    }
     let x2 = x;
     while (true) {
       x2 = x2.trim();
@@ -722,7 +725,16 @@ export namespace Times {
         );
       }
     }
-
+    if (Nums.is_int(text)) {
+      try {
+        const res = Times.parse_instant(parseInt(text));
+        if (res) {
+          return res;
+        }
+      } catch (err) {
+        errors.push(err);
+      }
+    }
     try {
       return Temporal.Instant.from(text);
     } catch (err) {

@@ -1,2 +1,3 @@
 data_cleaner_ci_generated/
 user_code
+**/*.db

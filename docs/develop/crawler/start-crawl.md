@@ -113,7 +113,11 @@ ac_time_value = "" # 可以不填
 
 :::
 
-##### 根据一条 bvid 爬取
+| 内容   | 清洗 |
+|------|----|
+| 视频信息 | ✔️ |
+
+###### 根据一条 bvid 爬取视频信息
 
 ```shell
 poetry run api-crawl-bilibili-read-video-info --is_insert_to_db --expire_time 36000 --bvid "BV1rdtizZEDE"
@@ -300,9 +304,9 @@ poetry run smart-crawl --debug --url "https://apnews.com/search?q=trump" --local
 
 ##### 搜索单关键字 <Badge type="tip" text="playwright" />
 
-| 内容     | 爬取   | 清洗   |
-|--------|------|------|
-| 搜索结果列表 | ✔️   | TODO |
+| 内容     | 爬取 | 清洗   |
+|--------|----|------|
+| 搜索结果列表 | ✔️ | TODO |
 
 ```shell
 poetry run smart-crawl --debug --url "https://xueqiu.com/k?q=trump" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/scroll-down-v1.json" --browser_data_dir_id read_xueqiu --mode save_file

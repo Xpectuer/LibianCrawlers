@@ -4,6 +4,7 @@ import {
 import {
   Arrays,
   Errors,
+  is_nullish,
   Jsonatas,
   Jsons,
   Mappings,
@@ -248,17 +249,19 @@ async function _main() {
                 if (garbage === "skip") {
                   continue;
                 }
-                is_garbage_not_in_cache_readed = true;
-                const g_id = parseInt(garbage.obj.g_id);
-                if (Nums.is_invalid(g_id)) {
-                  throw new Error(
-                    `Invalid parseInt(g_id) : ${garbage.obj.g_id}`,
-                  );
-                }
-                if (current_maxgid !== null && current_maxgid > g_id) {
-                  console.warn("顺序错乱的 garbages 迭代器！\n\n\n");
-                } else {
-                  current_maxgid = g_id;
+                if ("obj" in garbage && !is_nullish(garbage.obj)) {
+                  is_garbage_not_in_cache_readed = true;
+                  const g_id = parseInt(garbage.obj.g_id);
+                  if (Nums.is_invalid(g_id)) {
+                    throw new Error(
+                      `Invalid parseInt(g_id) : ${garbage.obj.g_id}`,
+                    );
+                  }
+                  if (current_maxgid !== null && current_maxgid > g_id) {
+                    console.warn("顺序错乱的 garbages 迭代器！\n\n\n");
+                  } else {
+                    current_maxgid = g_id;
+                  }
                 }
 
                 let item = await reader.next(garbage);
@@ -331,71 +334,71 @@ async function _main() {
             }
 
             render_param[0].text = "Finish read garbage";
-            // 到此处合并及清洗数据已经完成了
-
-            const ctx_list = await Promise.all(
-              reducers.map((it) => it.db_ctx).map(async (ctx) => {
-                const { all_key, cache } = await ctx.stop();
-                return {
-                  ctx,
-                  all_key,
-                  cache,
-                };
-              }),
-            );
-            const total = ctx_list.reduce(
-              (prev, cur) => prev + cur.all_key.size,
-              0,
-            );
-            await create_and_init_libian_crawler_database_scope(async (db) => {
-              let completed_offset = 0;
-              let _last_insert_or_update_promise: Promise<unknown> | null =
-                null;
-              for (const { ctx, all_key, cache } of ctx_list) {
-                const _all_key_arr = [...all_key];
-                for (
-                  const { start, end, sliced } of Streams
-                    .split_array_use_batch_size(
-                      update_to_db_batch_size,
-                      _all_key_arr,
-                    )
-                ) {
-                  const values = await Promise.all(
-                    Mappings.object_entries(cache.get_batch(new Set(sliced)))
-                      .map(
-                        (e) => Promise.resolve(e[1]),
-                      ),
-                  );
-                  const on_bar_text = async (text: string) => {
-                    render_param[1].completed = completed_offset + end;
-                    render_param[1].total = total;
-                    render_param[1].text =
-                      `${ctx.tag_text} Batch(${start}~${end}) ${text}`;
-                    await bars.render(render_param);
-                  };
-                  // 只要不乱改，这的类型就没问题。
-                  // 我只想偷懒。
-
-                  if (_last_insert_or_update_promise !== null) {
-                    await _last_insert_or_update_promise;
-                  }
-                  _last_insert_or_update_promise = ctx.insert_or_update(
-                    db,
-                    // deno-lint-ignore no-explicit-any
-                    values as any,
-                    {
-                      on_bar_text,
-                      pause_on_dbupdate,
-                    },
-                  );
-                }
-                completed_offset += all_key.size;
-              }
-              if (_last_insert_or_update_promise !== null) {
-                await _last_insert_or_update_promise;
-              }
-            });
           }
+          // 到此处合并及清洗数据已经完成了
+
+          const ctx_list = await Promise.all(
+            reducers.map((it) => it.db_ctx).map(async (ctx) => {
+              const { all_key, cache } = await ctx.stop();
+              return {
+                ctx,
+                all_key,
+                cache,
+              };
+            }),
+          );
+          const total = ctx_list.reduce(
+            (prev, cur) => prev + cur.all_key.size,
+            0,
+          );
+
+          await create_and_init_libian_crawler_database_scope(async (db) => {
+            let completed_offset = 0;
+            let _last_insert_or_update_promise: Promise<unknown> | null = null;
+            for (const { ctx, all_key, cache } of ctx_list) {
+              const _all_key_arr = [...all_key];
+              for (
+                const { start, end, sliced } of Streams
+                  .split_array_use_batch_size(
+                    update_to_db_batch_size,
+                    _all_key_arr,
+                  )
+              ) {
+                const values = await Promise.all(
+                  Mappings.object_entries(cache.get_batch(new Set(sliced)))
+                    .map(
+                      (e) => Promise.resolve(e[1]),
+                    ),
+                );
+                const on_bar_text = async (text: string) => {
+                  render_param[1].completed = completed_offset + end;
+                  render_param[1].total = total;
+                  render_param[1].text =
+                    `${ctx.tag_text} Batch(${start}~${end}) ${text}`;
+                  await bars.render(render_param);
+                };
+                // 只要不乱改，这的类型就没问题。
+                // 我只想偷懒。
+
+                if (_last_insert_or_update_promise !== null) {
+                  await _last_insert_or_update_promise;
+                }
+                _last_insert_or_update_promise = ctx.insert_or_update(
+                  db,
+                  // deno-lint-ignore no-explicit-any
+                  values as any,
+                  {
+                    on_bar_text,
+                    pause_on_dbupdate,
+                  },
+                );
+              }
+              completed_offset += all_key.size;
+            }
+            if (_last_insert_or_update_promise !== null) {
+              await _last_insert_or_update_promise;
+            }
+          });
         },
       );
     });

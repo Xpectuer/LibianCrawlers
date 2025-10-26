@@ -18,6 +18,7 @@ export enum PlatformEnum {
   APNews = "www.apnews.com",
   WebOfScience = "www.webofscience.com",
   GoogleGemini = "gemini.google.com",
+  知乎 = "zhihu.com",
   未分类 = "unknown",
 }
 

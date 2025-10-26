@@ -5,7 +5,7 @@ import {
   DataClean,
   Errors,
   Strs,
-  Times,
+  Times,is_nullish
 } from "../../../util.ts";
 import { MediaContent, PlatformEnum } from "../../common/media.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
@@ -16,6 +16,9 @@ export const match_pubmed_str: LibianCrawlerGarbageCleaner<
   match: async function* (
     garbage: LibianCrawlerGarbage,
   ) {
+    if (!("obj" in garbage) || is_nullish(garbage.obj)) {
+      return;
+    }
     const smart_crawl = garbage.obj;
     if (
       !("template_parse_html_tree" in smart_crawl) ||

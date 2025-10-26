@@ -1,5 +1,11 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
-import { DataClean, Errors, Mappings, Times } from "../../../util.ts";
+import {
+  DataClean,
+  Errors,
+  is_nullish,
+  Mappings,
+  Times,
+} from "../../../util.ts";
 import { PlatformEnum } from "../../common/media.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
@@ -13,6 +19,9 @@ export const match_qianniu_message_export: LibianCrawlerGarbageCleaner<
   match: async function* (
     garbage: LibianCrawlerGarbage,
   ) {
+    if (!("obj" in garbage) || is_nullish(garbage.obj)) {
+      return;
+    }
     const smart_crawl = garbage.obj;
     if (!("template_parse_html_tree" in smart_crawl)) {
       return;

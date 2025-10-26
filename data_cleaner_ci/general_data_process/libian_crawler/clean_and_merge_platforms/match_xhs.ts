@@ -2,6 +2,7 @@ import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts
 import {
   Arrays,
   DataClean,
+  is_nullish,
   Mappings,
   Strs,
   Times,
@@ -24,6 +25,9 @@ export const match_xhs_html: LibianCrawlerGarbageCleaner<
   match: async function* (
     garbage: LibianCrawlerGarbage,
   ) {
+    if (!("obj" in garbage) || is_nullish(garbage.obj)) {
+      return;
+    }
     const smart_crawl = garbage.obj;
     if (!("template_parse_html_tree" in smart_crawl)) {
       return;
@@ -230,6 +234,9 @@ export const match_xhs_apilib_search_list: LibianCrawlerGarbageCleaner<
   match: async function* (
     garbage: LibianCrawlerGarbage,
   ) {
+    if (!("obj" in garbage) || is_nullish(garbage.obj)) {
+      return;
+    }
     const smart_crawl = garbage.obj;
     if (!("template_parse_html_tree" in smart_crawl)) {
       return;

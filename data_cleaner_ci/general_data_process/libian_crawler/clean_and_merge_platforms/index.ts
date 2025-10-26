@@ -19,6 +19,7 @@ import { match_pdd_h5_yangkeduo } from "./match_pdd.ts";
 
 import { match_bilibili_video } from "./match_bilibili.ts";
 import { match_gemini_deep_research } from "./match_gemini_deep_research.ts";
+import { match_media_crawler_sqlite } from "../../media_crawler_integration/util.ts";
 
 export interface LibianCrawlerGarbageCleaner<R> {
   match(
@@ -45,4 +46,5 @@ export const libian_crawler_garbage_matchers = [
   // match_bilibili_api_search_result,
   match_bilibili_video,
   match_gemini_deep_research,
+  match_media_crawler_sqlite,
 ] as const;

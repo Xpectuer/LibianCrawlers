@@ -4,6 +4,7 @@ import { read_postgres_table, read_postgres_table_type_wrap } from "./pg.ts";
 import { data_cleaner_ci_generated, recommended_batch_size } from "./consts.ts";
 import {
   DataClean,
+  Errors,
   Jsonatas,
   Jsons,
   Nums,
@@ -351,6 +352,56 @@ export const ncbases = ${Jsons.dump(ncbases, { indent: 2 })} as const;
             },
           });
           await bar.set_completed(2);
+        },
+      );
+    } else if (
+      repository.typ === "libsql"
+    ) {
+      tasks.push(
+        async (_param, bar) => {
+          await bar.set_text(
+            `Kysely codegen (dialect libsql) from ${repository.url}`,
+          );
+          await bar.set_total(1);
+          await Deno.mkdir(
+            path.join(
+              ".",
+              data_cleaner_ci_generated,
+              repository.dataset_typename,
+            ),
+            {
+              recursive: true,
+            },
+          );
+          const command = new Deno.Command("deno", {
+            args: [
+              "run",
+              "dev:kysely-codegen",
+              "--url",
+              repository.url,
+              "--dialect",
+              "libsql",
+              "--out-file",
+              path.join(
+                ".",
+                data_cleaner_ci_generated,
+                repository.dataset_typename,
+                "db.d.ts",
+              ),
+            ],
+            stdin: "inherit",
+            stdout: "inherit",
+          });
+          const proc = command.spawn();
+          const proc_status = await proc.status;
+          if (!proc_status.success) {
+            Errors.throw_and_format("Kysely codegen failed", {
+              proc,
+              proc_status,
+              command,
+            });
+          }
+          await bar.set_completed(1);
         },
       );
     }

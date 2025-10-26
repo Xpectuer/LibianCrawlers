@@ -46,7 +46,7 @@ export async function create_reducers_and_init() {
               params_tag_text: params.tag_text,
               reduced_result_value: reduced_result.value,
             },
-          ); 
+          );
         }
         const [all_key, cache] = reduced_result.value;
         return {

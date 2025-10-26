@@ -1,5 +1,5 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
-import { DataClean, Strs, Times } from "../../../util.ts";
+import { DataClean, is_nullish, Strs, Times } from "../../../util.ts";
 import {
   MediaContent,
   MediaSearchContext,
@@ -14,6 +14,9 @@ export const match_baidu_search_result: LibianCrawlerGarbageCleaner<
   match: async function* (
     garbage: LibianCrawlerGarbage,
   ) {
+    if (!("obj" in garbage) || is_nullish(garbage.obj)) {
+      return;
+    }
     const smart_crawl = garbage.obj;
     if (!("template_parse_html_tree" in smart_crawl)) {
       return;

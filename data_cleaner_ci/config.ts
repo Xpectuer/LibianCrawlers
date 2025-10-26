@@ -29,6 +29,10 @@ export type LibianDataCleanerCiConfig = {
     base_url: DataClean.HttpUrl;
     token: string;
     dataset_typename: string;
+  } | {
+    typ: "libsql";
+    url: string;
+    dataset_typename: string;
   })[];
   libian_crawler: {
     data_storage: {

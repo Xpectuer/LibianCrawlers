@@ -1,5 +1,13 @@
 import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts";
-import { chain, DataClean, Errors, Nums, Strs, Times } from "../../../util.ts";
+import {
+  chain,
+  DataClean,
+  Errors,
+  is_nullish,
+  Nums,
+  Strs,
+  Times,
+} from "../../../util.ts";
 import { Literature } from "../../common/literature.ts";
 import { PlatformEnum } from "../../common/media.ts";
 import { LibianCrawlerCleanAndMergeUtil } from "../clean_and_merge_util.ts";
@@ -13,6 +21,9 @@ export const match_wos_journal: LibianCrawlerGarbageCleaner<
   match: async function* (
     garbage: LibianCrawlerGarbage,
   ) {
+    if (!("obj" in garbage) || is_nullish(garbage.obj)) {
+      return;
+    }
     const smart_crawl = garbage.obj;
     if (!("template_parse_html_tree" in smart_crawl)) {
       return;

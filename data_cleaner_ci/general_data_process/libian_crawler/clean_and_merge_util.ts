@@ -218,10 +218,12 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           }
         }
       } catch (err) {
+        const g_id = "obj" in garbage ? garbage.obj.g_id : null;
         // console.warn('',{garbage})
-        throw new Error(
-          `Failed on read garbage for libian crawler item : g_id is ${garbage.obj.g_id}`,
+        Errors.throw_and_format(
+          `Failed on read garbage for libian crawler item : g_id is ${g_id}`,
           {
+            g_id,
             cause: err,
           },
         );
@@ -252,6 +254,10 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         const content: Cur | "stop" = yield;
         try {
           if ("stop" === content) {
+            console.debug(
+              `Stop reducer`,
+              { get_key_prefix, all_key_size: all_key.size },
+            );
             return [all_key, cache] as const;
           }
           if (

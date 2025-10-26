@@ -2,6 +2,7 @@ import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts
 import {
   Arrays,
   DataClean,
+  is_nullish,
   Mappings,
   Streams,
   Strs,
@@ -17,29 +18,40 @@ import {
 import { LibianCrawlerGarbageCleaner } from "./index.ts";
 
 export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
-  if (!("metainfo" in garbage.obj.template_parse_html_tree)) {
+  if (
+    !("obj" in garbage) || is_nullish(garbage.obj) ||
+    !("metainfo" in garbage.obj.template_parse_html_tree)
+  ) {
     return null;
   }
   const { metainfo } = garbage.obj.template_parse_html_tree;
   if (!Mappings.is_not_concrete_empty(metainfo)) {
     return null;
   }
-
+  const _metainfo: Record<string, unknown> = metainfo as Record<
+    string,
+    unknown
+  >;
   const read_metas_property_from_metainfo = <
-    M extends Typings.ReduceUnionMapping<typeof metainfo>,
+    M extends Typings.ReduceUnionMapping<typeof _metainfo>,
     K extends string & keyof M,
   >(
     m: M | Mappings.Empty,
     key: K,
-  ) => {
+  ): M extends Record<string, unknown>
+    ? Record<string, string | null | undefined> | null
+    :
+      | Extract<M, { [P in K]?: unknown }>[K]
+      | null => {
     let res:
       | Extract<M, { [P in K]?: unknown }>[K]
       | null = null;
+    const _m_any = m as any;
     if (
       Mappings.is_not_concrete_empty(m) &&
-      key in m
+      key in _m_any
     ) {
-      const _res = m[key];
+      const _res = _m_any[key as any];
       if (
         typeof _res === "object" &&
         Mappings.is_not_concrete_empty(_res)
@@ -51,10 +63,13 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
     } else {
       res = null;
     }
-    return res;
+    return res as any;
   };
 
-  const metas = read_metas_property_from_metainfo(metainfo, "metas");
+  const metas = read_metas_property_from_metainfo(
+    _metainfo,
+    "metas",
+  );
   const read_metas = <
     M extends Typings.ReduceUnionMapping<typeof metas>,
     KS extends (string & keyof Typings.ReduceUnionMapping<M>)[],
@@ -83,7 +98,10 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
     // deno-lint-ignore no-explicit-any
     return res as any;
   };
-  const metas2 = read_metas_property_from_metainfo(metainfo, "metas2");
+  const metas2 = read_metas_property_from_metainfo(
+    _metainfo,
+    "metas2",
+  );
   const read_metas2 = <
     M extends Typings.ReduceUnionMapping<typeof metas2> =
       Typings.ReduceUnionMapping<typeof metas2>,
@@ -261,5 +279,36 @@ export function parse_metainfo<G extends LibianCrawlerGarbage>(garbage: G) {
     authors,
     video_url,
     og_profile_acct,
+  };
+}
+
+export function zhihu_platform_duplicate_id(param: {
+  content_id: string | null;
+  content_type: string | null;
+  question_id: string | null;
+}): { failed_reason: string } | {
+  platform_duplicate_id: string;
+} {
+  const { question_id, content_id, content_type } = param;
+  let platform_duplicate_id = `zhihu`;
+
+  for (
+    const [k_name, k, allow_null] of [
+      ["content_type", content_type, false],
+      ["question_id", question_id, content_type !== "anwser"],
+      ["content_id", content_id, false],
+    ] as const
+  ) {
+    if (!allow_null && !DataClean.is_not_blank_and_valid(k)) {
+      return {
+        failed_reason: `Invalid ${k_name} ${k}`,
+      };
+    } else {
+      platform_duplicate_id += `__${k_name}_${k}`;
+    }
+  }
+
+  return {
+    platform_duplicate_id,
   };
 }

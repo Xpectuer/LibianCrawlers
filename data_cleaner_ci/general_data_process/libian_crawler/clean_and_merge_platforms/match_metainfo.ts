@@ -2,6 +2,7 @@ import { LibianCrawlerGarbage } from "../../../user_code/LibianCrawlerGarbage.ts
 import {
   Arrays,
   DataClean,
+  is_nullish,
   Mappings,
   Streams,
   Strs,
@@ -24,6 +25,9 @@ export const match_metainfo: LibianCrawlerGarbageCleaner<
   match: async function* (
     garbage: LibianCrawlerGarbage,
   ) {
+    if (!("obj" in garbage) || is_nullish(garbage.obj)) {
+      return;
+    }
     const metainfo_parsed = parse_metainfo(garbage);
     if (!metainfo_parsed) {
       return;
@@ -74,13 +78,15 @@ export const match_metainfo: LibianCrawlerGarbageCleaner<
           }
           if (
             search_key === null && "q" in query_dict &&
-            typeof query_dict.q === "string" && DataClean.is_not_blank_and_valid(query_dict.q)
+            typeof query_dict.q === "string" &&
+            DataClean.is_not_blank_and_valid(query_dict.q)
           ) {
             search_key = query_dict.q;
           }
           if (
             search_key === null && "k" in query_dict &&
-            typeof query_dict.k === "string" && DataClean.is_not_blank_and_valid(query_dict.k)
+            typeof query_dict.k === "string" &&
+            DataClean.is_not_blank_and_valid(query_dict.k)
           ) {
             search_key = query_dict.k;
           }

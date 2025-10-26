@@ -3,6 +3,7 @@ import {
   Arrays,
   DataClean,
   Errors,
+  is_nullish,
   Mappings,
   Nums,
   Streams,
@@ -24,6 +25,9 @@ export const match_dump_obj: LibianCrawlerGarbageCleaner<
   match: async function* (
     garbage: LibianCrawlerGarbage,
   ) {
+    if (!("obj" in garbage) || is_nullish(garbage.obj)) {
+      return;
+    }
     const smart_crawl = garbage.obj;
     if (
       !("dump_page_info" in smart_crawl.g_content)

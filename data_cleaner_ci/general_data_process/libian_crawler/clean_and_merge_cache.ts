@@ -1,6 +1,14 @@
 import path from "node:path";
 import { data_cleaner_ci_generated } from "../../consts.ts";
-import { Errors, is_nullish, Nums, Paths, SerAny, Strs } from "../../util.ts";
+import {
+  Errors,
+  is_nullish,
+  Jsons,
+  Nums,
+  Paths,
+  SerAny,
+  Strs,
+} from "../../util.ts";
 import { create_reducers_and_init } from "./clean_and_merge_reducers.ts";
 
 export type MaxGidRefs = {
@@ -67,6 +75,40 @@ export function create_cache_ctx_of_maxgid() {
               continue;
             }
             const [datasetid_dir_name2, datasetid] = datasetid_entry;
+            const the_config_file_path = path.join(
+              refs.cm_cache_dir.value,
+              datasetid_dir_name2,
+              "config.json",
+            );
+            let the_config: Jsons.JSONValue;
+            try {
+              await Deno.stat(the_config_file_path);
+              the_config = Jsons.load(
+                await Deno.readTextFile(the_config_file_path),
+              );
+            } catch (err) {
+              if (err instanceof Deno.errors.NotFound) {
+                the_config = null;
+              } else {
+                throw err;
+              }
+            }
+            if (!is_nullish(the_config)) {
+              if (typeof the_config !== "object") {
+                Errors.throw_and_format("Invalid config", {
+                  the_config,
+                  the_config_file_path,
+                });
+              }
+              if ("freeze" in the_config && the_config.freeze === true) {
+                console.info(
+                  "Skip find maxgid_dir , because config.freeze === true",
+                  { the_config_file_path },
+                );
+                continue;
+              }
+            }
+
             for await (
               const maxgid_dir of Deno.readDir(path.join(
                 refs.cm_cache_dir.value,
@@ -133,10 +175,19 @@ export function create_cache_ctx_of_maxgid() {
         for (const datasetid of refs.datasets.keys()) {
           const maxgid_deser = refs.datasets.get(datasetid)!.maxgid_deser;
           if (is_nullish(maxgid_deser) || Nums.is_invalid(maxgid_deser)) {
-            Errors.throw_and_format("maxgid require valid number", {
+            console.debug("maxgid empty", {
+              datasetid,
               maxgid_deser,
               refs,
+              reducers_texts: reducers.map((it) => it.tag_text),
             });
+            continue;
+            // Errors.throw_and_format("maxgid require valid number", {
+            //   datasetid,
+            //   maxgid_deser,
+            //   refs,
+            //   reducers_texts: reducers.map((it) => it.tag_text),
+            // });
           }
 
           const basedir = path.join(
