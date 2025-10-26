@@ -173,6 +173,7 @@ export const match_metainfo: LibianCrawlerGarbageCleaner<
               url: video_url,
               is_master: true,
               key: "master",
+              is_music: false,
             },
           ],
           duration_sec: null,

@@ -473,11 +473,13 @@ export const match_xhs_apilib_note: LibianCrawlerGarbageCleaner<
                         ),
                         is_master: true,
                         key: `${stream_key}_master`,
+                        is_music: false,
                       },
                       ...s.backup_urls.map((it, idx) => ({
                         url: DataClean.url_use_https_noempty(it),
                         is_master: false,
                         key: `${stream_key}_backup_${idx}`,
+                        is_music: false,
                       })),
                     ];
                   });

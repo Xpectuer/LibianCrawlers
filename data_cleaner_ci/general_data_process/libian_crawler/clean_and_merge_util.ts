@@ -506,6 +506,9 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           LibianCrawlerCleanAndMergeUtil.MediaContentMerged["authors"] =
             prev?.authors ?? new Map();
         for (const author of cur.authors) {
+          if (is_nullish(author.other_ids)) {
+            author.other_ids = [];
+          }
           const { platform_user_id } = author;
           const authors_timeline = DataMerge.merge_and_sort_timeline({
             old: authors.get(platform_user_id) ?? [],
@@ -648,6 +651,38 @@ export namespace LibianCrawlerCleanAndMergeUtil {
         if (attach_docs.length <= 0) {
           attach_docs = null;
         }
+        let comment_level = 0;
+        const comment_level_cur = cur.comment?.level ?? 0;
+        const comment_level_prev = prev?.comment?.level ?? 0;
+        if (
+          comment_level_cur !== 0 && comment_level_prev !== 0 &&
+          comment_level_cur !== comment_level_prev
+        ) {
+          console.warn(
+            "level cur and prev both not 0 , but comment_level_cur !== comment_level_prev",
+            {
+              comment_level_cur,
+              comment_level_prev,
+              cur,
+              prev,
+            },
+          );
+        }
+        comment_level = Math.max(comment_level_cur, comment_level_prev);
+        let comment: MediaContentMerged["comment"] = {
+          level: comment_level,
+          count_sub: Math.max(
+            cur.comment?.count_sub ?? 0,
+            prev?.comment?.count_sub ?? 0,
+          ),
+          parent_id: cur.comment?.parent_id ?? prev?.comment?.parent_id ?? null,
+        };
+        if (is_nullish(comment.count_sub) || comment.count_sub <= 0) {
+          comment.count_sub = null;
+        }
+        if (is_nullish(comment.level) || comment.level <= 0) {
+          comment = null;
+        }
 
         return {
           platform: cur.platform,
@@ -677,6 +712,7 @@ export namespace LibianCrawlerCleanAndMergeUtil {
           literatures,
           language,
           attach_docs,
+          comment,
         };
       },
     });
@@ -1162,6 +1198,26 @@ ${Deno.inspect(existed, { depth: 4 })}
       if (!DataClean.is_not_blank_and_valid(attach_docs_markdown)) {
         attach_docs_markdown = null;
       }
+      let comment_level = value.comment?.level;
+      if (
+        is_nullish(comment_level) || Nums.is_invalid(comment_level) ||
+        comment_level <= 0
+      ) {
+        comment_level = null;
+      }
+      let comment_count_sub = value.comment?.count_sub ?? null;
+      if (
+        is_nullish(comment_count_sub) || Nums.is_invalid(comment_count_sub) ||
+        comment_count_sub < 0
+      ) {
+        comment_count_sub = null;
+      }
+      let comment_parent_id = value.comment?.parent_id ?? null;
+      if (
+        !Strs.is_not_blank(comment_parent_id)
+      ) {
+        comment_parent_id = null;
+      }
       const res = {
         ...Mappings.filter_keys(value, "pick", [
           "platform",
@@ -1246,6 +1302,9 @@ ${Deno.inspect(existed, { depth: 4 })}
         literature_issn_list_joined,
         attach_docs,
         attach_docs_markdown,
+        comment_level,
+        comment_count_sub,
+        comment_parent_id,
       } satisfies Omit<
         Parameters<ReturnType<typeof db.insertInto<typeof table>>["values"]>[0],
         "id"

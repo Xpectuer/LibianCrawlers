@@ -312,3 +312,148 @@ export function zhihu_platform_duplicate_id(param: {
     platform_duplicate_id,
   };
 }
+
+export function douyin_platform_duplicate_id(param: {
+  aweme_id: string | null;
+  aweme_type: string | null;
+}): { failed_reason: string } | {
+  platform_duplicate_id: string;
+} {
+  const { aweme_id, aweme_type } = param;
+  let platform_duplicate_id = `douyin`;
+
+  for (
+    const [k_name, k, allow_null] of [
+      ["aweme_id", aweme_id, false],
+      ["aweme_type", aweme_type, false],
+    ] as const
+  ) {
+    if (!allow_null && !DataClean.is_not_blank_and_valid(k)) {
+      return {
+        failed_reason: `Invalid ${k_name} ${k}`,
+      };
+    } else {
+      platform_duplicate_id += `__${k_name}_${k}`;
+    }
+  }
+
+  return {
+    platform_duplicate_id,
+  };
+}
+
+export function douyin_comment_platform_duplicate_id(param: {
+  aweme_id: string | null;
+  comment_id: string | null;
+}): { failed_reason: string } | {
+  platform_duplicate_id: string;
+} {
+  const { aweme_id, comment_id } = param;
+  let platform_duplicate_id = `douyin_comment`;
+
+  for (
+    const [k_name, k, allow_null] of [
+      ["aweme_id", aweme_id, false],
+      ["comment_id", comment_id, false],
+    ] as const
+  ) {
+    if (!allow_null && !DataClean.is_not_blank_and_valid(k)) {
+      return {
+        failed_reason: `Invalid ${k_name} ${k}`,
+      };
+    } else {
+      platform_duplicate_id += `__${k_name}_${k}`;
+    }
+  }
+
+  return {
+    platform_duplicate_id,
+  };
+}
+
+export function zhihu_comment_platform_duplicate_id(param: {
+  content_id: string | null;
+  comment_id: string | null;
+}): { failed_reason: string } | {
+  platform_duplicate_id: string;
+} {
+  const { content_id, comment_id } = param;
+  let platform_duplicate_id = `zhihu_comment`;
+
+  for (
+    const [k_name, k, allow_null] of [
+      ["content_id", content_id, false],
+      ["comment_id", comment_id, false],
+    ] as const
+  ) {
+    if (!allow_null && !DataClean.is_not_blank_and_valid(k)) {
+      return {
+        failed_reason: `Invalid ${k_name} ${k}`,
+      };
+    } else {
+      platform_duplicate_id += `__${k_name}_${k}`;
+    }
+  }
+
+  return {
+    platform_duplicate_id,
+  };
+}
+
+export function kuaishou_platform_duplicate_id(param: {
+  video_id: string | null;
+  video_type: string | null;
+}): { failed_reason: string } | {
+  platform_duplicate_id: string;
+} {
+  const { video_id, video_type } = param;
+  let platform_duplicate_id = `kuaishou`;
+
+  for (
+    const [k_name, k, allow_null] of [
+      ["video_id", video_id, false],
+      ["video_type", video_type, false],
+    ] as const
+  ) {
+    if (!allow_null && !DataClean.is_not_blank_and_valid(k)) {
+      return {
+        failed_reason: `Invalid ${k_name} ${k}`,
+      };
+    } else {
+      platform_duplicate_id += `__${k_name}_${k}`;
+    }
+  }
+
+  return {
+    platform_duplicate_id,
+  };
+}
+
+export function kuaishou_comment_platform_duplicate_id(param: {
+  video_id: string | null;
+  comment_id: string | null;
+}): { failed_reason: string } | {
+  platform_duplicate_id: string;
+} {
+  const { video_id, comment_id } = param;
+  let platform_duplicate_id = `kuaishou_comment`;
+
+  for (
+    const [k_name, k, allow_null] of [
+      ["video_id", video_id, false],
+      ["comment_id", comment_id, false],
+    ] as const
+  ) {
+    if (!allow_null && !DataClean.is_not_blank_and_valid(k)) {
+      return {
+        failed_reason: `Invalid ${k_name} ${k}`,
+      };
+    } else {
+      platform_duplicate_id += `__${k_name}_${k}`;
+    }
+  }
+
+  return {
+    platform_duplicate_id,
+  };
+}

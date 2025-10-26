@@ -103,6 +103,9 @@ export interface MediaPostTable {
     NonNullable<MediaContent["attach_docs"]>
   >;
   attach_docs_markdown: string | null;
+  comment_level: number | null;
+  comment_count_sub: number | null;
+  comment_parent_id: string | null;
 }
 
 export interface ShopGoodTable {

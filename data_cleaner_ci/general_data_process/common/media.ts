@@ -19,6 +19,8 @@ export enum PlatformEnum {
   WebOfScience = "www.webofscience.com",
   GoogleGemini = "gemini.google.com",
   知乎 = "zhihu.com",
+  抖音 = "douyin.com",
+  快手 = "kuaishou.com",
   未分类 = "unknown",
 }
 
@@ -44,6 +46,10 @@ export type MediaContentAuthor = {
    * 用户主页链接
    */
   home_link_url: DataClean.HttpUrl | null;
+  /**
+   * 其他相关id
+   */
+  other_ids?: string[] | null;
 };
 
 export type MediaSearchContext = {
@@ -70,7 +76,7 @@ export type MediaContent = {
   /**
    * 正文内容链接
    */
-  content_link_url: DataClean.HttpUrl;
+  content_link_url: DataClean.HttpUrl | "";
   /**
    * 发布者
    */
@@ -158,6 +164,23 @@ export type MediaContent = {
     id: string;
     content_md: string;
   }[];
+  /**
+   * 如果是评论，会带有此字段。
+   */
+  comment?: {
+    /**
+     * 评论层级
+     */
+    level: number | null;
+    /**
+     * 子评论数量
+     */
+    count_sub: number | null;
+    /**
+     * 父评论id
+     */
+    parent_id: string | null;
+  } | null;
 };
 
 export type LiteratureAbout = {
@@ -201,6 +224,7 @@ export type MediaVideo = {
     url: DataClean.HttpUrl;
     is_master: boolean;
     key: string;
+    is_music: boolean;
   }[];
   /**
    * 视频时长（秒）

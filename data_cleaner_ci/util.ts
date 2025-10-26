@@ -1575,6 +1575,13 @@ export namespace Nums {
     return !is_invalid(s) && s.toFixed(0) === s.toString();
   }
 
+  export function to_bigint(value: number) {
+    if (!Nums.is_int_num(value)) {
+      Errors.throw_and_format("value is not a int number", { value });
+    }
+    return BigInt(value);
+  }
+
   // export type IsZero<N extends NumberLike> = Typings.CheckLeftIsExtendsRight<
   //   N,
   //   0 | "0"
