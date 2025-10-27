@@ -252,9 +252,11 @@ poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以
 poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/webofscience-download-paths.json?urls=read_from/lines_file/.data/wosurls.txt" --mode save_file
 ```
 
-#### github.com/suqingdong/impactfactor 库搜索文献 <Badge type="tip" text="api" />
+#### github-com-suqingdong-impact-factor
 
 > https://github.com/suqingdong/impact_factor
+
+#### 搜索文献 <Badge type="tip" text="api" />
 
 ```shell
 poetry run api-crawl-impactfactor-search --keywords "nature" --mode save_file
@@ -362,4 +364,5 @@ poetry run smart-crawl --debug --url https://gemini.google.com/app --locale en-U
 ```shell
 poetry run smart-crawl --debug --url https://gemini.google.com/app --locale en-US --screen_min_width 1200 --screen_max_height 1000 --dump_page_ignore_names=script,svg --browser_data_dir_id login_gemini --mode save_file --steps "jsonfile:steps/gemini-deep-research.json?enable_answer_collect=yes&enable_query=no&q=0&enable_wait_report=no"
 ```
+
 

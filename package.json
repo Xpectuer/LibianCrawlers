@@ -9,6 +9,7 @@
     "@openapitools/openapi-generator-cli": "^2.19.1",
     "@types/node": "^22.13.13",
     "markdown-it-task-checkbox": "^1.0.6",
+    "mcp-remote": "^0.1.29",
     "mermaid": "^11.9.0",
     "shx": "^0.4.0",
     "vitepress": "^1.6.3",
