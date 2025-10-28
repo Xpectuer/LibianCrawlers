@@ -84,7 +84,7 @@ async def get_browser(*,
     #     browser_context = await browser.new_context()
     # else:
     gecko_profile_dir = await read_config_get_path('crawler', 'gecko', 'profile-dir-base')
-    if mode.browser_data_dir_id is not None:
+    if mode.browser_data_dir_id is not None and mode.browser_data_dir_id != 'nil':
         user_data_dir = os.path.join(gecko_profile_dir,
                                      filename_slugify(mode.browser_data_dir_id, allow_unicode=True))
         logger.debug('user data dir at {}', user_data_dir)

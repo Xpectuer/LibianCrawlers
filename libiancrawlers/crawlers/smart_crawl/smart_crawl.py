@@ -139,6 +139,8 @@ async def smart_crawl_v1(*,
             proxy_server = await read_proxy_server()
             my_public_ip_info = await get_my_public_ip_info()
 
+            # TODO: 检查代理、公网ip、语言一致性。
+
             browser_context, _ = await get_browser(
                 mode=LaunchBrowserParam(browser_data_dir_id=browser_data_dir_id),
                 my_public_ip_info=my_public_ip_info,

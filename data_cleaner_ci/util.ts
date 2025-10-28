@@ -709,6 +709,7 @@ export namespace Times {
       attach_month?: readonly [Times.MonthNum, ParseTextToMonthAttachOption];
       attach_day?: readonly [Times.DayNum, ParseTextToDayAttachOption];
       on_found_month_range?: "use_min_month" | "use_max_month";
+      crawl_time?: Temporal.Instant;
     },
   ): AllowNull extends true ? Temporal.Instant | null : Temporal.Instant {
     const errors = [];
@@ -723,6 +724,37 @@ export namespace Times {
         throw new Error(
           `Failed parse ${JSON.stringify(text)} to instant , disallow null`,
         );
+      }
+    }
+    text = text.trim();
+    if (options?.crawl_time) {
+      const { crawl_time } = options;
+      for (
+        const [suffix, zone] of [
+          ["天前", "Asia/Shanghai"],
+        ] as const
+      ) {
+        if (Strs.endswith(text, suffix)) {
+          let day_ago = Strs.remove_suffix(text, suffix);
+          if (DataClean.is_not_blank_and_valid(day_ago)) {
+            day_ago = day_ago.trim();
+            try {
+              const num_day_ago = DataClean.parse_number(day_ago);
+              if (Nums.is_int_num(num_day_ago)) {
+                return crawl_time.toZonedDateTimeISO(zone)
+                  .subtract(Temporal.Duration.from({ days: num_day_ago }))
+                  .toInstant();
+              } else {
+                Errors.throw_and_format(
+                  "day_ago is not number like format",
+                  { crawl_time, text, day_ago },
+                );
+              }
+            } catch (err) {
+              errors.push(err);
+            }
+          }
+        }
       }
     }
     if (Nums.is_int(text)) {
@@ -3382,11 +3414,20 @@ export namespace Jsonatas {
       jsonata_exp.registerFunction(
         "json_parse",
         (str: string) => {
+          if (typeof str !== "string") {
+            return {
+              result: null,
+              success: false,
+              error: `typeof str !== 'string'`,
+              source: `str is ${str} , typeof str === ${typeof str}`,
+            };
+          }
           try {
             return {
               result: Jsons.load(str, { parse_json5: true }),
               success: true,
               error: null,
+              source: null,
             };
           } catch (err) {
             return {

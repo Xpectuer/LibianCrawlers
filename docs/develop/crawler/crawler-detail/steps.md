@@ -4,7 +4,32 @@ import { data as step_api_metas_html } from './steps_api.data.ts'
 
 # Steps API
 
-在工程目录下的 `./steps` 目录中存放着各个网站的自动化脚本。
+在工程目录下的 [steps 目录](https://github.com/Xpectuer/LibianCrawlers/tree/main/steps) 中存放着各个网站的自动化脚本。
+
+这些脚本用于 smart-crawl 爬虫的 [--steps 参数](./smart-crawl-document.md#steps) 。
+
+## 原理
+
+这些脚本均为 json 格式。其使用 `{ "$schema": "./schemas/v2.json" }` 来进行校验。
+
+### 自动生成
+
+而 `steps/schemas/v2.json` 这个文件又是被 下面这个命令 来生成的:
+
+```shell
+poetry run generate-steps-api-documents
+```
+
+这个命令会根据 [
+`libiancrawlers/crawlers/smart_crawl/steps_api.py`](https://github.com/Xpectuer/LibianCrawlers/blob/main/libiancrawlers/crawlers/smart_crawl/steps_api.py)
+代码中的 python 装饰器信息 和 python 函数元信息:
+
+- 生成 `steps/schemas/v2.json` 文件，以提供 jsonschema 约束:
+    - 来自动化测试各个脚本是否符合规范。
+    - 来为支持 jsonschema 的编辑器提供检查。
+
+- 生成 `docs/develop/crawler/crawler-detail/step_api_metas.json` 文件。以便自动生成本 vitepress
+  文档中的 [Step 指令列表](#step-指令列表)。
 
 ## API 指南
 

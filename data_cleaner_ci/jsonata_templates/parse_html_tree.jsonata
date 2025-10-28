@@ -55,9 +55,32 @@
 
                 $r
             )};
+            $map_v2 := function($x) {(
+                $r := {
+                    "root_attrs": $x.attrs,
+                    "title": $join($x.**[$contains($join(attrs.class), "title-wrapper")].**[bs4_type="<class 'bs4.element.Tag'>" or bs4_type="<class 'bs4.element.NavigableString'>"][str].str),
+                    "time": $join($x.**[$contains($join(attrs.class), "cos-color-text-minor")].**[bs4_type="<class 'bs4.element.Tag'>" or bs4_type="<class 'bs4.element.NavigableString'>"][str].str),
+                    "summary_text": $join($x.**[$contains($join(attrs.class), "summary-text")].**[bs4_type="<class 'bs4.element.Tag'>" or bs4_type="<class 'bs4.element.NavigableString'>"][str].str),
+                    "cosc_source_text": $join($x.**[$contains($join(attrs.class), "cosc-source-text")].**[bs4_type="<class 'bs4.element.Tag'>" or bs4_type="<class 'bs4.element.NavigableString'>"][str].str),
+                    "cos_avatar_img": $x.**[$contains($join(attrs.class), "cosc-avatar")].**[name="img"].(
+                        $
+                    ),
+                    "a_list": $x.**[name="a"].(
+                        {
+                            "href": $.attrs.href,
+                            "span_str": $join($.**[name="span"][bs4_type="<class 'bs4.element.Tag'>" or bs4_type="<class 'bs4.element.NavigableString'>"][str].str),
+                            "str": $join($.**[bs4_type="<class 'bs4.element.Tag'>" or bs4_type="<class 'bs4.element.NavigableString'>"][str].str)
+                        }
+                    )
+                };
+
+                $r
+            )};
             $results := $tags["c-container" in attrs.class].$map_c_container($);
+            $results_v2 := $tags["content_left"=attrs.id].*.$map_v2($);
             $m := {
-                "results": $distinct($results) 
+                "results": $distinct($results),
+                "results_v2": $distinct($results_v2)
             };
             $m
         ),

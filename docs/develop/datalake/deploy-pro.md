@@ -15,9 +15,13 @@ SSL，我试图从公网域名连也无法启用 SSL ？是 GFW 干的，还是�
 
 ⚠️ **请立刻** 将以下 `.env` 文件中的属性值 **修改**！并且不要泄漏。
 
-- 关于 MinIO 相关配置，参见 [minio-api-domain-and-port](#minio-api-domain-and-port)
+- 关于 MinIO 相关配置，参见 [《minio-api-domain-and-port》](#minio-api-domain-and-port)
+
+- 关于 SMTP 相关配置，参见 [《在 nocodb 中测试 smtp 是否能正常收发邮件》](#在-nocodb-中测试-smtp-是否能正常收发邮件)
 
 :::
+
+### 环境变量文件示例
 
 :::code-group
 
@@ -268,7 +272,7 @@ docker compose up
 
 :::
 
-## 7. 手动初始化 NocoDB 和 MinIO 配置
+## 7. 手动初始化配置
 
 #### 注意事项
 
@@ -277,43 +281,70 @@ docker compose up
 
 #### First-Init
 
-1. **NocoDB 配置**
-    - 打开 NocoDB 应用程序。
-        - 在 `Integrations` 栏目中，新增您的数据源连接。
-        - 进入 `Teams & Settings` > `Setup` > `Configure E-mail`，测试并验证 SMTP 邮件服务的配置是否正确。
-        - 在用户界面的右上角下拉菜单中，选择 `Language` 以设置您 preferred 的显示语言。
+##### Postgres 建议修改 `postgresql.conf` 参数
 
-2. **MinIO 配置**
-    - 登录 MinIO 管理界面。
-        - 创建所需的存储桶（Bucket）。
-            - 配置好存储桶的权限，如果是爬虫数据存放的话，建议设为公开读取、修改需要权限。
-        - 生成新的访问密钥（Access Key）和秘密密钥（Secret Key）。
+```conf
+max_connections = 300
 
-3. **NocoDB 中配置 MinIO 存储** *(可选, 建议)*
-    - 在 NocoDB 的 `Integrations` 栏目中，找到并选择 MinIO 作为存储服务。
-    - 输入之前在 MinIO 中创建的存储桶名称、访问密钥和秘密密钥，完成存储服务的集成配置。
+# 有时爬虫会报错: 
+# asyncpg.exceptions.ConnectionDoesNotExistError: connection was closed in the middle of operation
+# 参考:
+# https://github.com/MagicStack/asyncpg/issues/309#issuecomment-423506987
+tcp_keepalives_idle = 600
+tcp_keepalives_interval = 30
+tcp_keepalives_count = 10
+```
 
-4. **NocoDB 中测试 SMTP**
-    - 在 NocoDB 中测试 SMTP 是否能正常收发邮件。
+##### MinIO 配置
 
-5. **NocoDB 中添加外部数据源**
-    - 可以将内网的 Postgres 的 **洁净数据池** 添加为外部数据源。
-        - 配置如下:
-            - 域名为 环境变量 `POSTGRES_HOSTNAME`，会走 compose 的服务域名。
-            - 端口为内网端口 5432。
-            - 数据库为 环境变量 `POSTGRES_DB` ，默认为 `libian-datalake` 。
-            - 用户名为 环境变量 `POSTGRES_USERNAME`， 默认为 `postgres` 。
-            - 密码为 环境变量 `POSTGRES_PASSWORD` ，请在 `.env` 文件中查看修改后的值。
-            - schema 为 `libian_crawler_cleaned`，此 schema 名是
-              [data_storage.ts](https://github.com/Xpectuer/LibianCrawlers/blob/main/data_cleaner_ci/general_data_process/libian_crawler/data_storage.ts)
-              文件中硬编码写入的 schema 名。
-            - SSL 启用。
-        - 必须禁用 Schema 修改，因为现在使用了 [Kysely](https://kysely.dev/) 框架在目录
-          [migrations](https://github.com/Xpectuer/LibianCrawlers/blob/main/data_cleaner_ci/general_data_process/libian_crawler/migrations)
-          中控制版本迁移，如果改了会破坏迁移完整性，出大问题。
-    - 也可以添加你的其他数据库地址。
+登录 MinIO 管理界面。
 
-通过以上步骤，您可以在等待 pgAdmin 安装的同时，高效地完成 NocoDB 和 MinIO 的基础配置工作。
+创建所需的存储桶（Bucket）。配置好存储桶的权限，如果是爬虫数据存放的话，建议设为公开读取、修改需要权限。
+
+生成新的访问密钥（Access Key）和秘密密钥（Secret Key）。
+
+##### NocoDB 配置
+
+###### 设置 NocoDB 界面语言
+
+在用户界面的右上角下拉菜单中，选择 `Language` 以设置您 preferred 的显示语言。
+
+###### 添加外部数据源
+
+在 `Integrations` 栏目中，新增您的数据源连接。可以将内网的 Postgres 的 **已洗数据池** 添加为外部数据源。
+
+- 配置如下，应当都可以在 [**.env 文件**](#环境变量文件示例) 中找到:
+    - 域名为 环境变量 `POSTGRES_HOSTNAME`，会走 compose 的服务域名。
+    - 端口为内网端口 5432。
+    - 数据库为 环境变量 `POSTGRES_DB` ，默认为 `libian-datalake` 。
+    - 用户名为 环境变量 `POSTGRES_USERNAME`， 默认为 `postgres` 。
+    - 密码为 环境变量 `POSTGRES_PASSWORD` ，请在 `.env` 文件中查看修改后的值。
+    - schema 为 `libian_crawler_cleaned`，此 schema 名是
+      [data_storage.ts](https://github.com/Xpectuer/LibianCrawlers/blob/main/data_cleaner_ci/general_data_process/libian_crawler/data_storage.ts)
+      文件中硬编码写入的 schema 名。
+    - SSL 启用。
+    - 必须禁用 Schema 修改，因为现在使用了 [Kysely](https://kysely.dev/) 框架在目录
+      [migrations](https://github.com/Xpectuer/LibianCrawlers/blob/main/data_cleaner_ci/general_data_process/libian_crawler/migrations)
+      中控制版本迁移，如果改了会破坏迁移完整性，出大问题。
+        - 也可以添加你的其他数据库地址。
+
+###### 在 NocoDB 中测试 SMTP 是否能正常收发邮件
+
+:::warning 踩坑 SMTP 服务
+国内无法正常访问的 SMTP 服务:
+
+- `smtp.gmail.com`
+
+请谨慎选择 SMTP 提供商。
+:::
+
+进入 `Teams & Settings` > `Setup` > `Configure E-mail`，测试并验证 SMTP 邮件服务的配置是否正确。
+
+###### 配置 MinIO 存储 *(可选, 建议)*
+
+在 NocoDB 的 `Integrations` 栏目中，找到并选择 MinIO 作为存储服务。
+
+输入之前在 MinIO 中创建的存储桶名称、访问密钥和秘密密钥，完成存储服务的集成配置。
 
 ## 8. NginX 反向代理 MinIO 配置文件参考
 

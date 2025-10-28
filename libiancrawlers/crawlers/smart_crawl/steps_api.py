@@ -2913,7 +2913,8 @@ def generate_steps_api_documents():
             outputs.append('\n    '.join(f'❌ ERROR: validate failed for file {filename} : {err}'.splitlines()[0:10]))
     for output in outputs:
         print(output)
-    with open(os.path.abspath(os.path.join('docs', 'develop', 'crawler', 'step_api_metas.json')), mode='wt',
+    with open(os.path.abspath(os.path.join('docs', 'develop', 'crawler', 'crawler-detail', 'step_api_metas.json')),
+              mode='wt',
               encoding='utf-8') as f:
         json.dump(members_meta_list, f, ensure_ascii=False, indent=2)
 

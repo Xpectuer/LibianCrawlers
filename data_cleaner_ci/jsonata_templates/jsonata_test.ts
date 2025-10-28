@@ -7,7 +7,7 @@ async function run_tests() {
     const func_name of [
       // "test_xhs",
       // "test_yangkeduo",
-      // "test_baidu",
+      "test_baidu",
       // "test_xhs2",
       // "test_cnki",
       // "test_entrez_search",
@@ -20,7 +20,7 @@ async function run_tests() {
       // "test_wanfangdata_journal",
       // "test_washington_post",
       // "test_pubmed_fetch_ids"
-      "test_gemini_deep_research",
+      // "test_gemini_deep_research",
     ]
   ) {
     let target_file: string;
@@ -87,8 +87,24 @@ async function run_tests() {
           "parse_html_tree",
           { no_cache: true },
         );
-        const result = await exp1.evaluate(content);
-        const result_content = Jsons.dump(result, { indent: 2 });
+        let result_content: string;
+        let result: unknown = [undefined, "not_to_set"];
+        try {
+          result = await exp1.evaluate(content);
+          result_content = Jsons.dump(result, { indent: 2 });
+        } catch (err) {
+          Errors.throw_and_format(
+            "Error on exp1.evaluate(content) or Jsons.dump(result)",
+            {
+              func_name,
+              exp1,
+              content,
+              result,
+              result_inspect: Deno.inspect(result, {depth: 10}),
+            },
+            err,
+          );
+        }
         console.debug("result content is ", result_content);
         await write_file({
           file_path: path.join(

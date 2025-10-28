@@ -106,10 +106,41 @@ async def insert_to_garbage_table(*,
         content = content.encode("utf-8", 'ignore').decode('utf-8')
         pool = await get_pool()
         logger.debug('start insert to table')
-        await pool.execute(
-            'INSERT INTO libian_crawler.garbage ( g_type, g_search_key, g_content ) VALUES ( $1, $2, $3 );',
-            g_type, g_search_key, content
-        )
+        retry_count = 0
+        query_sql = 'INSERT INTO libian_crawler.garbage ( g_type, g_search_key, g_content ) VALUES ( $1, $2, $3 );'
+        pool_exec_args = [g_type, g_search_key, content]
+        pool_exec_args_info = str(pool_exec_args)
+        pool_exec_args_info_len = len(pool_exec_args_info)
+        if len(pool_exec_args_info) > 200:
+            pool_exec_args_info = pool_exec_args_info[0:200] + '...'
+        while True:
+            try:
+                await pool.execute(
+                    query_sql,
+                    *pool_exec_args
+                )
+                logger.debug(
+                    'success to run pool.execute\n    query_sql is {}\n    pool_exec_args_info are {}\n    pool_exec_args_info_len is {}\n    retry_count is {}',
+                    query_sql,
+                    pool_exec_args_info,
+                    pool_exec_args_info_len,
+                    retry_count
+                )
+                break
+            except asyncpg.exceptions.ConnectionDoesNotExistError as err:
+                retry_count += 1
+                logger.warning(
+                    'Failed to run pool.execute\n    query_sql is {}\n    pool_exec_args_info are {}\n    pool_exec_args_info_len is {}\n    retry_count is {}\n    error is {}',
+                    query_sql,
+                    pool_exec_args_info,
+                    pool_exec_args_info_len,
+                    retry_count,
+                    err)
+                if retry_count >= 10:
+                    raise
+                logger.warning('Wait to retry {}', retry_count)
+                await sleep(1 + retry_count * 0.5)
+                continue
         logger.debug('success insert to table')
     except BaseException:
         if len(content) < 50000:

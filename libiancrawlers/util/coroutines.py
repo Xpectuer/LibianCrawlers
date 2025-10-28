@@ -61,6 +61,12 @@ def blocking_func(
 
 
 async def sleep(total: float, *, interval: float = 0.5, checker: Optional[Callable[[], Awaitable[bool]]] = None):
+    """
+    Sleep 到 total 秒。
+
+    如果指定了 checker ，则会变成间歇性 Sleep。每隔 interval 秒会醒来调用 checker() 。
+    如果 checker() 返回假值则会直接退出并返回 False，如果为真则继续，直到 total 秒。
+    """
     start = datetime.utcnow().timestamp()
     end = start + total
     now = start

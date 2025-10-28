@@ -68,7 +68,7 @@ LibianCrawler 采用多语言、多模块的微服务架构，旨在结合不同
 
 1. **任务启动**: 用户或外部系统通过 [**直接命令行启动**](../develop/crawler/start-crawl) 或 调用 `worker` 服务的接口，并可指定一个位于 `steps/` 目录下的 `JSON` 任务配置文件来启动一个爬虫。
 
-2. **任务执行**: `libiancrawlers` 接收到请求，解析 `JSON` 文件中 [**定义的步骤**](../develop/crawler/steps)，并调度相应的爬虫模块（API或浏览器）开始执行数据采集。
+2. **任务执行**: `libiancrawlers` 接收到请求，解析 `JSON` 文件中 [**定义的步骤**](../develop/crawler/crawler-detail/steps.md)，并调度相应的爬虫模块（API或浏览器）开始执行数据采集。
 
 3. **原始数据缓存**: 采集到的原始数据（如 HTML、JSON 响应）被存储于垃圾湖中，等待后续处理。
 

@@ -27,13 +27,26 @@
       "fn": "page_type",
       "args": [
         "#kw",
+        " "
+      ]
+    },
+    {
+      "fn": "sleep",
+      "args": [
+        1000
+      ]
+    },
+    {
+      "fn": "page_type",
+      "args": [
+        "#kw",
         "<<<<!q!>>>>"
       ]
     },
     {
       "fn": "sleep",
       "args": [
-        500
+        3000
       ]
     },
     {
@@ -41,7 +54,21 @@
       "args": [
         "#su"
       ],
-      "on_timeout_steps": "continue"
+      "kwargs": {
+        "timeout": 3000
+      },
+      "on_timeout_steps": [
+        {
+          "fn": "page_click",
+          "args": [
+            "#chat-submit-button"
+          ],
+          "kwargs": {
+            "timeout": 3000
+          },
+          "on_timeout_steps": "continue"
+        }
+      ]
     },
     {
       "fn": "sleep",
