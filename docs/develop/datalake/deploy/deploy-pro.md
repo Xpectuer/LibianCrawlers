@@ -249,7 +249,7 @@ docker compose up
 |---------------|---------|---------|-----------------------|--------------------------------------------------------------------------|
 | Postgres      | tcp/ssl | 18191   | 5432                  |                                                                          |
 | PgAdmin       | http    | 18192   | 80                    | 登陆时语言一定要选 `English`                                                      |
-| NocoDB        | http    | 18193   | 8080                  | 需要参照 [First-Init](deploy-pro.mdirst-init) 配置 postgres 数据源。               |
+| NocoDB        | http    | 18193   | 8080                  | 需要参照 [First-Init](deploy-pro.md#first-init) 配置 postgres 数据源。             |
 | MinIO API     | https   | 18194   | `MINIOSNSD_BOTH_PORT` | MinIO 相关配置很讲究，参见 [minio-api-domain-and-port](#minio-api-domain-and-port) |
 | MinIO Console | https   | 18195   | 9001                  | 需去控制台配置 **存储桶** 及其 token 的 `access_key` 和 `secret_key`                   |
 
