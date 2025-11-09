@@ -128,7 +128,7 @@ poetry run smart-crawl --debug --url https://baidu.com/ --locale zh-CN --dump_pa
 #### 单关键字
 
 ```shell
-poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/cnki-search.json?q=肺动脉高压" --mode save_file
+poetry run smart-crawl --debug --url https://cnki.net/ --locale zh-CN --dump_page_ignore_names=script,svg --screen_max_height 1000 --browser_data_dir_id no_trace_cnki --steps "jsonfile:steps/cnki-search.json?q=肺动脉高压" --mode save_file
 ```
 
 ### PubMed
@@ -160,20 +160,7 @@ poetry run api-crawl-pubmed-fetch-ids --data "lines_file/.data/pubmed_ids.txt"  
 | 勾选的文献的 csv 文件 | ✔️       | ✔️       | ✔️ |
 
 ```shell
-poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/embase-search.json" --mode save_file
-```
-
-### wos-journal 期刊信息查询 <Badge type="tip" text="playwright" />
-
-| 内容   | 爬取 | 清洗 |
-|------|----|----|
-| 批量查询 | ✔️ | ✔️ |
-
-将下方的 `--keys"` 改为你自己的 issn 字符串数组的 json 文件位置，
-你可以使用 `--key2url_jsfunc` 传入 js 函数（仅支持 es5 语法）来映射 key 到 url 。
-
-```shell
-poetry run smart-crawl-urls --keys "jsonfile:data_cleaner_ci/user_code/journals_need_search/issn.json" --key2url_jsfunc "function(k){return 'https://wos-journal.info/?jsearch='+k.split(' ').join('+')}" --locale zh-CN --mode save_file
+poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --screen_max_height 1000 --dump_page_ignore_names=script,svg --browser_data_dir_id no_trace_embase --steps "jsonfile:steps/embase-search.json" --mode save_file
 ```
 
 ### 维普搜索 <Badge type="tip" text="playwright" />
@@ -185,7 +172,7 @@ poetry run smart-crawl-urls --keys "jsonfile:data_cleaner_ci/user_code/journals_
 #### 单关键字
 
 ```shell
-poetry run smart-crawl --debug --url "https://www.cqvip.com/search?k=肺动脉高压" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/cqvip-search.json" --mode save_file
+poetry run smart-crawl --debug --url "https://www.cqvip.com/search?k=肺动脉高压" --locale zh-CN --dump_page_ignore_names=script,svg --browser_data_dir_id no_trace_cqvip --steps "jsonfile:steps/cqvip-search.json" --mode save_file
 ```
 
 #### 多关键字
@@ -197,7 +184,7 @@ poetry run smart-crawl --debug --url "https://www.cqvip.com/search?k=肺动脉�
 ```shell
 poetry run smart-crawl --debug --url "https://www.cqvip.com/search?k=%27pulmonary%20hypertension%27%20O
 R%20%27Sotatercept%27%20OR%20%27ACE-011%27%20OR%20%27ActRIIA-IgG1%27%20OR%20%27ACTRIIA-Fc%27%20OR%20%27MK-7962%27%20OR%20%27RAP-011%27%20OR%20%27ActRIIA-IgG1Fc%27%20OR%20%27A
-ctivin%20receptor%20type%20IIA%20antagonist%27%20OR%20%27activin%20signaling%20inhibition%27%20OR%20%27activin%20signaling%20inhibitor%27%20OR%20%27CTD-PAH%27%20OR%20%27PAH-CHD%27&ex=false" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/cqvip-search.json" --mode all
+ctivin%20receptor%20type%20IIA%20antagonist%27%20OR%20%27activin%20signaling%20inhibition%27%20OR%20%27activin%20signaling%20inhibitor%27%20OR%20%27CTD-PAH%27%20OR%20%27PAH-CHD%27&ex=false" --locale zh-CN --dump_page_ignore_names=script,svg --browser_data_dir_id no_trace_cqvip --steps "jsonfile:steps/cqvip-search.json" --mode all
 ```
 
 ### 万方搜索 <Badge type="tip" text="playwright" />
@@ -210,7 +197,7 @@ ctivin%20receptor%20type%20IIA%20antagonist%27%20OR%20%27activin%20signaling%20i
 #### 单关键字
 
 ```shell
-poetry run smart-crawl --debug --url "https://s.wanfangdata.com.cn/paper?q=肺动脉高压" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/wanfangdata-search.json" --mode save_file
+poetry run smart-crawl --debug --url "https://s.wanfangdata.com.cn/paper?q=肺动脉高压" --locale zh-CN --dump_page_ignore_names=script,svg --browser_data_dir_id no_trace_wanfangdata --steps "jsonfile:steps/wanfangdata-search.json" --mode save_file
 ```
 
 ### WebOfScience
@@ -222,24 +209,38 @@ poetry run smart-crawl --debug --url "https://s.wanfangdata.com.cn/paper?q=肺�
 | 文献详情 xls 文件 | ✔️ | ✔️ |
 
 ```shell
-poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/webofscience-download.json" --mode save_file
+poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --browser_data_dir_id no_trace_webofscience --screen_max_height 1000 --steps "jsonfile:steps/webofscience-download.json" --mode save_file
 ```
 
 #### 根据 url 列表下载 <Badge type="tip" text="playwright" />
 
 ```shell
-poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --steps "jsonfile:steps/webofscience-download-paths.json?urls=read_from/lines_file/.data/wosurls.txt" --mode save_file
+poetry run smart-crawl --debug --url "可改为二道贩子跳板网站地址以便手动登录" --locale en-US --dump_page_ignore_names=script,svg --browser_data_dir_id no_trace_webofscience --screen_max_height 1000 --steps "jsonfile:steps/webofscience-download-paths.json?urls=read_from/lines_file/.data/wosurls.txt" --mode save_file
 ```
 
 ### github-com-suqingdong-impact-factor
 
 > https://github.com/suqingdong/impact_factor
 
-### 搜索文献 <Badge type="tip" text="api" />
+#### 期刊信息查询 <Badge type="tip" text="api" />
 
 ```shell
 poetry run api-crawl-impactfactor-search --keywords "nature" --mode save_file
 ```
+
+### wos-journal
+
+#### 期刊信息查询 <Badge type="tip" text="playwright" />
+
+| 内容   | 爬取 | 清洗 |
+|------|----|----|
+| 批量查询 | ✔️ | ✔️ |
+
+```shell
+poetry run smart-crawl-urls --screen_max_height 1000 --key2url_jsfunc "function(k){return 'https://wos-journal.info/?jsearch='+k.split(' ').join('+')}" --locale zh-CN --screen_max_height 1000 --retry_always --keys "jsonfile:data_cleaner_ci/user_code/journals_need_search/issn.json" --browser_data_dir_id no_trace_wos_journal_1 --mode save_file
+```
+
+更多参考查看 [smart-crawl-urls 示例 wos-journal 期刊信息查询](./crawler-detail/smart-crawl-urls-document.md#示例-wos-journal-期刊信息查询)
 
 ## 新闻媒体
 
@@ -254,7 +255,7 @@ poetry run api-crawl-impactfactor-search --keywords "nature" --mode save_file
 | 资讯详情 | ✔️      | ✔️ |
 
 ```shell
-poetry run smart-crawl --debug --url "https://www.washingtonpost.com/search/?query=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find=article --steps "jsonfile:steps/washington-post-search.json" --addons_root_dir=".data/bypass_paywalls_clean" --browser_data_dir_id read_washington_post --mode save_file
+poetry run smart-crawl --debug --url "https://www.washingtonpost.com/search/?query=trump" --locale en-US --screen_max_height 1000 --dump_page_ignore_names=script,svg --html2markdown_soup_find=article --steps "jsonfile:steps/washington-post-search.json" --addons_root_dir=".data/bypass_paywalls_clean" --browser_data_dir_id read_washington_post --mode save_file
 ```
 
 ### 路透社 搜索 <Badge type="tip" text="playwright" />
@@ -268,7 +269,7 @@ poetry run smart-crawl --debug --url "https://www.washingtonpost.com/search/?que
 | 资讯详情 | ✔️      | ✔️ |
 
 ```shell
-poetry run smart-crawl --debug --url "https://www.reuters.com/site-search/?query=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find=article --steps "jsonfile:steps/reuters-search.json" --addons_root_dir=".data/bypass_paywalls_clean" --browser_data_dir_id read_reuters --mode save_file
+poetry run smart-crawl --debug --url "https://www.reuters.com/site-search/?query=trump" --locale en-US --screen_max_height 1000 --dump_page_ignore_names=script,svg --html2markdown_soup_find=article --steps "jsonfile:steps/reuters-search.json" --addons_root_dir=".data/bypass_paywalls_clean" --browser_data_dir_id read_reuters --mode save_file
 ```
 
 ### 美联社 搜索 <Badge type="tip" text="playwright" />
@@ -278,26 +279,40 @@ poetry run smart-crawl --debug --url "https://www.reuters.com/site-search/?query
 | 资讯详情 | ✔️      | ✔️ |
 
 ```shell
-poetry run smart-crawl --debug --url "https://apnews.com/search?q=trump" --locale en-US --dump_page_ignore_names=script,svg --html2markdown_soup_find "main,.Page-body" --play_sound_when_gui_confirm --steps "jsonfile:steps/apnews-search.json" --browser_data_dir_id read_apnews --mode save_file
+poetry run smart-crawl --debug --url "https://apnews.com/search?q=trump" --locale en-US --screen_max_height 1000 --dump_page_ignore_names=script,svg --html2markdown_soup_find "main,.Page-body" --play_sound_when_gui_confirm --steps "jsonfile:steps/apnews-search.json" --browser_data_dir_id read_apnews --mode save_file
 ```
 
 ### 雪球
 
-#### 搜索单关键字 <Badge type="tip" text="playwright" />
+[//]: # (#### 搜索单关键字 <Badge type="tip" text="playwright" />)
 
-| 内容     | 爬取 | 清洗   |
-|--------|----|------|
-| 搜索结果列表 | ✔️ | TODO |
+[//]: # ()
 
-```shell
-poetry run smart-crawl --debug --url "https://xueqiu.com/k?q=trump" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/scroll-down-v1.json" --browser_data_dir_id read_xueqiu --mode save_file
-```
+[//]: # (| 内容     | 爬取 | 清洗   |)
 
-#### 搜索多关键字 <Badge type="tip" text="playwright" />
+[//]: # (|--------|----|------|)
 
-```shell
-poetry run smart-crawl-urls --keys "jsonfile:.data/media_search_keywords.json5" --key2url_jsfunc "function(k){return 'https://xueqiu.com/k?q='+k.split(' ').join('+')}" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/scroll-down-v1.json" --browser_data_dir_id read_xueqiu --mode save_file
-```
+[//]: # (| 搜索结果列表 | ✔️ | TODO |)
+
+[//]: # ()
+
+[//]: # (```shell)
+
+[//]: # (poetry run smart-crawl --debug --url "https://xueqiu.com/k?q=trump" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/scroll-down-v1.json" --browser_data_dir_id read_xueqiu --mode save_file)
+
+[//]: # (```)
+
+[//]: # ()
+
+[//]: # (#### 搜索多关键字 <Badge type="tip" text="playwright" />)
+
+[//]: # ()
+
+[//]: # (```shell)
+
+[//]: # (poetry run smart-crawl-urls --keys "jsonfile:.data/media_search_keywords.json5" --key2url_jsfunc "function&#40;k&#41;{return 'https://xueqiu.com/k?q='+k.split&#40;' '&#41;.join&#40;'+'&#41;}" --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/scroll-down-v1.json" --browser_data_dir_id read_xueqiu --mode save_file)
+
+[//]: # (```)
 
 ## 其他
 

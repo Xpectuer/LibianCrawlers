@@ -79,6 +79,25 @@
               ],
               "if_steps": [
                 {
+                  "fn": "page_wait_for_selector_in_any_frame",
+                  "args": [
+                    ".exportSubmit>>nth=0"
+                  ],
+                  "kwargs": {
+                    "timeout": 2000
+                  },
+                  "on_timeout_steps": [
+                    {
+                      "fn": "gui_confirm",
+                      "kwargs": {
+                        "title": "session may have been terminated",
+                        "message": "你需要看看有没有出问题"
+                      }
+                    }
+                  ],
+                  "on_success_steps": "continue"
+                },
+                {
                   "fn": "page_click",
                   "args": [
                     ".exportSubmit>>nth=0"
@@ -180,7 +199,7 @@
                 {
                   "fn": "expect_download",
                   "kwargs": {
-                    "timeout": 120000,
+                    "timeout": 600000,
                     "run_steps": [
                       {
                         "fn": "sleep",
@@ -244,6 +263,7 @@
               "after_steps": [
                 {
                   "fn": "page_click",
+                  "description": "点击下一页。如果在这时抛出了超时异常，大概是爬取完成了。",
                   "args": [
                     "#goNext"
                   ],

@@ -8,6 +8,7 @@ from loguru import logger
 import asyncpg
 from libiancrawlers.app_util.app_init import get_app_init_conf
 from libiancrawlers.app_util.config import read_config
+from libiancrawlers.app_util.networks.network_problem import is_network_problem
 from libiancrawlers.app_util.types import JSON, LibianCrawlerInitConfDisabled
 from libiancrawlers.util.coroutines import sleep
 
@@ -51,14 +52,31 @@ async def get_pool():
                 if not get_app_init_conf().postgres:
                     raise LibianCrawlerInitConfDisabled('postgres')
                 logger.debug('Create global pg pool')
-                _POOL = await asyncpg.create_pool(
-                    database=dbname,
-                    user=user,
-                    password=password,
-                    host=host,
-                    port=port,
-                    ssl=ssl,
-                )
+                retry_count = 0
+                while True:
+                    try:
+                        _POOL = await asyncpg.create_pool(
+                            database=dbname,
+                            user=user,
+                            password=password,
+                            host=host,
+                            port=port,
+                            ssl=ssl,
+                        )
+                        break
+                    except BaseException as err:
+                        if is_network_problem(err) == 'should_retry':
+                            if retry_count > 10:
+                                raise
+                            else:
+                                retry_count += 1
+                                logger.warning('Retry create pg pool times {}, because some connection error : {}',
+                                               retry_count, err)
+                                await sleep(1.5 * retry_count)
+                                continue
+                        else:
+                            raise
+
                 logger.debug('success create global pg pool : {}', _POOL)
     return _POOL
 
@@ -127,20 +145,23 @@ async def insert_to_garbage_table(*,
                     retry_count
                 )
                 break
-            except asyncpg.exceptions.ConnectionDoesNotExistError as err:
-                retry_count += 1
-                logger.warning(
-                    'Failed to run pool.execute\n    query_sql is {}\n    pool_exec_args_info are {}\n    pool_exec_args_info_len is {}\n    retry_count is {}\n    error is {}',
-                    query_sql,
-                    pool_exec_args_info,
-                    pool_exec_args_info_len,
-                    retry_count,
-                    err)
-                if retry_count >= 10:
+            except BaseException as err:
+                if is_network_problem(err) == 'should_retry':
+                    retry_count += 1
+                    logger.warning(
+                        'Failed to run pool.execute\n    query_sql is {}\n    pool_exec_args_info are {}\n    pool_exec_args_info_len is {}\n    retry_count is {}\n    error is {}',
+                        query_sql,
+                        pool_exec_args_info,
+                        pool_exec_args_info_len,
+                        retry_count,
+                        err)
+                    if retry_count >= 10:
+                        raise
+                    logger.warning('Wait to retry {}', retry_count)
+                    await sleep(1 + retry_count * 0.5)
+                    continue
+                else:
                     raise
-                logger.warning('Wait to retry {}', retry_count)
-                await sleep(1 + retry_count * 0.5)
-                continue
         logger.debug('success insert to table')
     except BaseException:
         if len(content) < 50000:

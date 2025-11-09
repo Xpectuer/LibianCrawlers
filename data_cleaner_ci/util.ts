@@ -629,6 +629,9 @@ export namespace Strs {
 
 // deno-lint-ignore no-namespace
 export namespace Times {
+  /**
+   * 把各种 不知道以秒还是毫秒为单位 的时间戳，理解为合适的单位并转为 Temporal.Instant 时间戳。
+   */
   export function unix_to_time(unix_ms_or_s: number): Temporal.Instant | null {
     let unit: "s" | "ms";
     if (Nums.is_invalid(unix_ms_or_s) || unix_ms_or_s <= 0) {
@@ -636,7 +639,12 @@ export namespace Times {
     }
 
     if (BigInt(unix_ms_or_s) > BigInt("12345678900000")) {
-      throw new Error(`Unsupport nano second unit , number is ${unix_ms_or_s}`);
+      Errors.throw_and_format(
+        `Unsupport nano second unit`,
+        {
+          unix_ms_or_s,
+        },
+      );
     } else if (unix_ms_or_s > 12345678900) {
       unit = "ms";
     } else {
@@ -644,15 +652,22 @@ export namespace Times {
     }
     const timestamp_s = unix_ms_or_s / (unit === "ms" ? 1000.0 : 1);
     if (timestamp_s < 123456789) {
-      throw new Error(
-        `197x year timestamp ? unit is ${unit} , timestamp is ${timestamp_s} , unix_ms_or_s is ${unix_ms_or_s} , to date is ${new Date(
+      Errors.throw_and_format(
+        `197x year timestamp ?`,
+        {
+          unit,
           timestamp_s,
-        )}`,
+          unix_ms_or_s,
+          timestamp_s_to_date: new Date(timestamp_s),
+        },
       );
     }
     return Temporal.Instant.fromEpochMilliseconds(timestamp_s * 1000);
   }
 
+  /**
+   * 将 12:34:56 或 34:56 转为秒数。
+   */
   export function parse_duration_sec(text: string) {
     let sum: number = 0;
     const arr = text.split(":");
@@ -677,14 +692,14 @@ export namespace Times {
           sec_unit = 3600;
           break;
         default:
-          return "Split array length out of range";
+          return "Split array length out of range" as const;
       }
       const v = DataClean.parse_number(arr[i], () => NaN);
       if (isNaN(v)) {
-        return "NaN";
+        return "NaN" as const;
       }
       if (i !== 0 && v >= 60) {
-        return "Non-first value ge 60";
+        return "Non-first value ge 60" as const;
       }
       sum += sec_unit * v;
     }
@@ -730,24 +745,29 @@ export namespace Times {
     if (options?.crawl_time) {
       const { crawl_time } = options;
       for (
-        const [suffix, zone] of [
-          ["天前", "Asia/Shanghai"],
+        const [suffix, zone, second_unit] of [
+          ["秒前", "Asia/Shanghai", 1],
+          ["分钟前", "Asia/Shanghai", 60],
+          ["小时前", "Asia/Shanghai", 60 * 60],
+          ["天前", "Asia/Shanghai", 60 * 60 * 24],
         ] as const
       ) {
         if (Strs.endswith(text, suffix)) {
-          let day_ago = Strs.remove_suffix(text, suffix);
-          if (DataClean.is_not_blank_and_valid(day_ago)) {
-            day_ago = day_ago.trim();
+          let text_ago = Strs.remove_suffix(text, suffix);
+          if (DataClean.is_not_blank_and_valid(text_ago)) {
+            text_ago = text_ago.trim();
             try {
-              const num_day_ago = DataClean.parse_number(day_ago);
-              if (Nums.is_int_num(num_day_ago)) {
+              const num_ago = DataClean.parse_number(text_ago);
+              if (Nums.is_int_num(num_ago)) {
                 return crawl_time.toZonedDateTimeISO(zone)
-                  .subtract(Temporal.Duration.from({ days: num_day_ago }))
+                  .subtract(
+                    Temporal.Duration.from({ seconds: num_ago * second_unit }),
+                  )
                   .toInstant();
               } else {
                 Errors.throw_and_format(
-                  "day_ago is not number like format",
-                  { crawl_time, text, day_ago },
+                  "text_ago is not number like format",
+                  { crawl_time, text, text_ago },
                 );
               }
             } catch (err) {
@@ -1833,6 +1853,8 @@ export namespace Mappings {
   // should be { id?: number }
   // deno-lint-ignore ban-types
   type _Test_Empty_5 = IsNotConcreteEmpty<{} | { id?: number }>;
+  type _Test_Empty_6 = IsNotConcreteEmpty<null>; // is null
+  type _Test_Empty_7 = IsNotConcreteEmpty<undefined>; // is undefined
 
   export function is_not_concrete_empty<T>(t: T): t is IsNotConcreteEmpty<T> {
     return typeof t === "object" && t !== null && object_keys(t).length > 0;
@@ -2609,6 +2631,9 @@ export namespace DataClean {
     };
   }
 
+  /**
+   * 在一堆类似于语言列表的内容中找找有啥语言。
+   */
   export function find_languages(
     ...values: (string | string[] | null | undefined)[]
   ) {
@@ -2654,6 +2679,7 @@ export namespace DataClean {
         "undefined",
         "nil",
         "null",
+        "none",
         "unknown",
         "n/a",
         "nan",
@@ -2668,12 +2694,14 @@ export namespace DataClean {
   }
 
   /**
-   * 由于:
-   * 1. Code gen 时类型会被抽样滤掉。
-   * 2. 工程初始化时这些类型不存在。
+   * 由于在数据集 Code gen 之前，类型尚未存在，而导致类型检查报错。
    *
-   * 因此本函数用于在类型不存在时提供一个 any 占位类型。
-   * 每个 matcher 都应当实现。
+   * 所以此函数使用 T extends Mappings.IsNotConcreteEmpty<T> 来如此做:
+   * 1. 判断类型在被 IsNotConcreteEmpty<> 计算后是否仍然是原类型。
+   * 2. 如果是原类型，即代表原类型是个非空对象 或是 其他具体的非对象类型。
+   * 3. 如果不是原类型（而是 never），即代表原类型是个空对象。
+   *
+   * 通过此法，在原类型不是非空对象时，顺利的检查类型；而在原类型是个空对象时，则变为 any 跳过检查。
    */
   export function type_flag<T>(
     obj: T,

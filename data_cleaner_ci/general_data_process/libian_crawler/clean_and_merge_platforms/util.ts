@@ -3,6 +3,7 @@ import {
   Arrays,
   DataClean,
   is_nullish,
+  Jsons,
   Mappings,
   Streams,
   Strs,
@@ -456,4 +457,74 @@ export function kuaishou_comment_platform_duplicate_id(param: {
   return {
     platform_duplicate_id,
   };
+}
+
+export function baidu_tieba_platform_duplicate_id(
+  param: {
+    note_id: string | null;
+  } | {
+    comment_id: string | null;
+    note_id: string | null;
+  },
+): { failed_reason: string } | {
+  platform_duplicate_id: string;
+} {
+  if (
+    "comment_id" in param
+  ) {
+    if (
+      !DataClean.is_not_blank_and_valid(param.comment_id) ||
+      !DataClean.is_not_blank_and_valid(param.note_id)
+    ) {
+      return {
+        failed_reason: `Invalid comment_id or note_id param : ${
+          Jsons.dump(param)
+        }`,
+      };
+    }
+    return {
+      platform_duplicate_id:
+        `baidu_tieba_comment__note_id_${param.note_id}__comment_id_${param.comment_id}`,
+    };
+  } else if (
+    "note_id" in param
+  ) {
+    if (!DataClean.is_not_blank_and_valid(param.note_id)) {
+      return {
+        failed_reason: `Invalid note_id param : ${Jsons.dump(param)}`,
+      };
+    }
+    return {
+      platform_duplicate_id: `baidu_tieba_note__note_id_${param.note_id}`,
+    };
+  } else {
+    return {
+      failed_reason: `Invalid tieba platform duplicate id param : ${
+        Jsons.dump(param)
+      }`,
+    };
+  }
+
+  // const { question_id, content_id, content_type } = param;
+  // let platform_duplicate_id = `zhihu`;
+
+  // for (
+  //   const [k_name, k, allow_null] of [
+  //     ["content_type", content_type, false],
+  //     ["question_id", question_id, content_type !== "anwser"],
+  //     ["content_id", content_id, false],
+  //   ] as const
+  // ) {
+  //   if (!allow_null && !DataClean.is_not_blank_and_valid(k)) {
+  //     return {
+  //       failed_reason: `Invalid ${k_name} ${k}`,
+  //     };
+  //   } else {
+  //     platform_duplicate_id += `__${k_name}_${k}`;
+  //   }
+  // }
+
+  // return {
+  //   platform_duplicate_id,
+  // };
 }

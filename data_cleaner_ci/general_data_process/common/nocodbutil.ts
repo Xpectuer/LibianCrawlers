@@ -281,85 +281,112 @@ export namespace NocoDBUtil {
     let res_json: unknown = null;
     let res_json_success: boolean = false;
 
-    const resp = await fetch(fetch_url, {
-      method: route.method,
-      headers: {
-        "xc-token": nocodb_token,
-        "content-type": "application/json;charset=utf-8",
-      },
-      body: req_body,
-    });
-
-    const raise_err = (reason: string, cause?: unknown) => {
-      Errors.throw_and_format(reason, {
-        status: resp.status,
-        route: param.route,
-        fetch_url,
-        req_body,
-        res_json_success,
-        res_json,
-        param,
-        resp,
-      }, cause);
-    };
-
-    const resp_body = await resp.bytes();
-    let res_text: string;
-    try {
-      res_text = new TextDecoder().decode(resp_body);
-    } catch (err) {
-      res_text = "";
-      raise_err(`Failed parse resp text , resp body is ${resp_body}`, err);
-    }
-
-    if (resp.status !== 200) {
-      if (resp.status === 504) {
-        // 高频请求使我的 nginx 反代报错 504，这里不管了，无限重试得了。
-        console.warn("Retry on fetch nocodb resp 504:", {
-          fetch_url,
-          resp,
+    let resp_status: number;
+    let retry_count = 0;
+    while (true) {
+      resp_status = 0;
+      try {
+        const resp = await fetch(fetch_url, {
+          method: route.method,
+          headers: {
+            "xc-token": nocodb_token,
+            "content-type": "application/json;charset=utf-8",
+          },
+          body: req_body,
+          signal: AbortSignal.timeout(60 * 1000),
         });
-        await delay(3000);
-        return await _fetch_noco(param);
-      }
-      if (on_status_not_200) {
-        const res = await on_status_not_200(resp);
-        if (res === "raise") {
-          raise_err(
-            "Failed fetch nocodb on after call on_status_not_200(resp)",
+
+        const raise_err = (reason: string, cause?: unknown) => {
+          Errors.throw_and_format(reason, {
+            status: resp.status,
+            route: param.route,
+            fetch_url,
+            req_body,
+            res_json_success,
+            res_json,
+            param,
+            resp,
+          }, cause);
+        };
+
+        const resp_body = await resp.bytes();
+        resp_status = resp.status;
+        let res_text: string;
+        try {
+          res_text = new TextDecoder().decode(resp_body);
+        } catch (err) {
+          res_text = "";
+          raise_err(`Failed parse resp text , resp body is ${resp_body}`, err);
+        }
+
+        if (resp_status !== 200) {
+          // if (resp.status === 504 || resp.status === 502) {
+          //   // 高频请求使我的 nginx 反代报错 504，这里不管了，无限重试得了。
+          //   // 高频请求现在又导致 502，很烦。
+          //   console.warn(`Retry on fetch nocodb resp ${resp.status}:`, {
+          //     fetch_url,
+          //     resp,
+          //   });
+          //   await delay(3000);
+          //   return await _fetch_noco(param);
+          // }
+          if (on_status_not_200) {
+            const res = await on_status_not_200(resp);
+            if (res === "raise") {
+              raise_err(
+                "Failed fetch nocodb on after call on_status_not_200(resp)",
+              );
+            } else {
+              return {
+                res_json: res,
+                resp,
+              };
+            }
+          } else {
+            raise_err("Failed fetch nocodb");
+          }
+        }
+
+        try {
+          res_json = Jsons.load(res_text);
+          res_json_success = true;
+        } catch (err) {
+          res_json = null;
+          res_json_success = false;
+          raise_err(`Failed parse json , resp text body is ${res_text}`, err);
+        }
+
+        if (logd_fetch_noco) {
+          console.debug("Success fetch nocodb", {
+            route: param.route,
+            code: resp.status,
+            res_json_success,
+            res_json,
+          });
+        }
+        return {
+          res_json,
+          resp,
+        };
+      } catch (err) {
+        if (retry_count > 10) {
+          throw err;
+        }
+        if (resp_status !== 0) {
+          console.error(
+            `Error on fetch nocodb resp ${resp_status}, retry count ${retry_count++}`,
           );
         } else {
-          return {
-            res_json: res,
-            resp,
-          };
+          console.error(
+            `Error on fetch nocodb , retry count ${retry_count++}`,
+            err,
+          );
         }
-      } else {
-        raise_err("Failed fetch nocodb");
+
+        await delay(3000 + retry_count * 1500);
+        return await _fetch_noco(param);
       }
     }
-
-    try {
-      res_json = Jsons.load(res_text);
-      res_json_success = true;
-    } catch (err) {
-      res_json = null;
-      res_json_success = false;
-      raise_err(`Failed parse json , resp text body is ${res_text}`, err);
-    }
-
-    if (logd_fetch_noco) {
-      console.debug("Success fetch nocodb", {
-        route: param.route,
-        code: resp.status,
-        res_json_success,
-        res_json,
-      });
-    }
-    return {
-      res_json,
-      resp,
-    };
   };
 
   function _parse_page_info_field(res_json: unknown) {
@@ -1258,6 +1285,7 @@ export namespace NocoDBUtil {
         "content-type": "application/json",
       },
       body: req_body,
+      signal: AbortSignal.timeout(60 * 1000),
     });
     if (resp.status !== 200) {
       Errors.throw_and_format("upload from url response not 200", {
@@ -1994,10 +2022,20 @@ export namespace NocoDBDataset {
       Row extends RowsData<A, true> = RowsData<A, true>,
       RowCreate extends Omit<
         Row,
-        "Id" | "CreatedAt" | "UpdatedAt" | "nc_created_by" | "nc_updated_by"
+        | "Id"
+        | "CreatedAt"
+        | "UpdatedAt"
+        | "nc_created_by"
+        | "nc_updated_by"
+        | "nc_order"
       > = Omit<
         Row,
-        "Id" | "CreatedAt" | "UpdatedAt" | "nc_created_by" | "nc_updated_by"
+        | "Id"
+        | "CreatedAt"
+        | "UpdatedAt"
+        | "nc_created_by"
+        | "nc_updated_by"
+        | "nc_order"
       >,
     >(_param: {
       duplicate_col:

@@ -3,7 +3,7 @@ import shlex
 import subprocess
 import os
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Union, Tuple, Set, Any
 
 from loguru import logger
 
@@ -130,9 +130,14 @@ class CmdMulti:
     raise_on_not_zero: Optional[bool] = None
     logd_cmd_str: Optional[bool] = None
     capture_output: Optional[bool] = None
+    work_dir: Optional[str] = None
 
 
-def shell_run_and_show(cmds: List[CmdMulti], *, total_title: str, run_in_new_thread=True, ):
+def shell_run_and_show(cmds: List[CmdMulti],
+                       *,
+                       run_in_new_thread=True,
+                       no_exit: bool = False,
+                       ):
     if is_windows():
         exist_wt_stdout, _, exist_wt_proc = shell_run_sync(['where', 'wt'], raise_on_not_zero=False)
         logger.debug('where wt {} , output : {}', exist_wt_proc.returncode, exist_wt_stdout)
@@ -154,15 +159,22 @@ def shell_run_and_show(cmds: List[CmdMulti], *, total_title: str, run_in_new_thr
                 wt_cmd.extend([
                     'wt',
                     'new-tab',
+                    '--wait',
                     '--title',
-                    total_title
+                    c.title,
+                    *(['-d', c.work_dir] if c.work_dir is not None else []),
+                    # total_title
                 ])
             else:
                 wt_cmd.extend([
                     ';',
-                    'split-pane',
+                    # 'split-pane',
+                    'new-tab',
+                    '--wait',
                     '--title',
-                    total_title,
+                    c.title,
+                    *(['-d', c.work_dir] if c.work_dir is not None else []),
+                    # total_title,
                 ])
 
             _tab_color = c.tab_color
@@ -172,9 +184,10 @@ def shell_run_and_show(cmds: List[CmdMulti], *, total_title: str, run_in_new_thr
                     _tab_color
                 ])
             wt_cmd.extend([
-                'PowerShell',
+                "PowerShell",
+                *(["-NoExit"] if no_exit else []),
                 '-c',
-                *c.cmd
+                *c.cmd,
             ])
 
         logger.debug('wt_cmd is {}', wt_cmd)
@@ -273,6 +286,44 @@ def explore_windows(path: str):
         subprocess.run([filebrowser_path, path])
     elif os.path.isfile(path):
         subprocess.run([filebrowser_path, '/select,', path])
+
+
+_FireArgBase = Union[str, int, float]
+FireArg = Union[None, _FireArgBase, Tuple[_FireArgBase], List[_FireArgBase], Set[_FireArgBase], bool]
+
+
+def _fire_arg_item_be_str(*, name: str, item: Any) -> List[str]:
+    if isinstance(item, int) or isinstance(item, float):
+        res: List[str] = [str(item)]
+        return res
+    if isinstance(item, str):
+        res: List[str] = []
+        for v in item.replace('\n', ' ').replace('\t', ' ').split(','):
+            s = v.strip()
+            if len(s) <= 0:
+                continue
+            res.append(s)
+        return res
+    raise ValueError(f'Unknown type of --{name} item : type is {type(item)} , item is {item}')
+
+
+def parse_fire_arg_to_strs(*, name: str, value: FireArg) -> List[str]:
+    if name.startswith('--'):
+        name = name[2:]
+    if value is None:
+        res: List[str] = []
+        return res
+    if isinstance(value, bool):
+        raise ValueError(f'cmd arg --{name} missing input , it should be string or Array<string>')
+    if isinstance(value, str) or isinstance(value, float) or isinstance(value, int):
+        res: List[str] = [*_fire_arg_item_be_str(name=name, item=value)]
+        return res
+    if isinstance(value, list) or isinstance(value, tuple) or isinstance(value, set):
+        res: List[str] = []
+        for item in value:
+            res.extend(_fire_arg_item_be_str(name=name, item=item))
+        return res
+    raise ValueError(f'Unknown type of --{name} value : type is {type(value)} , value is {value}')
 
 
 if __name__ == '__main__':

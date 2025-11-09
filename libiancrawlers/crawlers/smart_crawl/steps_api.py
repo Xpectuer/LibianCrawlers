@@ -267,6 +267,7 @@ class StepsApi:
                  _global_str_dict: Dict[str, str],
                  _global_play_sound_when_gui_confirm: bool,
                  _debug: bool,
+                 _timeout_factor: Optional[float] = 1,
                  ):
         self._b_page = b_page
         self._browser_context = browser_context
@@ -286,6 +287,7 @@ class StepsApi:
         self._page_go_back_default_timeout = 15000
         self._global_play_sound_when_gui_confirm = _global_play_sound_when_gui_confirm
         self._debug = _debug
+        self._timeout_factor = _timeout_factor
 
     def __getitem__(self, item):
         if isinstance(item, str) and not item.startswith('_'):
@@ -351,13 +353,13 @@ class StepsApi:
             steps = kwargs.pop('steps')
 
         _page = await self._get_page()
-        await asyncio.wait_for(_page.mouse.move(x, y, steps=steps), timeout=timeout / 1000.0)
+        await asyncio.wait_for(_page.mouse.move(x, y, steps=steps), timeout=self._timeout_factor * timeout / 1000.0)
 
     async def _get_bounding_box(self, loc: Locator, *, timeout=750):
         count = 0
         while True:
             try:
-                return await loc.bounding_box(timeout=250)
+                return await loc.bounding_box(timeout=self._timeout_factor * 250)
             except BaseException as err:
                 if not is_timeout_error(err):
                     raise
@@ -440,16 +442,17 @@ class StepsApi:
             try:
                 logger.debug('start bring page to front')
                 future = page.bring_to_front()
-                return await asyncio.wait_for(future, timeout=timeout / 1000.0)
+                return await asyncio.wait_for(future, timeout=self._timeout_factor * timeout / 1000.0)
             except BaseException as err:
                 from libiancrawlers.util.exceptions import is_timeout_error
                 if is_timeout_error(err):
                     retry += 1
                     if retry > retry_limit:
-                        logger.warning('bring to front failed')
-                        raise
-                    logger.debug('bring to front timeout , retry {} ...', retry)
+                        logger.exception('bring to front failed')
+                        break
+                    logger.warning('bring to front timeout , retry {} ...', retry)
                     # noinspection PyInconsistentReturns
+                    await sleep(1 + retry)
                     continue
                 raise
 
@@ -467,15 +470,22 @@ class StepsApi:
         while _mouse_wheel_retry_count > 0:
             try:
                 logger.debug('page mouse wheel ({}, {})', delta_x, delta_y)
-                return await asyncio.wait_for(page.mouse.wheel(delta_x=delta_x, delta_y=delta_y), timeout=10)
+                return await asyncio.wait_for(page.mouse.wheel(delta_x=delta_x, delta_y=delta_y),
+                                              timeout=self._timeout_factor * 10)
             except BaseException as err:
-                if is_timeout_error(err):
-                    logger.warning('page mouse wheel ({}, {}) timeout : _mouse_wheel_retry_count is {} , err is {}',
-                                   delta_x, delta_y, _mouse_wheel_retry_count, err)
-                    _mouse_wheel_retry_count -= 1
-                    continue
-                else:
+                if not is_timeout_error(err):
                     raise
+                if _mouse_wheel_retry_count <= 0:
+                    raise
+                if _mouse_wheel_retry_count % 3 == 0:
+                    try:
+                        await self._page_bring_to_front(page=page, retry_limit=1)
+                    except BaseException as err2:
+                        logger.warning('try week up mouse failed ? err2 is {}', err2)
+                        pass
+                logger.warning('page mouse wheel ({}, {}) timeout : _mouse_wheel_retry_count is {} , err is {}',
+                               delta_x, delta_y, _mouse_wheel_retry_count, err)
+                _mouse_wheel_retry_count -= 1
 
     # ------------------------------------------------------------------
     # Public API
@@ -564,7 +574,7 @@ class StepsApi:
         await self._page_bring_to_front(page=page)
         try:
             logger.debug('start wait domcontentloaded')
-            await page.wait_for_load_state('domcontentloaded', timeout=5000)
+            await page.wait_for_load_state('domcontentloaded', timeout=self._timeout_factor * 15000)
         except BaseException as err:
             if is_timeout_error(err):
                 logger.debug('ignore timeout err on switch page domcontentloaded')
@@ -572,7 +582,7 @@ class StepsApi:
                 raise
         try:
             logger.debug('start wait networkidle')
-            await page.wait_for_load_state('networkidle', timeout=10000)
+            await page.wait_for_load_state('networkidle', timeout=self._timeout_factor * 15000)
         except BaseException as err:
             if is_timeout_error(err):
                 logger.debug('ignore timeout err on switch page networkidle')
@@ -773,16 +783,16 @@ class StepsApi:
                     try:
                         if method == 'click':
                             await _locator.click(
-                                timeout=timeout,
+                                timeout=self._timeout_factor * timeout,
                                 **kwargs
                             )
                         elif method == 'tap':
                             await _locator.tap(
-                                timeout=timeout,
+                                timeout=self._timeout_factor * timeout,
                                 **kwargs
                             )
                         elif method == 'dispatch_event_click':
-                            await _locator.dispatch_event('click', timeout=timeout)
+                            await _locator.dispatch_event('click', timeout=self._timeout_factor * timeout)
                         else:
                             raise ValueError(f'Invalid method {method}')
                         break
@@ -996,12 +1006,13 @@ class StepsApi:
         if only_main_frame:
             page = await self._get_page()
             if use_fill:
-                await page.fill(selector, text, timeout=timeout, strict=strict, force=force)
+                await page.fill(selector, text, timeout=self._timeout_factor * timeout, strict=strict, force=force)
             elif use_select_options:
-                await page.select_option(selector, text, timeout=timeout, strict=strict, force=force)
+                await page.select_option(selector, text, timeout=self._timeout_factor * timeout, strict=strict,
+                                         force=force)
             else:
-                await page.focus(selector=selector, timeout=timeout, strict=strict)
-                await page.type(selector, text, delay=delay, timeout=timeout, **kwargs)
+                await page.focus(selector=selector, timeout=self._timeout_factor * timeout, strict=strict)
+                await page.type(selector, text, delay=delay, timeout=self._timeout_factor * timeout, **kwargs)
         else:
             logger.debug('wait for selector in any frame to type , selector is {}', selector)
             frame, _ = await self.page_wait_for_selector_in_any_frame(selector=selector,
@@ -1011,12 +1022,13 @@ class StepsApi:
             logger.debug('existed selector in any frame to type , try type to frame {} , selector is {} , text is {}',
                          frame, selector, text, )
             if use_fill:
-                await frame.fill(selector, text, timeout=timeout, strict=strict)
+                await frame.fill(selector, text, timeout=self._timeout_factor * timeout, strict=strict)
             elif use_select_options:
-                await frame.select_option(selector, text, timeout=timeout, strict=strict, force=force)
+                await frame.select_option(selector, text, timeout=self._timeout_factor * timeout, strict=strict,
+                                          force=force)
             else:
-                await frame.focus(selector=selector, timeout=timeout, strict=strict)
-                await frame.type(selector, text, delay=delay, timeout=timeout, **kwargs)
+                await frame.focus(selector=selector, timeout=self._timeout_factor * timeout, strict=strict)
+                await frame.type(selector, text, delay=delay, timeout=self._timeout_factor * timeout, **kwargs)
                 logger.debug('Success type to frame')
 
     @arg_conf('start', desc='起始日期，可以传入 `now` 或 YMDParam(形如 `[2025,6,24]` 或 `"2025-6-24" 之类的日期格式)` ',
@@ -1353,7 +1365,7 @@ class StepsApi:
                     is_visible_retry_count = 10
                     while is_visible_retry_count > 0:
                         try:
-                            is_visible = await _element_locator.is_visible(timeout=3 * 1000)
+                            is_visible = await _element_locator.is_visible(timeout=self._timeout_factor * 3000)
                             break
                         except BaseException as _err:
                             if is_timeout_error(_err):
@@ -1369,7 +1381,7 @@ class StepsApi:
                         if detail_logd:
                             logger.debug('skip nth {} because it box invalid', _element_idx)
                         return 'continue'
-                    ___element_inner_text: str = await _element_locator.inner_text(timeout=5 * 1000)
+                    ___element_inner_text: str = await _element_locator.inner_text(timeout=self._timeout_factor * 5000)
 
                     while True:
                         _old = ___element_inner_text
@@ -1385,7 +1397,8 @@ class StepsApi:
                         ___element_key = ___element_inner_text
                     else:
                         _element_hash = hashlib.md5(
-                            f'{await _element_locator.inner_html(timeout=5 * 1000)}'.encode('utf-8')).hexdigest()
+                            f'{await _element_locator.inner_html(timeout=self._timeout_factor * 5000)}'.encode(
+                                'utf-8')).hexdigest()
                         ___element_key = f'{___element_inner_text}_{_element_hash}'
                     if _box['width'] < 10 or _box['height'] < 10:
                         if detail_logd:
@@ -1699,7 +1712,7 @@ class StepsApi:
         else:
             timeout = self._page_go_back_default_timeout
         if not check_url_change:
-            res = await page.go_back(timeout=timeout, **kwargs)
+            res = await page.go_back(timeout=self._timeout_factor * timeout, **kwargs)
             return res
         else:
             _retry_count = 5
@@ -1707,7 +1720,7 @@ class StepsApi:
             while _retry_count > 0:
                 logger.debug('page go back current retry count is {}', _retry_count)
                 try:
-                    res = await page.go_back(timeout=timeout, **kwargs)
+                    res = await page.go_back(timeout=self._timeout_factor * timeout, **kwargs)
                     await self.sleep(3000)
                     _new_page = await self._get_page()
                     _new_url = await self._get_page_url_ignore_err(page)
@@ -1928,7 +1941,7 @@ class StepsApi:
 
         logger.debug('expect download')
         _page = await self._get_page()
-        async with _page.expect_download(timeout=timeout) as _download_info:
+        async with _page.expect_download(timeout=self._timeout_factor * timeout) as _download_info:
             logger.debug('expect download entry scope')
             if run_steps is not None:
                 logger.debug('expect download run steps')
@@ -2115,7 +2128,7 @@ class StepsApi:
             while retry_goto_count < retry_goto:
                 try:
                     logger.debug('start call page.goto , retry_goto_count is {}', retry_goto_count)
-                    await _page.goto(url, timeout=15000, referer=_page_root.url)
+                    await _page.goto(url, timeout=self._timeout_factor * 15000, referer=_page_root.url)
                     break
                 except BaseException as err:
                     if is_timeout_error(err):

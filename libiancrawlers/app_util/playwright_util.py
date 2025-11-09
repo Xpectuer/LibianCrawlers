@@ -12,8 +12,10 @@ import aiofiles.os
 import aiofiles.ospath
 
 from libiancrawlers.app_util.magic_util import MagicInfo
+from libiancrawlers.app_util.networks.network_problem import is_network_problem
 from libiancrawlers.app_util.networks.proxies import monkey_patch_hook_urllib
 from libiancrawlers.app_util.obj2dict_util import url_parse_to_dict, ResultOfUrlParseToDict
+from libiancrawlers.util.coroutines import sleep
 from libiancrawlers.util.exceptions import is_timeout_error
 
 import playwright.async_api
@@ -364,21 +366,39 @@ async def _get_blob(*,
                 bucket_name = await read_config('crawler', 'minio', 'bucket_name', allow_null=True)
                 if bucket_name is None:
                     bucket_name = 'libiancrawler'
-                if not await client.bucket_exists(bucket_name):
-                    await client.make_bucket(bucket_name)
-                    logger.info('Create MinIO bucket {}', bucket_name)
-                object_name = f'smart-crawl-screenshot/{datetime.today().strftime("%Y%m%d")}/{datetime.today().strftime("%H%M%S")}-sha1-{png_file_sha1}.png'
-                logger.debug('put object to minio start  : bucket_name is {} , object_name is {} , file_path is {}',
-                             bucket_name, object_name, png_file_path)
-                res_obj_write = await client.fput_object(
-                    bucket_name=bucket_name,
-                    object_name=object_name,
-                    file_path=png_file_path,
-                    content_type='image/png',
-                    metadata={
-                        "Content-Type": "image/png"
-                    },
-                )
+
+                retry_count = 0
+                while True:
+                    try:
+                        if not await client.bucket_exists(bucket_name):
+                            await client.make_bucket(bucket_name)
+                            logger.info('Create MinIO bucket {}', bucket_name)
+                        object_name = f'smart-crawl-screenshot/{datetime.today().strftime("%Y%m%d")}/{datetime.today().strftime("%H%M%S")}-sha1-{png_file_sha1}.png'
+                        logger.debug(
+                            'put object to minio start  : bucket_name is {} , object_name is {} , file_path is {}',
+                            bucket_name, object_name, png_file_path)
+                        res_obj_write = await client.fput_object(
+                            bucket_name=bucket_name,
+                            object_name=object_name,
+                            file_path=png_file_path,
+                            content_type='image/png',
+                            metadata={
+                                "Content-Type": "image/png"
+                            },
+                        )
+                        break
+                    except BaseException as err:
+                        if is_network_problem(err) == 'should_retry':
+                            if retry_count > 10:
+                                raise
+                            else:
+                                retry_count += 1
+                                logger.warning('Retry access minio {}, because some connection error : {}',
+                                               retry_count, err)
+                                await sleep(1.5 * retry_count)
+                                continue
+                        else:
+                            raise
                 from multidict import MultiDictProxy
                 if isinstance(res_obj_write.http_headers, MultiDictProxy):
                     def _first_or_all(__items):
@@ -413,6 +433,7 @@ async def _get_blob(*,
                 ])
                 logger.debug('put object to minio finish : result is {}', _res_obj_write)
                 logger.debug('put object to minio public_url : \n{}', public_url)
+                # 检查 public_url 是否可以访问。
                 async with aiohttp.request('GET', public_url) as resp:
                     if not resp.ok or 'html' in resp.content_type:
                         raise ValueError(

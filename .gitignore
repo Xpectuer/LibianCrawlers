@@ -1,6 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,venv,windows,linux,macos,intellij+iml,pycharm+iml,visualstudiocode,go,node,goland+iml,deno
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,venv,windows,linux,macos,intellij+iml,pycharm+iml,visualstudiocode,go,node,goland+iml,deno
 
+.nicegui/
+
 #region openapi
 openapitools.json
 #endregion openapi

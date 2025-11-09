@@ -4,6 +4,7 @@ from typing import List, Any, Optional
 import js2py
 from loguru import logger
 
+from libiancrawlers.app_util.gui_util import gui_confirm
 from libiancrawlers.util.plat import PreventTheScreenSaver
 
 
@@ -20,6 +21,8 @@ def _check_is_str_list(obj: Any, tag: str) -> List[str]:
 async def smart_crawl_urls(*,
                            keys: str,
                            key2url_jsfunc: Optional[str] = None,
+                           retry_always: bool = False,
+                           retry_count: int = 5,
                            _should_init_app=True,
                            **kwargs):
     logger.info('Start smart crawl urls\n    len(keys) is {}\n    key2url_jsfunc is {}\n    kwargs is {}',
@@ -48,7 +51,8 @@ async def smart_crawl_urls(*,
             _args.append(f'--{k}')
             _args.append(f'{kwargs[k]}')
         logger.debug('subprocess args: {}', _args)
-        retry = 3
+
+        retry = retry_count
         while True:
             proc = await asyncio.create_subprocess_exec(
                 os.path.join('.venv', 'scripts', 'python'),
@@ -62,7 +66,11 @@ async def smart_crawl_urls(*,
                     retry = retry - 1
                     logger.warning('RETRY ! Subprocess quit not 0 !')
                     continue
-                raise ValueError('Subprocess quit not 0 !')
+                if not retry_always:
+                    raise ValueError('Subprocess quit not 0 !')
+                await gui_confirm(title='多次重试后失败', message='请手动检查后确认，然后脚本将会重新启动')
+                retry = retry_count
+                continue
             break
         logger.debug('finish subprocess , code is {}', code)
 

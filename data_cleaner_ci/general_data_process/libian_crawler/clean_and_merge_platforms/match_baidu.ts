@@ -68,7 +68,10 @@ export const match_baidu_search_result: LibianCrawlerGarbageCleaner<
           }
           const platform_duplicate_id = `baidu_v2_mu_${encodeURIComponent(mu)}`;
           const author_name = result.cosc_source_text;
-          const author_avatar = result.cos_avatar_img?.attrs?.src;
+          const cos_avatar_img = Arrays.is_array(result.cos_avatar_img)
+            ? result.cos_avatar_img.length > 0 ? result.cos_avatar_img[0] : null
+            : result.cos_avatar_img;
+          const author_avatar = cos_avatar_img?.attrs?.src;
           const crawl_time = Times.parse_text_to_instant(
             smart_crawl.g_create_time,
           );
@@ -111,11 +114,13 @@ export const match_baidu_search_result: LibianCrawlerGarbageCleaner<
                 return [];
               }
             })(),
-            create_time: DataClean.is_not_blank_and_valid(result.time)
-              ? Times.parse_text_to_instant(result.time, {
-                crawl_time,
-              })
-              : null,
+            create_time:
+              DataClean.is_not_blank_and_valid(result.time) &&
+                result.time.indexOf("答案") <= 0
+                ? Times.parse_text_to_instant(result.time, {
+                  crawl_time,
+                })
+                : null,
             update_time: null,
             tags: null,
             ip_location: null,
@@ -171,7 +176,9 @@ export const match_baidu_search_result: LibianCrawlerGarbageCleaner<
               smart_crawl.g_create_time,
             ),
             title,
-            content_text_summary: bdres.rows,
+            content_text_summary: DataClean.is_not_blank_and_valid(bdres.rows)
+              ? bdres.rows
+              : null,
             content_text_detail: null,
             content_link_url,
             authors: [],

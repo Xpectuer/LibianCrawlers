@@ -37,7 +37,12 @@
 
 #### debug
 
-`--debug` 可以在 发生异常时 或 "debug" 指令时暂停。
+`--debug` 可以:
+
+- 在 "debug" 指令时暂停。
+- 在发生异常时暂停，随后继续运行。
+
+建议在每个不稳定的爬虫的启动中都使用此选项。
 
 #### browser_data_dir_id
 
@@ -80,10 +85,10 @@ TODO: 此文档尚待编写...
 
 可以用于限制 Camoufox 浏览器视口随机指纹的最大最小范围。
 
-- `--screen_max_height`
-- `--screen_max_width`
-- `--screen_min_height`
-- `--screen_min_width`
+- `--screen_max_height` 视口最大高度。在有些需要点击页面下方的 cookie 接受条款的网站中，此值超出程序员屏幕高度会导致永远点不到最下面的按钮。
+- `--screen_max_width` 视口最大宽度。
+- `--screen_min_height` 视口最小高度。
+- `--screen_min_width` 视口最小宽度。
 
 #### html2markdown_soup_find
 
@@ -93,7 +98,7 @@ TODO: 此文档尚待编写...
 
 可以使用逗号分隔以传入多个值，将会使用第一个找到的值。
 
-适用场景：这通常 **很适合h5语义化做的很好的网站** 。因为 h5 直接转 markdown 就可以在省下数据清洗时的负担。
+适用场景：这通常 **很适合h5语义化做的很好的网站** 。因为将 h5 直接转 markdown 就可以省下在数据清洗时提取正文的负担。
 
 ### 非常用选项
 

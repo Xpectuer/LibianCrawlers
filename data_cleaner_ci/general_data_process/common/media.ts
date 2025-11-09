@@ -21,12 +21,13 @@ export enum PlatformEnum {
   知乎 = "zhihu.com",
   抖音 = "douyin.com",
   快手 = "kuaishou.com",
+  百度贴吧 = "tieba.baidu.com",
   未分类 = "unknown",
 }
 
 export type MediaContentTag = {
   text: string;
-  url?: DataClean.HttpUrl;
+  url?: DataClean.HttpUrl | null;
 };
 
 export type MediaContentAuthor = {

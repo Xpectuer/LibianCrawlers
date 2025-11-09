@@ -48,6 +48,11 @@ pandas = "^2.3.1"
 xlrd = "^2.0.2"
 pycryptodome = "^3.23.0"
 filelock = "^3.18.0"
+pysnowball = "^0.1.8"
+textual-dev = "^1.8.0"
+textual = { extras = ["syntax"], version = "^6.4.0" }
+kazoo = "^2.10.0"
+nicegui = "^3.2.0"
 
 
 [tool.poetry.group.dev]
@@ -80,6 +85,12 @@ impact-factor = "^1.1.2"
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+
+
+
+
+
+
 
 
 

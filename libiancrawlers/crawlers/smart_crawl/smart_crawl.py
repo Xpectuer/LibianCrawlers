@@ -13,6 +13,7 @@ import aiofiles.os
 import aiofiles.ospath
 from loguru import logger
 
+from libiancrawlers.app_util.gui_util import gui_confirm
 from libiancrawlers.app_util.locales import Locales
 from libiancrawlers.app_util.networks import update_proxies
 from libiancrawlers.app_util.networks.iputil import get_my_public_ip_info
@@ -23,6 +24,7 @@ from libiancrawlers.app_util.postgres import require_init_table, insert_to_garba
 from libiancrawlers.app_util.types import LaunchBrowserParam, LibianCrawlerBugException, JSON
 from libiancrawlers.crawlers import CrawlMode, parse_mode, the_default_crawl_mode__save_file
 from libiancrawlers.util.coroutines import sleep
+from libiancrawlers.util.exceptions import is_timeout_error
 from libiancrawlers.util.fs import mkdirs, aios_listdir, filename_slugify
 from libiancrawlers.util.plat import PreventTheScreenSaver
 
@@ -68,6 +70,10 @@ async def smart_crawl_v1(*,
     _is_success_end = True
     base_dir = None
     _param_json = json.dumps(locals(), ensure_ascii=False, indent=save_file_json_indent)
+
+    if screen_min_width is None:
+        # 窄屏真的影响爬虫
+        screen_min_width = 1200
 
     ___steps_param = steps
     if isinstance(steps, str):
@@ -188,7 +194,7 @@ async def smart_crawl_v1(*,
                 b_page = await browser_context.new_page()
 
             logger.debug('start page goto')
-            _resp_goto_obj = await b_page.goto(url=url, wait_until='domcontentloaded')
+            _resp_goto_obj = await b_page.goto(url=url, wait_until='domcontentloaded', timeout=60000)
 
             async def parse_resp_goto():
                 logger.debug('start parse resp_goto')
@@ -406,27 +412,31 @@ async def smart_crawl_v1(*,
             return 'continue'
 
         async def _enable_devtool():
-            if (await _get_devtool_status())['enable']:
-                logger.info('Devtool already enabled')
-                return
-            logger.info('Devtool enabled . You can input command from stdin , such as : pause | resume | stop')
-
-            def read_stdin():
-                logger.debug('Start read stdin thread')
-                try:
-                    pass
-                finally:
-                    logger.debug('Stop read stdin thread')
-
-            _devtool_thread = Thread(
-                target=read_stdin,
-                daemon=True,
-                name=f'smart_crawl_read_stdin-{_new_thread_count.__next__()}',
-            )
-            _devtool_thread.start()
-            async with _devtool_status_lock:
-                _devtool_status['thread'] = _devtool_thread
-            return
+            """
+            TODO
+            """
+            pass
+            # if (await _get_devtool_status())['enable']:
+            #     logger.info('Devtool already enabled')
+            #     return
+            # logger.info('Devtool enabled . You can input command from stdin , such as : pause | resume | stop')
+            #
+            # def read_stdin():
+            #     logger.debug('Start read stdin thread')
+            #     try:
+            #         pass
+            #     finally:
+            #         logger.debug('Stop read stdin thread')
+            #
+            # _devtool_thread = Thread(
+            #     target=read_stdin,
+            #     daemon=True,
+            #     name=f'smart_crawl_read_stdin-{_new_thread_count.__next__()}',
+            # )
+            # _devtool_thread.start()
+            # async with _devtool_status_lock:
+            #     _devtool_status['thread'] = _devtool_thread
+            # return
 
         from libiancrawlers.crawlers.smart_crawl.steps_api import PageRef
         _page_ref: PageRef = {'value': b_page}
@@ -439,72 +449,98 @@ async def smart_crawl_v1(*,
                 if await _check_devtool() == 'stop':
                     raise SmartCrawlStopSignal()
                 _all_steps_run.append(json.loads(json.dumps(_step, ensure_ascii=False)))
-                if _step == 'continue':
+                if _step == 'continue':  # continue 为执行下一个命令
                     continue
-                if _step == 'break':
+                if _step == 'break':  # break 会跳出这个命令块
                     break
-                if _step == 'stop':
+                if _step == 'stop':  # stop 会停止爬虫
                     raise SmartCrawlStopSignal()
-                if _step == 'debug':
+                if _step == 'debug':  # debug 命令会在 debug 模式开启时引发暂停
                     if debug:
                         await launch_debug(message='debug step')
                         continue
                     else:
                         logger.debug('Skip debug command')
                         continue
-                if _step == 'enable_devtool':
+                if _step == 'enable_devtool':  # 启动爬虫开发环境
                     await _enable_devtool()
                     continue
-                try:
-                    logger.debug('\n    🎼 on step :\n    {}',
-                                 _step if not isinstance(_step, list) and not isinstance(_step,
-                                                                                         tuple) \
-                                     else '[' + ''.join(map(lambda s: f'\n    {s}', _step)) + '\n    ]')
-                    if _step.get('fn') is not None:
-                        _waited_args = _step.get('args')
-                        _waited_kwargs = _step.get('kwargs')
-                        if _waited_args is None:
-                            _waited_args = []
-                        if _waited_kwargs is None:
-                            _waited_kwargs = dict()
-                        from libiancrawlers.crawlers.smart_crawl.steps_api import StepsApi
-                        steps_api = StepsApi(
-                            b_page=b_page,
-                            browser_context=browser_context,
-                            _dump_page=_dump_page,
-                            _process_steps=_process_steps,
-                            _page_ref_lock=_page_ref_lock,
-                            _page_ref=_page_ref,
-                            _download_storage_path=_download_storage_path,
-                            _dump_obj=_dump_obj,
-                            _global_counter=_global_counter,
-                            _global_str_dict=_global_str_dict,
-                            _global_play_sound_when_gui_confirm=play_sound_when_gui_confirm,
-                            _debug=debug,
+                # try:
+                logger.debug('\n    🎼 【Step】 :\n    {}',
+                             _step if not isinstance(_step, list) and not isinstance(_step,
+                                                                                     tuple) \
+                                 else '[' + ''.join(map(lambda s: f'\n    {s}', _step)) + '\n    ]')
+                if _step.get('fn') is None:
+                    if debug:
+                        await gui_confirm(
+                            title='Invalid step["fn"] function name',
+                            message='由于debug模式开启，因此脚本会允许错误的函数名，确认后将跳过此函数继续执行 ...'
                         )
-                        await steps_api[_step['fn']](*_waited_args, **_waited_kwargs)
+                        continue
+                    else:
+                        raise ValueError(f'Invalid step function name : _step is {_step}')
+
+                _waited_args = _step.get('args')
+                _waited_kwargs = _step.get('kwargs')
+                if _waited_args is None:
+                    _waited_args = []
+                if _waited_kwargs is None:
+                    _waited_kwargs = dict()
+                from libiancrawlers.crawlers.smart_crawl.steps_api import StepsApi
+                steps_api = StepsApi(
+                    b_page=b_page,
+                    browser_context=browser_context,
+                    _dump_page=_dump_page,
+                    _process_steps=_process_steps,
+                    _page_ref_lock=_page_ref_lock,
+                    _page_ref=_page_ref,
+                    _download_storage_path=_download_storage_path,
+                    _dump_obj=_dump_obj,
+                    _global_counter=_global_counter,
+                    _global_str_dict=_global_str_dict,
+                    _global_play_sound_when_gui_confirm=play_sound_when_gui_confirm,
+                    _debug=debug,
+                )
+
+                def _get_index(obj, idx):
+                    return obj[idx]
+
+                _fn = _get_index(_step, 'fn')
+                _timeout_happened = False
+                _gui_confirm_continue = False
+                try:
+                    try:
+                        await steps_api[_fn](*_waited_args, **_waited_kwargs)
+                    except BaseException as _err:
+                        on_timeout_steps = _step.get('on_timeout_steps')
+                        if is_timeout_error(_err) and on_timeout_steps is not None:
+                            logger.debug('start process on timeout steps , the timeout _err info is {}', _err)
+                            await _process_steps(on_timeout_steps)
+                            logger.debug('finish process on timeout steps')
+                            _timeout_happened = True
+                        else:
+                            logger.exception(
+                                'exception on step :\n    _step={}\n    _waited_args={}\n    _waited_kwargs',
+                                _step, _waited_args, _waited_kwargs)
+                            if debug:
+                                await gui_confirm(
+                                    title='error on DEBUG',
+                                    message='由于debug模式开启，因此脚本会继续允许无法处理的错误继续执行，请手动纠错完成后确认，确认后继续 ...'
+                                )
+                                _gui_confirm_continue = True
+                            else:
+                                raise
+                    if _gui_confirm_continue or not _timeout_happened:
                         on_success_steps = _step.get('on_success_steps')
                         if on_success_steps is not None:
                             logger.debug('start process on success steps')
                             await _process_steps(on_success_steps)
                             logger.debug('finish process on success steps')
-                    else:
-                        logger.error(
-                            'Invalid wait_step , not exist fn , please see libiancrawlers/crawlers/smart_crawl/wait_steps.py . Value of wait_step is {}',
-                            _step)
-                except BaseException as err_timeout:
-                    from libiancrawlers.util.exceptions import is_timeout_error
-                    if is_timeout_error(err_timeout):
-                        on_timeout_steps = _step.get('on_timeout_steps')
-                        if on_timeout_steps is not None:
-                            logger.debug('start process on timeout steps')
-                            await _process_steps(on_timeout_steps)
-                            logger.debug('finish process on timeout steps')
-                            continue
-                        else:
-                            raise TimeoutError(f'timeout on step : {_step}') from err_timeout
-                    else:
-                        raise
+                except BaseException as _err:
+                    logger.warning(
+                        "Uncatch error happened :\n    _err is {}\n    _fn is {}\n    _step is {}\n    _waited_args is {}\n    _waited_kwargs is {}",
+                        _err, _fn, _step, _waited_args, _waited_kwargs)
+                    raise
 
         try:
             await _process_steps([
@@ -518,7 +554,7 @@ async def smart_crawl_v1(*,
         await sleep(3)
     except BaseException as err:
         _is_success_end = False
-        logger.exception('Raise error')
+        logger.exception('Error happened !')
         # noinspection PyProtectedMember
         from playwright._impl._errors import TargetClosedError
         if debug and not isinstance(err, TargetClosedError):
