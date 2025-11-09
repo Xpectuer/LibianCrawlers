@@ -1,0 +1,7 @@
+::: danger
+请务必阅读 [**《数据爬虫的罪与罚》**](../crawler-and-criminal-law.md) 以了解法律风险。
+
+如果你的爬虫违反了上文中的 [**禁区**](../crawler-and-criminal-law.md#禁区)，请勿 PR 到此仓库，我也不会给你提供任何工具。
+
+请务必参考 [**禁区**](../crawler-and-criminal-law.md#禁区) 了解法律风险。
+:::

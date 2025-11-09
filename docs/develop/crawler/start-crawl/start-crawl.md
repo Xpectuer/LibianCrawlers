@@ -1,23 +1,14 @@
-# 4-启动爬虫
+# 3.1-命令行启动各平台爬虫
 
-[[toc]]
+<!--@include: ./warning.txt-->
 
-## 开发须知
-
-::: danger
-请务必阅读 [**《数据爬虫的罪与罚》**](./crawler-and-criminal-law.md) 以了解法律风险。
-
-如果你的爬虫违反了上文中的 [**禁区**](./crawler-and-criminal-law.md#禁区)，请勿 PR 到此仓库，我也不会给你提供任何工具。
-
-请务必参考 [**禁区**](./crawler-and-criminal-law.md#禁区) 了解 *DOM树的仓库* 。
-:::
 
 关于 `smart-crawl`
-命令的各个参数详情，可以参考 [smart-crawl 的 命令行启动参数文档](./crawler-detail/smart-crawl-document.md#命令行启动参数文档)
+命令的各个参数详情，可以参考 [smart-crawl 的 命令行启动参数文档](../crawler-detail/smart-crawl-document.md#命令行启动参数文档)
 
-## 一键启动
+---
 
-TODO
+[[toc]]
 
 ## 购物网站
 
@@ -244,7 +235,7 @@ poetry run api-crawl-impactfactor-search --keywords "nature" --mode save_file
 poetry run smart-crawl-urls --screen_max_height 1000 --key2url_jsfunc "function(k){return 'https://wos-journal.info/?jsearch='+k.split(' ').join('+')}" --locale zh-CN --screen_max_height 1000 --retry_always --keys "jsonfile:data_cleaner_ci/user_code/journals_need_search/issn.json" --browser_data_dir_id no_trace_wos_journal_1 --mode save_file
 ```
 
-更多参考查看 [smart-crawl-urls 示例 wos-journal 期刊信息查询](./crawler-detail/smart-crawl-urls-document.md#示例-wos-journal-期刊信息查询)
+更多参考查看 [smart-crawl-urls 示例 wos-journal 期刊信息查询](../crawler-detail/smart-crawl-urls-document.md#示例-wos-journal-期刊信息查询)
 
 ## 新闻媒体
 
