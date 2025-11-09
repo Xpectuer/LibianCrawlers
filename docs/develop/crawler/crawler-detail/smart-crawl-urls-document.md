@@ -10,21 +10,22 @@ smart-crawl-urls 脚本的功能是遍历 url 列表，并传给 [smart-crawl �
 
 ### keys
 
-必填。传入列表信息。
+`--keys <source>` 必填。传入列表信息。
 
-TODO: 格式介绍
+> TODO: source 格式介绍
 
 ### key2url_jsfunc
 
-可选。传入一个 javascript 函数（仅支持 es5 语法），将读取到的 keys 列表使用此函数进行 Mapping 输出。
+`--key2url_jsfunc <js_function_string>` 可选。传入一个 javascript 函数（仅支持 es5 语法），将读取到的 keys 列表使用此函数进行
+Mapping 输出。
 
 ### retry_count_default
 
-可选。重试次数。默认值为 `5`。
+`--retry_count_default <number>` 可选。重试次数。默认值为 `5`。
 
 ### retry_always
 
-可选。启用此选项后，在重试次数用尽后，不会退出进程，而是弹出 `gui_confirm` 窗口，当程序员确认此窗口后重置重试次数并继续重试。
+`--retry_always` 可选。启用此选项后，在重试次数用尽后，不会退出进程，而是弹出 `gui_confirm` 窗口，当程序员确认此窗口后重置重试次数并继续重试。
 
 ## 示例 wos-journal 期刊信息查询
 

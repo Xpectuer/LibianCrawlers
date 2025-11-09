@@ -1,4 +1,4 @@
-# 1-安装爬虫
+# 1-工程安装
 
 :::info 需要安装 Poetry 包管理器
 如果你还没有安装 Poetry，可以参考 [Poetry 官方文档](https://python-poetry.org/docs/#installation) 进行安装。
@@ -119,25 +119,30 @@ camoufox fetch
 
 ```python
 import requests
+
 # [!code ++]
 
 # [!code ++]
-inner_request_get = requests.get # [!code ++]
+inner_request_get = requests.get  # [!code ++]
+
+
 # [!code ++]
 
 # [!code ++]
-def _request_get(*args, **kwargs): # [!code ++]
-    print(f'hook get : args={args} , kwargs={kwargs}') # [!code ++]
-    if kwargs.get('proxies') is None: # [!code ++]
-        kwargs['proxies'] = dict( # [!code ++]
-            http='http://localhost:7890', # [!code ++]
-            https='http://localhost:7890', # [!code ++]
-        ) # [!code ++]
-    return inner_request_get(*args, **kwargs) # [!code ++]
+def _request_get(*args, **kwargs):  # [!code ++]
+    print(f'hook get : args={args} , kwargs={kwargs}')  # [!code ++]
+    if kwargs.get('proxies') is None:  # [!code ++]
+        kwargs['proxies'] = dict(  # [!code ++]
+            http='http://localhost:7890',  # [!code ++]
+            https='http://localhost:7890',  # [!code ++]
+        )  # [!code ++]
+    return inner_request_get(*args, **kwargs)  # [!code ++]
+
+
 # [!code ++]
 
 # [!code ++]
-requests.get = _request_get # [!code ++]
+requests.get = _request_get  # [!code ++]
 ```
 
 :::

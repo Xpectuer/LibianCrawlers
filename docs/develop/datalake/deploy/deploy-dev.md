@@ -1,4 +1,4 @@
-# 1-在本机Docker开发环境部署数据湖
+# 简易部署开发环境-在本机Docker开发环境部署数据湖
 
 本文描述了如何在本地开发环境部署 LibianDatalake 数据湖。
 
@@ -20,7 +20,7 @@ echo '
 ' > .env
 ```
 
-<<< @/develop/datalake/template.dev.env {.dotenv}[.env]
+<<< @/develop/datalake/deploy/template.dev.env {.dotenv}[.env]
 :::
 
 然后使用以下命令读入并检查 `.env` 中的环境变量。
@@ -141,7 +141,7 @@ echo '
 ' > docker-compose.yml
 ```
 
-<<< @/develop/datalake/docker-compose.dev.yml
+<<< @/develop/datalake/deploy/docker-compose.dev.yml
 
 :::
 
@@ -155,13 +155,13 @@ docker compose up
 
 ## 5. 容器暴露的本地端口
 
-| 服务        | 地址                     | 管理员账号                                 | 管理员密码                          | 备注                                                         |
-|-----------|------------------------|---------------------------------------|--------------------------------|------------------------------------------------------------|
-| postgres  | localhost:18191        | `postgres`                            | `libian-datalake-dev-password` |                                                            |
-| pgadmin   | http://localhost:18192 | `pgadmin-libian-datalake@example.com` | `libian-datalake-dev-password` | 登陆时语言一定要选 `English`                                        |
-| nocodb    | http://localhost:18193 | `ncadmin-libian-datalake@example.com` | `libian-datalake-dev-password` | 需要参照 [《添加外部数据源》](./deploy-pro.md#添加外部数据源) 配置 postgres 数据源。 |
-| minio     | http://localhost:18194 |                                       |                                |                                                            |
-| minio 控制台 | http://localhost:18195 | `myminioadmin`                        | `libian-datalake-dev-password` | 需去控制台配置 **存储桶** 及其 token 的 `access_key` 和 `secret_key`     |
+| 服务        | 地址                     | 管理员账号                                 | 管理员密码                          | 备注                                                     |
+|-----------|------------------------|---------------------------------------|--------------------------------|--------------------------------------------------------|
+| postgres  | localhost:18191        | `postgres`                            | `libian-datalake-dev-password` |                                                        |
+| pgadmin   | http://localhost:18192 | `pgadmin-libian-datalake@example.com` | `libian-datalake-dev-password` | 登陆时语言一定要选 `English`                                    |
+| nocodb    | http://localhost:18193 | `ncadmin-libian-datalake@example.com` | `libian-datalake-dev-password` | 需要参照 [《添加外部数据源》](deploy-pro.md加外部数据源) 配置 postgres 数据源。 |
+| minio     | http://localhost:18194 |                                       |                                |                                                        |
+| minio 控制台 | http://localhost:18195 | `myminioadmin`                        | `libian-datalake-dev-password` | 需去控制台配置 **存储桶** 及其 token 的 `access_key` 和 `secret_key` |
 
 
 

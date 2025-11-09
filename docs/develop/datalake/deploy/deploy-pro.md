@@ -1,4 +1,4 @@
-# 2-在公网部署数据湖且启用ssl
+# 专业部署生产环境-在公网部署数据湖且启用ssl
 
 :::danger
 似乎存在错误，虽然在 DockerCompose 内部 NocoDB 连接到 postgres 启用 SSL 没问题。但为啥我在家中的内网环境下死活没法启用
@@ -31,7 +31,7 @@ echo '
 ' > .env
 ```
 
-<<< @/develop/datalake/template.pro.env {.dotenv}[.env]
+<<< @/develop/datalake/deploy/template.pro.env {.dotenv}[.env]
 :::
 
 然后使用以下命令读入并检查 `.env` 中的环境变量。
@@ -227,7 +227,7 @@ echo '
 ' > docker-compose.yml
 ```
 
-<<< @/develop/datalake/docker-compose.pro.yml
+<<< @/develop/datalake/deploy/docker-compose.pro.yml
 
 :::
 
@@ -249,7 +249,7 @@ docker compose up
 |---------------|---------|---------|-----------------------|--------------------------------------------------------------------------|
 | Postgres      | tcp/ssl | 18191   | 5432                  |                                                                          |
 | PgAdmin       | http    | 18192   | 80                    | 登陆时语言一定要选 `English`                                                      |
-| NocoDB        | http    | 18193   | 8080                  | 需要参照 [First-Init](./deploy-pro.md#first-init) 配置 postgres 数据源。           |
+| NocoDB        | http    | 18193   | 8080                  | 需要参照 [First-Init](deploy-pro.mdirst-init) 配置 postgres 数据源。               |
 | MinIO API     | https   | 18194   | `MINIOSNSD_BOTH_PORT` | MinIO 相关配置很讲究，参见 [minio-api-domain-and-port](#minio-api-domain-and-port) |
 | MinIO Console | https   | 18195   | 9001                  | 需去控制台配置 **存储桶** 及其 token 的 `access_key` 和 `secret_key`                   |
 
