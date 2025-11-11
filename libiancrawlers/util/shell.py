@@ -58,7 +58,10 @@ def shell_run_sync(cmd: List[str],
     stderr_str: str = '' if capture_output else None
     cmd_str: str
     if is_windows():
-        cmd_str = subprocess.list2cmdline(cmd)
+        if cmd.__len__() > 2 and cmd[0] == 'start' and cmd[1].startswith('"') and cmd[1].endswith('"'):
+            cmd_str = subprocess.list2cmdline(cmd[0:1]) + ' ' + cmd[1] + ' ' + subprocess.list2cmdline(cmd[2:])
+        else:
+            cmd_str = subprocess.list2cmdline(cmd)
     else:
         cmd_str = ' '.join(map(shlex.quote, cmd))
     try:
@@ -137,8 +140,9 @@ def shell_run_and_show(cmds: List[CmdMulti],
                        *,
                        run_in_new_thread=True,
                        no_exit: bool = False,
+                       use_wt: bool = False,
                        ):
-    if is_windows():
+    if is_windows() and run_in_new_thread and use_wt:
         exist_wt_stdout, _, exist_wt_proc = shell_run_sync(['where', 'wt'], raise_on_not_zero=False)
         logger.debug('where wt {} , output : {}', exist_wt_proc.returncode, exist_wt_stdout)
         use_wt = exist_wt_proc.returncode == 0 and all(
@@ -152,6 +156,8 @@ def shell_run_and_show(cmds: List[CmdMulti],
         use_wt = False
 
     if use_wt:
+        if not run_in_new_thread:
+            raise Exception('wt command will exit at start , so cmds always not blocking')
         wt_cmd = []
         for idx in range(len(cmds)):
             c = cmds[idx]
@@ -189,10 +195,7 @@ def shell_run_and_show(cmds: List[CmdMulti],
                 '-c',
                 *c.cmd,
             ])
-
         logger.debug('wt_cmd is {}', wt_cmd)
-        if not run_in_new_thread:
-            logger.warning('wt command will exit at start , so cmds always not blocking')
         return shell_run_sync(wt_cmd, capture_output=False, logd_cmd_str=True)
     elif is_windows():
         logger.debug('Start get-content log thread')
@@ -201,12 +204,29 @@ def shell_run_and_show(cmds: List[CmdMulti],
             return shell_run_sync(
                 [
                     'start',
+                    *([f'"{_cmd.title}"'] if _cmd.title else []),
+                    *(['/d', _cmd.work_dir] if _cmd.work_dir else []),
+                    '/wait',
                     'cmd',
-                    '/k',
-                    'powershell.exe',
-                    'chcp 65001',
-                    ';',
-                    *_cmd.cmd,
+                    '/k' if no_exit else '/c',
+                    ' '.join([
+                        'powershell.exe',
+                        # "try{",
+                        # "trap", "'RC=1'", "ERR", ";",
+                        # "$ErrorActionPreference = 'Stop';",
+                        # "$PSNativeCommandUseErrorActionPreference = $true;"
+                        # 'chcp 65001',
+                        # ';',
+                        # *(['Set-Location', _cmd.work_dir, ';'] if _cmd.work_dir else []),
+                        *_cmd.cmd,
+                        # "} catch { Exit 1 }"
+                        # ";",
+                        # "exit",
+                        # "$RC"
+                    ]),
+                    '|',
+                    'exit',
+                    '1'
                 ],
                 timeout=_cmd.timeout,
                 raise_on_not_zero=True if _cmd.raise_on_not_zero is None else _cmd.raise_on_not_zero,
@@ -220,7 +240,7 @@ def shell_run_and_show(cmds: List[CmdMulti],
 
             def _create_and_start_thread(_c_local: CmdMulti):
                 _thread = Thread(
-                    name=f'Shell_Thread-{c.title}',
+                    name=f'Shell_Thread-{_c_local.title}',
                     target=lambda: _start_cmd_func(_c_local),
                     daemon=True
                 )

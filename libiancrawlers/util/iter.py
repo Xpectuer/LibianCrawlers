@@ -5,7 +5,7 @@ T = TypeVar('T')
 R = TypeVar('R')
 
 
-def filter_not_none(lst: Iterable[Optional[T]]) -> TypeGuard[List[T]]:
+def filter_not_none(lst: Iterable[Optional[T]]) -> List[T]:
     res = []
     for item in lst:
         if item is not None:

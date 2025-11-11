@@ -47,7 +47,7 @@ poetry run smart-crawl --debug --url https://mobile.yangkeduo.com/ --locale zh-C
 | 评论区       | todo | todo |
 
 ```shell
-poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --dump_page_ignore_names=script,svg --steps "jsonfile:steps/xiaohongshu-search.json?q=丸子头" --browser_data_dir_id login_xhs --mode save_file
+poetry run smart-crawl --debug --url https://xiaohongshu.com/ --locale zh-CN --screen_min_width 1000 --dump_page_ignore_names=script,svg --steps "jsonfile:steps/xiaohongshu-search.json?q=丸子头" --browser_data_dir_id login_xhs --mode save_file
 ```
 
 ### bilibili-api-python 封装 <Badge type="tip" text="api" />

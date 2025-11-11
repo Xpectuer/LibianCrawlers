@@ -36,8 +36,9 @@
 >
 > 网络机器人（Web robots也叫网络游客、爬虫程序、蜘蛛程序），是自动爬行网络的程序。搜索引擎利用这些程序索引网站内容，垃圾邮件发送者使用网络机器人扫描获取电子邮件地址，网络机器人还有很多其他用途。
 >
-> 第八条 互联网站所有者设置机器人协议应遵循公平、开放和促进信息自由流动的原则，**限制搜索引擎抓取应有行业公认合理的正当理由，不利用机器人协议进行不正当竞争行为
-**，积极营造鼓励创新、公平公正的良性竞争环境。
+> 第八条 互联网站所有者设置机器人协议应遵循公平、开放和促进信息自由流动的原则，
+> **限制搜索引擎抓取应有行业公认合理的正当理由，不利用机器人协议进行不正当竞争行为**，
+> 积极营造鼓励创新、公平公正的良性竞争环境。
 :::
 
 * [ ] 如果网站的 robots 协议并无不正当竞争的嫌疑、有公认合理的正当理由，那么请必须遵守 robots.txt 协议。
@@ -71,13 +72,18 @@
 
 * 其他判例:
     * [头疼大战前传：头条前高管反噬被判刑](https://github.com/HiddenStrawberry/Crawler_Illegal_Cases_In_China/tree/master/case7)
-      :::
+
+---
+:::
 
 :::details 正面舆论
 现在也有先进地区的司法判例认可 js 逆向的合法性。
 
+以及 Boss 直聘上一大堆招聘需求里也印证了 js 逆向的普遍性。
+
 * [BOSS直聘 - js逆向 - 全国](https://www.zhipin.com/web/geek/jobs?city=100010000&query=js%E9%80%86%E5%90%91)
-  :::
+
+:::
 
 :::details Emmm....
 如果你非得使用js逆向，那么请将其解耦到命令行参数中，而不是硬编码在 crawler 脚本内（不要写在公共代码库中）。
@@ -165,8 +171,8 @@ https://github.com/HiddenStrawberry/Crawler_Illegal_Cases_In_China/tree/master?t
 
 #### 提供侵入、非法控制计算机信息系统程序、工具罪
 
-* [ ] 请勿贸然接入第三方 api！
-    * 因为”第三方可能被黑灰产用于侵入“的话，你也就符合了正在提供用于侵入的平台或程序。
+* [ ] 请勿贸然允许第三方 api 接入！
+    * 因为“第三方可能被黑灰产用于侵入”的话，你也就符合了正在提供用于侵入的平台或程序。
     * 尤其是打码平台。
 
 **案例:**
@@ -174,6 +180,8 @@ https://github.com/HiddenStrawberry/Crawler_Illegal_Cases_In_China/tree/master?t
 * https://github.com/HiddenStrawberry/Crawler_Illegal_Cases_In_China/tree/master?tab=readme-ov-file#%E7%88%AC%E8%99%AB%E7%A6%81%E5%8C%BA1%E4%B8%BA%E8%BF%9D%E6%B3%95%E8%BF%9D%E8%A7%84%E7%BB%84%E7%BB%87%E6%8F%90%E4%BE%9B%E7%88%AC%E8%99%AB%E7%9B%B8%E5%85%B3%E6%9C%8D%E5%8A%A1%E9%AA%8C%E8%AF%81%E7%A0%81%E8%AF%86%E5%88%AB%E6%9C%8D%E5%8A%A1%E8%B4%A9%E5%8D%96seo
 
 #### 侵犯著作权罪或侵犯商业秘密罪
+
+有版权的不要爬！
 
 **案例:**
 

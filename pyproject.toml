@@ -52,7 +52,7 @@ pysnowball = "^0.1.8"
 textual-dev = "^1.8.0"
 textual = { extras = ["syntax"], version = "^6.4.0" }
 kazoo = "^2.10.0"
-nicegui = "^3.2.0"
+py-machineid = "^0.8.1"
 
 
 [tool.poetry.group.dev]
@@ -108,6 +108,8 @@ asyncio_default_fixture_loop_scope = "function"
 
 
 
+
+
 [tool.poetry.group.test.dependencies]
 pytest-randomly = "^3.15.0"
 pytest = "^8.2.0"
@@ -130,7 +132,7 @@ api-crawl-bilibili-favorite-list = "libiancrawlers.crawlers.apilib.bilibili.favo
 smart-crawl-urls = "libiancrawlers.crawlers.smart_crawl.smart_crawl_urls:cli"
 version = "libiancrawlers.app_util.print_version:cli"
 generate-steps-api-documents = "libiancrawlers.crawlers.smart_crawl.steps_api:generate_steps_api_documents"
-
+smart-crawl-compose = "libiancrawlers.crawlers.smart_crawl.smart_crawl_compose:cli"
 
 [[tool.poetry.source]]
 name = "tsinghua"

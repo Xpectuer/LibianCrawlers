@@ -592,23 +592,6 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
-name = "bidict"
-version = "0.23.1"
-description = "The bidirectional mapping library for Python."
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "bidict-0.23.1-py3-none-any.whl", hash = "sha256:5dae8d4d79b552a71cbabc7deb25dfe8ce710b17ff41711e13010ead2abfc3e5"},
-    {file = "bidict-0.23.1.tar.gz", hash = "sha256:03069d763bc387bbd20e7d49914e75fc4132a41937fa3405417e1a5a2d006d71"},
-]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
 name = "bilibili-api-python"
 version = "17.1.4"
 description = "The fork of module bilibili-api. 哔哩哔哩的各种 API 调用便捷整合（视频、动态、直播等），另外附加一些常用的功能。"
@@ -1556,23 +1539,6 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
-name = "docutils"
-version = "0.22.3"
-description = "Docutils -- Python Documentation Utilities"
-optional = false
-python-versions = ">=3.9"
-groups = ["main"]
-files = [
-    {file = "docutils-0.22.3-py3-none-any.whl", hash = "sha256:bd772e4aca73aff037958d44f2be5229ded4c09927fcf8690c577b66234d6ceb"},
-    {file = "docutils-0.22.3.tar.gz", hash = "sha256:21486ae730e4ca9f622677b1412b879af1791efcfba517e4c6f60be543fc8cdd"},
-]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
 name = "email-validator"
 version = "2.2.0"
 description = "A robust email address syntax and deliverability validation library."
@@ -2204,23 +2170,6 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
-name = "ifaddr"
-version = "0.2.0"
-description = "Cross-platform network interface and IP address enumeration library"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "ifaddr-0.2.0-py3-none-any.whl", hash = "sha256:085e0305cfe6f16ab12d72e2024030f5d52674afad6911bb1eee207177b8a748"},
-    {file = "ifaddr-0.2.0.tar.gz", hash = "sha256:cc0cbfcaabf765d44595825fb96a99bb12c79716b73b44330ea38ee2b0c4aed4"},
-]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
 name = "impact-factor"
 version = "1.1.2"
 description = "Impact Factor Toolkits"
@@ -2305,23 +2254,6 @@ files = [
 
 [package.dependencies]
 arrow = ">=0.15.0"
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
-name = "itsdangerous"
-version = "2.2.0"
-description = "Safely pass data to untrusted environments and back."
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef"},
-    {file = "itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173"},
-]
 
 [package.source]
 type = "legacy"
@@ -2744,29 +2676,6 @@ plugins = ["mdit-py-plugins"]
 profiling = ["gprof2dot"]
 rtd = ["jupyter_sphinx", "mdit-py-plugins", "myst-parser", "pyyaml", "sphinx", "sphinx-copybutton", "sphinx-design", "sphinx_book_theme"]
 testing = ["coverage", "pytest", "pytest-cov", "pytest-regressions"]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
-name = "markdown2"
-version = "2.5.4"
-description = "A fast and complete Python implementation of Markdown"
-optional = false
-python-versions = ">=3.9, <4"
-groups = ["main"]
-files = [
-    {file = "markdown2-2.5.4-py3-none-any.whl", hash = "sha256:3c4b2934e677be7fec0e6f2de4410e116681f4ad50ec8e5ba7557be506d3f439"},
-    {file = "markdown2-2.5.4.tar.gz", hash = "sha256:a09873f0b3c23dbfae589b0080587df52ad75bb09a5fa6559147554736676889"},
-]
-
-[package.extras]
-all = ["latex2mathml ; python_version >= \"3.8.1\"", "pygments (>=2.7.3)", "wavedrom"]
-code-syntax-highlighting = ["pygments (>=2.7.3)"]
-latex = ["latex2mathml ; python_version >= \"3.8.1\""]
-wavedrom = ["wavedrom"]
 
 [package.source]
 type = "legacy"
@@ -3262,53 +3171,6 @@ files = [
 
 [package.extras]
 nicer-shell = ["ipython"]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
-name = "nicegui"
-version = "3.2.0"
-description = "Create web-based user interfaces with Python. The nice way."
-optional = false
-python-versions = ">=3.9,<4.0"
-groups = ["main"]
-files = [
-    {file = "nicegui-3.2.0-py3-none-any.whl", hash = "sha256:17d8ec94cfa0417846598c269162ae3f2b0a9e75f0f841bd5aa9fc6b7c0edcc4"},
-    {file = "nicegui-3.2.0.tar.gz", hash = "sha256:886a9e2498a423c81b6ad5097f687a5819207aae439aa283966d57f9492ca14c"},
-]
-
-[package.dependencies]
-aiofiles = ">=23.1.0"
-aiohttp = ">=3.10.2"
-certifi = ">=2024.07.04"
-docutils = ">=0.19.0"
-fastapi = ">=0.109.1"
-h11 = ">=0.16.0"
-httpx = ">=0.24.0"
-ifaddr = ">=0.2.0"
-itsdangerous = ">=2.1.2,<3.0.0"
-jinja2 = ">=3.1.6,<4.0.0"
-markdown2 = ">=2.4.7,<2.4.11 || >2.4.11"
-orjson = {version = ">=3.9.15", markers = "platform_machine != \"i386\" and platform_machine != \"i686\""}
-Pygments = ">=2.15.1,<3.0.0"
-python-engineio = ">=4.12.0"
-python-multipart = ">=0.0.18"
-python-socketio = {version = ">=5.14.0", extras = ["asyncio-client"]}
-starlette = ">=0.45.3"
-typing-extensions = ">=4.0.0"
-uvicorn = {version = ">=0.22.0", extras = ["standard"]}
-watchfiles = ">=0.18.1"
-
-[package.extras]
-highcharts = ["nicegui-highcharts (>=2.0.2,<3.0.0)"]
-matplotlib = ["matplotlib (>=3.5.0,<4.0.0)"]
-native = ["pywebview (>=5.0.1,<6.0.0)"]
-plotly = ["plotly (>=5.13,<7.0)"]
-redis = ["redis (>=4.0.0)"]
-sass = ["libsass (>=0.23.0,<0.24.0)"]
 
 [package.source]
 type = "legacy"
@@ -4037,6 +3899,26 @@ files = [
 [package.extras]
 dev = ["abi3audit", "black (==24.10.0)", "check-manifest", "coverage", "packaging", "pylint", "pyperf", "pypinfo", "pytest", "pytest-cov", "pytest-xdist", "requests", "rstcheck", "ruff", "setuptools", "sphinx", "sphinx-rtd-theme", "toml-sort", "twine", "virtualenv", "vulture", "wheel"]
 test = ["pytest", "pytest-xdist", "setuptools"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
+name = "py-machineid"
+version = "0.8.1"
+description = "Get the unique machine ID of any host (without admin privileges)"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "py-machineid-0.8.1.tar.gz", hash = "sha256:e50416221235c874759e19cb64e8499def12afc2bdffd377bfd68f477f799dc8"},
+    {file = "py_machineid-0.8.1-py3-none-any.whl", hash = "sha256:b8056f4e00c6b14caa60fcbbe3787829399eed5f352ecc428bc778d699347cf3"},
+]
+
+[package.dependencies]
+winregistry = {version = ">=2.0.1,<3.0.0", markers = "sys_platform == \"win32\""}
 
 [package.source]
 type = "legacy"
@@ -4820,31 +4702,6 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
-name = "python-engineio"
-version = "4.12.3"
-description = "Engine.IO server and client for Python"
-optional = false
-python-versions = ">=3.6"
-groups = ["main"]
-files = [
-    {file = "python_engineio-4.12.3-py3-none-any.whl", hash = "sha256:7c099abb2a27ea7ab429c04da86ab2d82698cdd6c52406cb73766fe454feb7e1"},
-    {file = "python_engineio-4.12.3.tar.gz", hash = "sha256:35633e55ec30915e7fc8f7e34ca8d73ee0c080cec8a8cd04faf2d7396f0a7a7a"},
-]
-
-[package.dependencies]
-simple-websocket = ">=0.10.0"
-
-[package.extras]
-asyncio-client = ["aiohttp (>=3.4)"]
-client = ["requests (>=2.21.0)", "websocket-client (>=0.54.0)"]
-docs = ["sphinx"]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
 name = "python-magic"
 version = "0.4.27"
 description = "File type identification using libmagic"
@@ -4872,34 +4729,6 @@ files = [
     {file = "python_multipart-0.0.20-py3-none-any.whl", hash = "sha256:8a62d3a8335e06589fe01f2a3e178cdcc632f3fbe0d492ad9ee0ec35aab1f104"},
     {file = "python_multipart-0.0.20.tar.gz", hash = "sha256:8dd0cab45b8e23064ae09147625994d090fa46f5b0d1e13af944c331a7fa9d13"},
 ]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
-name = "python-socketio"
-version = "5.14.3"
-description = "Socket.IO server and client for Python"
-optional = false
-python-versions = ">=3.8"
-groups = ["main"]
-files = [
-    {file = "python_socketio-5.14.3-py3-none-any.whl", hash = "sha256:a5208c1bbf45a8d6328d01ed67e3fa52ec8b186fd3ea44cfcfcbd120f0c71fbe"},
-    {file = "python_socketio-5.14.3.tar.gz", hash = "sha256:cd8da5e0666e741b4be19e07882e880f57a4751d1645f92c2bc746c95f23b1eb"},
-]
-
-[package.dependencies]
-aiohttp = {version = ">=3.4", optional = true, markers = "extra == \"asyncio-client\""}
-bidict = ">=0.21.0"
-python-engineio = ">=4.11.0"
-
-[package.extras]
-asyncio-client = ["aiohttp (>=3.4)"]
-client = ["requests (>=2.21.0)", "websocket-client (>=0.54.0)"]
-dev = ["tox"]
-docs = ["sphinx"]
 
 [package.source]
 type = "legacy"
@@ -5561,30 +5390,6 @@ files = [
 [package.dependencies]
 colorama = "*"
 coloredlogs = "*"
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
-name = "simple-websocket"
-version = "1.1.0"
-description = "Simple WebSocket server and client for Python"
-optional = false
-python-versions = ">=3.6"
-groups = ["main"]
-files = [
-    {file = "simple_websocket-1.1.0-py3-none-any.whl", hash = "sha256:4af6069630a38ed6c561010f0e11a5bc0d4ca569b36306eb257cd9a192497c8c"},
-    {file = "simple_websocket-1.1.0.tar.gz", hash = "sha256:7939234e7aa067c534abdab3a9ed933ec9ce4691b0713c78acb195560aa52ae4"},
-]
-
-[package.dependencies]
-wsproto = "*"
-
-[package.extras]
-dev = ["flake8", "pytest", "pytest-cov", "tox"]
-docs = ["sphinx"]
 
 [package.source]
 type = "legacy"
@@ -6614,6 +6419,24 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
+name = "winregistry"
+version = "2.1.2"
+description = "A Python library for interacting with the Windows registry"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+markers = "sys_platform == \"win32\""
+files = [
+    {file = "winregistry-2.1.2-py3-none-any.whl", hash = "sha256:e142548f56fc1fc6b83ddf88baca2e9e18cd6a266d9e00f111e54977dee768cf"},
+    {file = "winregistry-2.1.2.tar.gz", hash = "sha256:50260e1aaba4116f707f86a4e287ffcb1eeae7dc0a0883c6d1776017e693fc69"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
 name = "wrapt"
 version = "1.17.2"
 description = "Module for decorators, wrappers and monkey patching."
@@ -6701,26 +6524,6 @@ files = [
     {file = "wrapt-1.17.2-py3-none-any.whl", hash = "sha256:b18f2d1533a71f069c7f82d524a52599053d4c7166e9dd374ae2136b7f40f7c8"},
     {file = "wrapt-1.17.2.tar.gz", hash = "sha256:41388e9d4d1522446fe79d3213196bd9e3b301a336965b9e27ca2788ebd122f3"},
 ]
-
-[package.source]
-type = "legacy"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-reference = "tsinghua"
-
-[[package]]
-name = "wsproto"
-version = "1.2.0"
-description = "WebSockets state-machine based protocol implementation"
-optional = false
-python-versions = ">=3.7.0"
-groups = ["main"]
-files = [
-    {file = "wsproto-1.2.0-py3-none-any.whl", hash = "sha256:b9acddd652b585d75b20477888c56642fdade28bdfd3579aa24a4d2c037dd736"},
-    {file = "wsproto-1.2.0.tar.gz", hash = "sha256:ad565f26ecb92588a3e43bc3d96164de84cd9902482b130d0ddbaa9664a85065"},
-]
-
-[package.dependencies]
-h11 = ">=0.9.0,<1"
 
 [package.source]
 type = "legacy"
@@ -6917,4 +6720,4 @@ reference = "tsinghua"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<3.10"
-content-hash = "26475591a9e8f13d8f28096b8306f44435f467640d585f7c0990ae9277e8f50c"
+content-hash = "5edde63ddab9e9a712d6ca53e4c56f43e7bf9eca372f6afc1d2c8407e6b2ced8"

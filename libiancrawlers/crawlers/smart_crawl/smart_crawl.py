@@ -11,6 +11,7 @@ import tempfile
 
 import aiofiles.os
 import aiofiles.ospath
+from kazoo.client import KazooClient
 from loguru import logger
 
 from libiancrawlers.app_util.gui_util import gui_confirm
@@ -62,6 +63,9 @@ async def smart_crawl_v1(*,
                          screen_max_width: Optional[int] = None,
                          screen_min_height: Optional[int] = None,
                          screen_min_width: Optional[int] = None,
+                         zookeeper_hosts: Optional[str] = None,
+                         zookeeper_wait_connect_time: int = 15,
+                         max_time_browser_to_quit: Optional[int] = None,
                          **__kwargs,
                          ):
     if __kwargs.keys().__len__() > 0:
@@ -71,6 +75,22 @@ async def smart_crawl_v1(*,
     base_dir = None
     _param_json = json.dumps(locals(), ensure_ascii=False, indent=save_file_json_indent)
 
+    if zookeeper_hosts:
+        zk: Optional[KazooClient] = KazooClient(hosts=zookeeper_hosts)
+        zk.start_async()
+
+        async def not_connected():
+            if not zk.connected:
+                logger.debug('wait zk connecting ...')
+            else:
+                logger.debug('zk connected !')
+            return not zk.connected
+
+        if await sleep(zookeeper_wait_connect_time, interval=1, checker=not_connected):
+            raise ValueError(f'Zookeeper not connected in {zookeeper_wait_connect_time}s')
+        logger.debug('zookeeper connect success')
+    else:
+        zk: Optional[KazooClient] = None
     if screen_min_width is None:
         # 窄屏真的影响爬虫
         screen_min_width = 1200
@@ -129,6 +149,7 @@ async def smart_crawl_v1(*,
     }
     _devtool_status_lock = locks.Lock()
 
+    _start_at = datetime.datetime.now()
     try:
         if is_insert_to_db:
             logger.debug('start init postgres')
@@ -446,6 +467,13 @@ async def smart_crawl_v1(*,
             if not (isinstance(_steps, tuple) or isinstance(_steps, list) or isinstance(_steps, set)):
                 _steps = [_steps]
             for _step in _steps:
+                if max_time_browser_to_quit is not None and max_time_browser_to_quit > 0:
+                    _now = datetime.datetime.now()
+                    if _now.timestamp() - _start_at.timestamp() > max_time_browser_to_quit:
+                        logger.warning(
+                            'Timeout of max_time_browser_to_quit\n        _start_at  :  {}\n        max_time_browser_to_quit  :  {}',
+                            _start_at, max_time_browser_to_quit)
+                        raise SmartCrawlStopSignal()
                 if await _check_devtool() == 'stop':
                     raise SmartCrawlStopSignal()
                 _all_steps_run.append(json.loads(json.dumps(_step, ensure_ascii=False)))
