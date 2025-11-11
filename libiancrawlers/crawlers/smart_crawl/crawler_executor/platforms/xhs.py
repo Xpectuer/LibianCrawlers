@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+import urllib.parse
 from typing import List
 
 from libiancrawlers.crawlers.smart_crawl.crawler_executor import CrawlerExecutor, SearchKeywordTaskData, SearchOption
@@ -19,7 +20,7 @@ class XhsCrawlerExecutor(_BrowserSearchCrawlerExecutor, _SearchByShellRunCrawler
     def get_cmds_on_search(self, *, option: SearchOption) -> List[CmdMulti]:
         max_time_browser_to_quit = option['task_data'].get('max_time_browser_to_quit')
         if max_time_browser_to_quit is None or max_time_browser_to_quit < 0:
-            max_time_browser_to_quit = 4 * 60 * 60  # 4h auto quit default
+            max_time_browser_to_quit = 2 * 60 * 60  # 2h auto quit default
         bddid = option['run_task_option']['bddid']
         if bddid is None:
             raise ValueError('bddid is None')
@@ -33,9 +34,11 @@ class XhsCrawlerExecutor(_BrowserSearchCrawlerExecutor, _SearchByShellRunCrawler
                     '--url', 'https://xiaohongshu.com/',
                     '--locale', 'zh-CN',
                     '--dump_page_ignore_names', 'script,svg',
-                    '--steps', f'jsonfile:steps/xiaohongshu-search.json?q={option["task_data"]["keyword"]}',
+                    '--steps',
+                    f'jsonfile:steps/xiaohongshu-search.json?q={urllib.parse.quote(option["task_data"]["keyword"], encoding="utf-8")}',
                     '--browser_data_dir_id', bddid,
-                    '--screen_min_width', '1000',
+                    '--screen_min_width', '1500',
+                    '--screen_max_width', '2200',
                     '--mode', option['save_data_mode'],
                     '--zookeeper_hosts', option['zookeeper_hosts'],
                     *(['--max_time_browser_to_quit', str(max_time_browser_to_quit)]

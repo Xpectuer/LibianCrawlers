@@ -435,11 +435,11 @@ def smart_crawl_compose(*,
                         worker_max_thread: Optional[int] = None,
                         worker_platform_to_bddid: Optional[FireCmdArgInput] = None,
                         worker_bddid_to_acid: Optional[FireCmdArgInput] = None,
-                        # **kwargs,
+                        **kwargs,
                         ):
     _cmd_arg = json.loads(json.dumps(locals(), ensure_ascii=False))
-    # if len(kwargs.keys()) > 0:
-    #     raise ValueError(f'unknown kwargs , please use --help argument , kwargs is {kwargs}')
+    if len(kwargs.keys()) > 0:
+        raise ValueError(f'unknown kwargs , please use --help argument , kwargs is {kwargs}')
     executors = get_all_crawler_executors()
     for executor in executors:
         executor.mount_worker_bddid_and_acid(

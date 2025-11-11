@@ -9,5 +9,5 @@ poetry run smart-crawl-compose  --worker --zookeeper_hosts "127.0.0.1:2181" --wo
 ## 提交关键字搜索任务
 
 ```shell
-poetry run smart-crawl-compose --zookeeper_hosts "127.0.0.1:2181" --search_keywords "丸子头,狼尾发型"
+poetry run smart-crawl-compose --zookeeper_hosts "127.0.0.1:2181" --search_keywords "丸子头,狼尾发型" --platforms_include xhs
 ```
